@@ -451,8 +451,8 @@ sub lsignored () {
 		if ( -e $ignore_file_loc ) {
 
 			# file age in days
-			my $fileage = -M $ignore_file_loc;
-			my $epochseconds   = time() - int( 24 * 60 * 60 * $fileage );
+			my $fileage      = -M $ignore_file_loc;
+			my $epochseconds = time() - int( 24 * 60 * 60 * $fileage );
 			my ( $day, $month, $year ) = ( localtime($epochseconds) )[ 3, 4, 5 ];
 			my $date_ignored = sprintf( "%04d-%02d-%02d", $year + 1900, $month + 1, $day );
 			push @list, "$date_ignored\t$stg\n";
@@ -653,16 +653,16 @@ sub lsignore_mode () {
 			no strict;
 			my ( %envelope, $adminmailbody, $adminsubject );
 			%envelope = (
-				"-f"      => $_fromadress,                                           # FROM:
-				"-server" => $_smtpserver,                                           # specify the SMTP server to use
-				"-q"      => " ",                                                    # silent operation
-				"-debug"  => " ",                                                    # run Blat with debuging output
-				"-log"    => "\"$0.blat.log\"",                                      # dump screen output to a file instead.
+				"-f"      => $_fromadress,         # FROM:
+				"-server" => $_smtpserver,         # specify the SMTP server to use
+				"-q"      => " ",                  # silent operation
+				"-debug"  => " ",                  # run Blat with debuging output
+				"-log"    => "\"$0.blat.log\"",    # dump screen output to a file instead.
 			);
 
-			$envelope{'-to'}      = $_fromadress;                                    # TO:
-			$envelope{'-subject'} = "\"$_adminsubj\"";                               # SUBJECT:
-			$adminmailbody        = $_adminnotifyignored;
+			$envelope{'-to'}      = $_fromadress;                  # TO:
+			$envelope{'-subject'} = "\"$_adminnotifyignored\"";    # SUBJECT:
+			$adminmailbody        = $_notifyignored;
 			$adminmailbody =~ s/===IGNOREDVIEWS===/@ignored/g;
 			sendthemail( $adminmailbody, %envelope );
 		}
