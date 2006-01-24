@@ -9,7 +9,7 @@ use vars qw($VERSION);
 # File version
 my $major = 0;
 my $minor = 1;
-my $build = 9;
+my $build = 10;
 
 die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
@@ -215,7 +215,8 @@ Returns undef if the are problems - else it returns that host name.
 	unless ( defined $self->{ReplicaHost} ) {
 
 		my $reply;
-        # Are we at the replica master site ?
+
+		# Are we at the replica master site ?
 		if ( $self->{MasterReplica} eq $self->{ReplicaName} ) {
 			$self->{ReplicaHost} = hostfqdn();    #  from Net::Domain
 		}
@@ -261,19 +262,18 @@ lost+found, but for for instance label types they is no way back.
 
 	unless ( defined $self->{Removed} ) {
 		my $reply = qx(cleartool rmtype -force -rmall -c " removed by Troja webservice, on request by $byuser" $self->{InitiallyCreatedWith} 2>&1 );
-
+		chomp $reply;
+		$self->{Removed} = $reply;
 		if ($?) {
-			$::log->error("Unable remove type [$self->{InitiallyCreatedWith}]\n");
-			$::log->error("The reply from CC was $reply\n");
-			return undef;
+			$::log->error("Unable remove type [$self->{InitiallyCreatedWith}]");
+			$::log->error("The reply from CC was $self->{Removed}");
 		}
 		else {
-			chomp $reply;
-			$self->{Removed} = $reply;
+			$::log->information("$self->{Removed}");
 		}
 	}
 
-	return $self->{Locked};
+	return $self->{Removed};
 }
 
 sub locktype ($) {
@@ -297,15 +297,15 @@ Returns undef
 
 	unless ( defined $self->{Locked} ) {
 		my $reply = qx(cleartool lock -c "Locked by $byuser" $self->{InitiallyCreatedWith} 2>&1 );
+		chomp $reply;
+		$self->{Locked} = $reply;
 
 		if ($?) {
-			$::log->error("Unable to lock type [$self->{InitiallyCreatedWith}]\n");
-			$::log->error("The reply from CC was $reply\n");
-			return undef;
+			$::log->error("Unable to lock type [$self->{InitiallyCreatedWith}]");
+			$::log->error("The reply from CC was $self->{Locked}");
 		}
 		else {
-			chomp $reply;
-			$self->{Locked} = qx(cleartool des -fmt %[locked]p $self->{InitiallyCreatedWith} );
+			$::log->information("$self->{Locked}");
 		}
 	}
 
