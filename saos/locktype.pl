@@ -231,6 +231,11 @@ sub initialize {
 	# Run only in either query or execute mode
 	if ( defined($sw_query) || defined($sw_lock) ) {
 
+        if ( defined($sw_lock) && defined($sw_query)) {
+            $msg = "Fail: -lock and -query are mutually exclusive";
+            $log->assertion_failed("$msg");
+        }
+
 		if ( !defined($sw_object) ) {
 			$msg = "Fail: Object must be specified, i.e. mybranch\@\\vobtag";
 			$log->assertion_failed("$msg");

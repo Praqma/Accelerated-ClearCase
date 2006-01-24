@@ -73,7 +73,6 @@ use scriptlog;
 use trojaclear 0.1007;
 
 use Getopt::Long;
-use Time::Local;
 
 # File version
 my $major = 0;
@@ -182,16 +181,18 @@ sub removeobject {
 
 	if ( $clearobj->get_creationdate() ) {
 
-		my $timenow = time();    # current time
+		my $timenow = time();    # current time in epoch
 		$epoch_created = $clearobj->{ObjectCreatedInEpoch};
 		my $epoch_elapsed = $timenow - $epoch_created;
-		$log->information( "$clearobj->{QualifedName} is " . sprintf( "%02d:%02d", ( localtime($epoch_elapsed) )[ 2, 1 ] ) . " hours old" );
+		my ( $sec, $min, $hh, $day, $mon, $year ) = gmtime($epoch_created);
+		my $created = sprintf( "%04d%02d%02d.%02d%02d%02d", $year + 1900, $mon + 1, $day, $hh, $min, $sec );
+		$log->information("$clearobj->{QualifedName} was created $created ");
 		if ( $maxseconds > $epoch_elapsed ) {
-			$log->information("which is less less than $sw_max_age hours, will remove now");
+			$log->information("which is less than $sw_max_age hours ago, will remove now");
 			$clearobj->removetype($sw_byuser);
 		}
 		else {
-			$log->warning("$clearobj->{QualifedName} is too old for removal by this tool\n");
+			$log->warning("so $clearobj->{QualifedName} is too old for removal by this tool");
 		}
 
 	}
@@ -203,8 +204,8 @@ sub queryobject {
 	# querymode
 
 	my @needed = ( 'QualifedName', 'ReplicaHost', 'MasterReplica' );
-	$clearobj->get_masterreplica();    # update the property $clearobj->{MasterReplica}
-	$clearobj->get_replicahost();      # update the property $clearobj->{ReplicaHost}
+	$clearobj->get_masterreplica();                                                               # update the property $clearobj->{MasterReplica}
+	$clearobj->get_replicahost();                                                                 # update the property $clearobj->{ReplicaHost}
 
 	#Return values is they are the needed ones
 
@@ -252,6 +253,11 @@ sub initialize {
 
 	# Run only in either query or execute mode
 	if ( defined($sw_query) || defined($sw_remove) ) {
+
+		if ( defined($sw_remove) && defined($sw_query) ) {
+			$msg = "Fail: -remove and -query are mutually exclusive";
+			$log->assertion_failed("$msg");
+		}
 
 		unless ( defined($sw_object) ) {
 			$msg = "Fail: Object must be specified, i.e. mybranch\@\\vobtag";
