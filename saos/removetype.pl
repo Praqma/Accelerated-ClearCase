@@ -51,14 +51,14 @@ Visit http://www.praqma.net to get help.
 our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
- if ( $0 =~ /(.*[\/\\])(.*)$/ ) {
-  $Scriptdir  = $1;
-  $Scriptfile = $2;
- }
- else {
-  $Scriptdir  = "";
-  $Scriptfile = $0;
- }
+	if ( $0 =~ /(.*[\/\\])(.*)$/ ) {
+		$Scriptdir  = $1;
+		$Scriptfile = $2;
+	}
+	else {
+		$Scriptdir  = "";
+		$Scriptfile = $0;
+	}
 }
 
 # Use clauses
@@ -73,12 +73,11 @@ use scriptlog;
 use trojaclear 0.1007;
 
 use Getopt::Long;
-use Time::Local;
 
 # File version
 my $major = 0;
 my $minor = 1;
-my $build = 5;
+my $build = 6;
 
 die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
@@ -102,6 +101,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR  NOTE
 ----------  -------------  ----------------------------------------------
+2011-09-15  Jens Brejner   Always exit with non-zero, unless success
 2010-03-24  Jens Brejner   1st release prepared, supports brtype and lbtype
 ----------  -------------  ----------------------------------------------
 ENDREVISION
@@ -140,16 +140,6 @@ Switch        Usage
 
 
 ENDDOC
-
-my $diemsg = "This script should not be used without serious consideration\n\n";
-$diemsg = $diemsg . "The reason is that removal of types could cause a lot of \n";
-$diemsg = $diemsg . "undesired results. If for instance you remove a branch type \n";
-$diemsg = $diemsg . "then any version which are on branches created from the type \n";
-$diemsg = $diemsg . "will end up in lost+found - at the best. \n";
-$diemsg = $diemsg . "The reason is that removal of types could cause a lot of \n";
-
-#	die "$diemsg";
-
 #########################    Define variables    #########################
 # global variables
 our $log = scriptlog->new;
@@ -159,22 +149,22 @@ my $clearobj;
 my ( $sw_help, $sw_verbose, $sw_query, $sw_remove, $sw_logfile, $sw_object, $sw_byuser, $sw_max_age );
 
 my %options = (
- "help"      => \$sw_help,       # Request help
- "query!"    => \$sw_query,      # Query mode
- "remove!"   => \$sw_remove,     # Remove type mode
- "logfile=s" => \$sw_logfile,    # Your optional logfile
- "object=s"  => \$sw_object,     # object to work on i.e. brtype:mybranch@\vobtag
- "by_user=s" => \$sw_byuser,     # the user that requests the locking of the object
- "max_age=i" => \$sw_max_age,    # Integer, maximum object age in hours 
- "verbose!"  => \$sw_verbose     # verbose output 
-	
+	"help"      => \$sw_help,       # Request help
+	"query!"    => \$sw_query,      # Query mode
+	"remove!"   => \$sw_remove,     # Remove type mode
+	"logfile=s" => \$sw_logfile,    # Your optional logfile
+	"object=s"  => \$sw_object,     # object to work on i.e. brtype:mybranch@\vobtag
+	"by_user=s" => \$sw_byuser,     # the user that requests the locking of the object
+	"max_age=i" => \$sw_max_age,    # Integer, maximum object age in hours
+	"verbose!"  => \$sw_verbose     # verbose output
+
 );
 
 #########################    MAIN    #########################
 
 initialize();
 conditionalexit();
-$log->error("Couldn't create ClearObject\n") unless $clearobj = trojaclear->new( \$sw_object );
+$log->error("Couldn't create ClearObject") unless $clearobj = trojaclear->new( \$sw_object );
 conditionalexit();
 queryobject()  if ($sw_query);
 removeobject() if ($sw_remove);
@@ -184,116 +174,122 @@ exit $log->get_accumulated_errorlevel;
 
 sub removeobject {
 
- my ( $epoch_created, $maxseconds );
+	my ( $epoch_created, $maxseconds );
 
- # $sw_max_age is in hours, find number of seconds
- $maxseconds = $sw_max_age * 60 * 60;
+	# $sw_max_age is in hours, find number of seconds
+	$maxseconds = $sw_max_age * 60 * 60;
 
- if ( $clearobj->get_creationdate() ) {
+	if ( $clearobj->get_creationdate() ) {
 
-  my $timenow = time();    # current time
-  $epoch_created = $clearobj->{ObjectCreatedInEpoch};
-  my $epoch_elapsed = $timenow - $epoch_created;
-  if ( $maxseconds > $epoch_elapsed ) {
-   $log->information( "$clearobj->{QualifedName} is " . sprintf ("%02d:%02d", (localtime($epoch_elapsed))[2,1]) . " hours old\n" );
-   $log->information("so $clearobj->{QualifedName} can be removed, attempting now...\n");
-   $log->information( $clearobj->{Removed} ) if ( $clearobj->removetype($sw_byuser) );
-  }
-  else {
-   $log->warning("$clearobj->{QualifedName} is too old for removal by this tool\n");
-  }
+		my $timenow = time();    # current time in epoch
+		$epoch_created = $clearobj->{ObjectCreatedInEpoch};
+		my $epoch_elapsed = $timenow - $epoch_created;
+		my ( $sec, $min, $hh, $day, $mon, $year ) = gmtime($epoch_created);
+		my $created = sprintf( "%04d%02d%02d.%02d%02d%02d", $year + 1900, $mon + 1, $day, $hh, $min, $sec );
+		$log->information("$clearobj->{QualifedName} was created $created ");
+		if ( $maxseconds > $epoch_elapsed ) {
+			$log->information("which is less than $sw_max_age hours ago, will remove now");
+			$clearobj->removetype($sw_byuser);
+		}
+		else {
+			$log->warning("so $clearobj->{QualifedName} is too old for removal by this tool");
+		}
 
- }
+	}
 
 }
 
 sub queryobject {
 
- # querymode
+	# querymode
 
- my @needed = ( 'QualifedName', 'ReplicaHost', 'MasterReplica' );
- $clearobj->get_masterreplica();    # update the property $clearobj->{MasterReplica}
- $clearobj->get_replicahost();      # update the property $clearobj->{ReplicaHost}
+	my @needed = ( 'QualifedName', 'ReplicaHost', 'MasterReplica' );
+	$clearobj->get_masterreplica();                                                               # update the property $clearobj->{MasterReplica}
+	$clearobj->get_replicahost();                                                                 # update the property $clearobj->{ReplicaHost}
 
- #Return values is they are the needed ones
+	#Return values is they are the needed ones
 
- foreach (@needed) {
-  unless ( defined $clearobj->{$_} ) {
-   $log->error("Required property $_ wasn't found defined, quitting\n");
-   last;
-  }
-  $log->information("$_=$clearobj->{$_}\n");
- }
+	foreach (@needed) {
+		unless ( defined $clearobj->{$_} ) {
+			$log->error("Required property $_ wasn't found defined, quitting");
+			last;
+		}
+		$log->information("$_=$clearobj->{$_}");
+	}
 
 }
 
 sub conditionalexit {
 
- # Set exit code if errors or warnings, and exit with that
+	# Set exit code if errors or warnings, and exit with that
 
- my $status = $log->get_accumulated_errorlevel();
- if ($status) {
-  exit $status;
- }
+	my $status = $log->get_accumulated_errorlevel();
+	if ( $status gt 0 ) {
+		exit $status;
+	}
 
 }
 
 sub initialize {
- my $msg;
+	my $msg;
 
- # Initialize and validate operation environment.
+	# Initialize and validate operation environment.
 
- die "\n$header\n\n$usage" unless GetOptions(%options);
+	die "\n$header\n\n$usage" unless GetOptions(%options);
 
- # Ensure consistent time formatting, see IBM Tech note 1249021
- $ENV{'CCASE_ISO_DATE_FMT'} = "1";
+	# Ensure consistent time formatting, see IBM Tech note 1249021
+	$ENV{'CCASE_ISO_DATE_FMT'} = "1";
 
- # early out if help
- defined($sw_help) && do { print $header. $revision . $usage . $doc; exit 0; };
+	# early out if help
+	defined($sw_help) && do { print $header. $revision . $usage . $doc; exit 0; };
 
- $sw_logfile && $log->set_logfile($sw_logfile);
+	$sw_logfile && $log->set_logfile($sw_logfile);
 
- # log enable
- $log->enable(1);
+	# log enable
+	$log->enable(1);
 
- # verbose logging
- $log->set_verbose(1);
+	# verbose logging
+	$log->set_verbose(1);
 
- # Run only in either query or execute mode
- if ( defined($sw_query) || defined($sw_remove) ) {
+	# Run only in either query or execute mode
+	if ( defined($sw_query) || defined($sw_remove) ) {
 
-  unless ( defined($sw_object) ) {
-   $msg = "Fail: Object must be specified, i.e. mybranch\@\\vobtag.\n";
-   $log->assertion_failed("$msg");
-  }
+		if ( defined($sw_remove) && defined($sw_query) ) {
+			$msg = "Fail: -remove and -query are mutually exclusive";
+			$log->assertion_failed("$msg");
+		}
 
-  unless ( $sw_object =~ /@/ ) {    # object must contain vob identifier
-   $msg = "Fail: Object '$sw_object' does not seem to include a vobtag\n";
-   $log->assertion_failed("$msg");
-  }
+		unless ( defined($sw_object) ) {
+			$msg = "Fail: Object must be specified, i.e. mybranch\@\\vobtag";
+			$log->assertion_failed("$msg");
+		}
 
-  if ( defined($sw_remove) ) {
+		unless ( $sw_object =~ /@/ ) {    # object must contain vob identifier
+			$msg = "Fail: Object '$sw_object' does not seem to include a vobtag";
+			$log->assertion_failed("$msg");
+		}
 
-   # some switches are required in remove mode
-   unless ( defined($sw_byuser) ) {
-    $msg = "Fail: Missing -by_user value, while attempting to remove object\n";
-    $log->assertion_failed("$msg");
-   }
-   unless ( defined($sw_max_age) ) {
-    $msg = "Fail: Missing -max_age value, while attempting to remove object\n";
-    $log->assertion_failed("$msg");
-   }
+		if ( defined($sw_remove) ) {
 
-  }
-  return;
- }
- else {
-  $log->assertion_failed("$usage Must either -remove or -query\n");
-  return;
- }
+			# some switches are required in remove mode
+			unless ( defined($sw_byuser) ) {
+				$msg = "Fail: Missing -by_user value, while attempting to remove object";
+				$log->assertion_failed("$msg");
+			}
+			unless ( $sw_max_age > 0 ) {
+				$msg = "Fail: Invalid -max_age value, while attempting to remove object";
+				$log->assertion_failed("$msg");
+			}
 
- # We should not have made it this far (neither return due to query or execute so let's quit
- $log->error("Error in usage ?\n$usage $doc\n");
+		}
+		return;
+	}
+	else {
+		$log->assertion_failed("$usage Must either -remove or -query");
+	}
+
+	# We should not have made it this far (neither return due to query or execute so let's quit
+	$log->error("Error in usage ?\n$usage $doc");
 
 }    # End sub initialize
 

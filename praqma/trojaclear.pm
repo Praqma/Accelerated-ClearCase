@@ -9,7 +9,7 @@ use vars qw($VERSION);
 # File version
 my $major = 0;
 my $minor = 1;
-my $build = 9;
+my $build = 10;
 
 die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
@@ -106,11 +106,11 @@ undef if not.
 	# Save identifier part of the $$obj, i.e. "brtype:"
 	( my $ident = $self->{InitiallyCreatedWith} ) =~ s/(.*:).*/$1/;
 
-	# Check test that object is qualified with one of the values from %fqt
+	# Check that object is qualified with one of the values from %fqt
 	if ( grep { /$ident/ } values %fqt ) {
 		$self->{QualifedName} = $self->{InitiallyCreatedWith};    # Ensure Qualified name
 		$self->{NAME}         = $self->{QualifedName};
-		$::log->information("Object $self->{InitiallyCreatedWith} is accepted, we have an object\n");
+		$::log->information("Object $self->{InitiallyCreatedWith} is accepted, we have an object");
 		return $self;                                             # And give it back
 	}
 	else {
@@ -138,14 +138,9 @@ Returns undef if the are problems - else it returns that replica name.
 	my $self = shift;
 	unless ( defined $self->{MasterReplica} ) {
 		my $reply = qx(cleartool des -fmt %[master]p $self->{QualifedName} 2>&1 );
-
+		$self->{MasterReplica} = "replica:$reply";
 		if ($?) {
-			$::log->error("Unable to determine master replica for object [$self->{QualifedName}]\n");
-			$::log->error("The reply from CC was $reply\n");
-			return undef;
-		}
-		else {
-			$self->{MasterReplica} = "replica:$reply";
+			$::log->assertion_failed("Failed to get Master replica for object [$self->{QualifedName}]:\n$reply");
 		}
 	}
 
@@ -174,14 +169,9 @@ Returns undef if the are problems - else it returns that replica name.
 
 		( my $vobtag = $self->{QualifedName} ) =~ s/(\S+@)(\S+)$/$2/;    #isolate vobtag
 		my $reply = qx(cleartool des -fmt %[replica_name]p vob:$vobtag 2>&1 );
-
+        $self->{ReplicaName} = "replica:$reply\@$vobtag";
 		if ($?) {
-			$::log->error("Unable to determine replica name for vob [$vobtag]\n");
-			$::log->error("The reply from CC was $reply\n");
-			return undef;
-		}
-		else {
-			$self->{ReplicaName} = "replica:$reply\@$vobtag";
+			$::log->assertion_failed("Unable to determine replica name for vob [$vobtag];\n$reply");
 		}
 	}
 
@@ -214,22 +204,20 @@ Returns undef if the are problems - else it returns that host name.
 
 	unless ( defined $self->{ReplicaHost} ) {
 
-		my $reply;
-        # Are we at the replica master site ?
+		# Are we at the replica master site ?
 		if ( $self->{MasterReplica} eq $self->{ReplicaName} ) {
 			$self->{ReplicaHost} = hostfqdn();    #  from Net::Domain
+			$::log->information("Mastership is local to current site");
 		}
 		else {
 
 			# or are we not ?
-			$reply = qx(cleartool des -fmt %[replica_host]p $self->{MasterReplica} 2>&1 );
+			my $reply = qx(cleartool des -fmt %[replica_host]p $self->{MasterReplica} 2>&1 );
+			chomp $reply;
 			if ($?) {
-				$::log->error("Unable to determine the host for replica [$self->{MasterReplica}]\n");
-				$::log->error("The reply was $reply\n");
-				$self->{ReplicaHost} = undef;
+				$::log->assertion_failed("Unable to determine the host for replica [$self->{MasterReplica}];\n$reply");
 			}
 			else {
-				chomp $reply;
 				$self->{ReplicaHost} = $reply;
 			}
 		}
@@ -250,10 +238,6 @@ If you are removing a branch type object, and it has been used for branching of 
 element, any version of that branch are removed as well. For versions they end up in
 lost+found, but for for instance label types they is no way back.
 
-
-
-
-
 =cut
 
 	my $self   = shift;
@@ -261,19 +245,15 @@ lost+found, but for for instance label types they is no way back.
 
 	unless ( defined $self->{Removed} ) {
 		my $reply = qx(cleartool rmtype -force -rmall -c " removed by Troja webservice, on request by $byuser" $self->{InitiallyCreatedWith} 2>&1 );
-
+		chomp $reply;
+		$self->{Removed} = $reply;
 		if ($?) {
-			$::log->error("Unable remove type [$self->{InitiallyCreatedWith}]\n");
-			$::log->error("The reply from CC was $reply\n");
-			return undef;
+			$::log->assertion_failed("Unable remove type [$self->{InitiallyCreatedWith}];\n$reply");
 		}
-		else {
-			chomp $reply;
-			$self->{Removed} = $reply;
-		}
-	}
+    	$::log->information("$self->{Removed}");
+    }
 
-	return $self->{Locked};
+	return $self->{Removed};
 }
 
 sub locktype ($) {
@@ -297,18 +277,14 @@ Returns undef
 
 	unless ( defined $self->{Locked} ) {
 		my $reply = qx(cleartool lock -c "Locked by $byuser" $self->{InitiallyCreatedWith} 2>&1 );
+		chomp $reply;
+		$self->{Locked} = $reply;
 
 		if ($?) {
-			$::log->error("Unable to lock type [$self->{InitiallyCreatedWith}]\n");
-			$::log->error("The reply from CC was $reply\n");
-			return undef;
+			$::log->assertion_failed("Unable to lock type [$self->{InitiallyCreatedWith}];\n$reply");
 		}
-		else {
-			chomp $reply;
-			$self->{Locked} = qx(cleartool des -fmt %[locked]p $self->{InitiallyCreatedWith} );
-		}
+		$::log->information("$self->{Locked}");
 	}
-
 	return $self->{Locked};
 }
 
@@ -332,22 +308,15 @@ Returns undef if we can not determine the creation time.
 	unless ( defined $self->{ObjectCreatedInEpoch} ) {
 		$ENV{'CCASE_ISO_DATE_FMT'} = "1";
 		my $reply = qx(cleartool des -fmt %Nd $self->{QualifedName} 2>&1 );
-
 		if ($?) {
-			$::log->error("Unable to determine creation date for [$self->{QualifedName}]\n");
-			$::log->error("The reply from CC was $reply\n");
-			return undef;
+			$::log->assertion_failed("Failed to get object creation data for [$self->{QualifedName}];\n$reply");
 		}
 		else {
-			$::log->information("$self->{QualifedName} was created $reply\n");
-
 			# The next couple of conversions are not too pretty, but it works
 			my ( $year, $month, $date, $hour, $minute, $second ) = ( $reply =~ /^(\d{4})(\d{2})(\d{2})\.(\d{2})(\d{2})(\d{2})/ );
-
 			# make array, while removing leading zeroes, and remap year and month to values that are consistent with perl's time functions
 			my @epoch_creat = split /,/, sprintf( "%d,%d,%d,%d,%d,%d", $second, $minute, $hour, $date, $month - 1, $year - 1900 );
-			my $epoch_created = timelocal(@epoch_creat);
-
+			my $epoch_created = timegm(@epoch_creat);
 			$self->{ObjectCreatedInEpoch} = $epoch_created;
 		}
 	}
