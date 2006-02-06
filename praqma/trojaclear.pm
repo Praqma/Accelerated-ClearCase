@@ -110,12 +110,19 @@ undef if not.
 	if ( grep { /$ident/ } values %fqt ) {
 		$self->{QualifedName} = $self->{InitiallyCreatedWith};    # Ensure Qualified name
 		$self->{NAME}         = $self->{QualifedName};
-		$::log->information("Object $self->{InitiallyCreatedWith} is accepted, we have an object");
-		return $self;                                             # And give it back
+		$::log->information("Object $self->{InitiallyCreatedWith} is accepted, Looks like an object");
 	}
 	else {
-		return undef;                                             #
+		return undef;
 	}
+
+	# Try if ClearCase recognizes object
+	my $reply = qx(cleartool des $self->{QualifedName} 2>&1 );
+	if ($?) {
+		$::log->error("ClearCase doesn't seem to recognize $self->{InitiallyCreatedWith} ? Spelling error ?");
+		return undef;
+	}
+	return $self;
 }
 
 sub get_masterreplica {
@@ -140,7 +147,6 @@ Returns undef if the are problems - else it returns that replica name.
 		my $reply = qx(cleartool des -fmt %[master]p $self->{QualifedName} 2>&1 );
 		$self->{MasterReplica} = "replica:$reply";
 		if ($?) {
-			$::log->information("Failed to get Master replica for object [$self->{QualifedName}]:\n$reply") if ( $VERSION eq 0.1012 );
 			$::log->assertion_failed("Failed to get Master replica for object [$self->{QualifedName}]:\n$reply");
 		}
 	}
@@ -172,7 +178,6 @@ Returns undef if the are problems - else it returns that replica name.
 		my $reply = qx(cleartool des -fmt %[replica_name]p vob:$vobtag 2>&1 );
 		$self->{ReplicaName} = "replica:$reply\@$vobtag";
 		if ($?) {
-			$::log->information("Unable to determine replica name for vob [$vobtag];\n$reply") if ( $VERSION eq 0.1012 );
 			$::log->assertion_failed("Unable to determine replica name for vob [$vobtag];\n$reply");
 		}
 	}
@@ -224,7 +229,6 @@ Returns undef if the are problems - else it returns that host name.
 			$::log->assertion_failed("Mastership is not local");
 
 			if ($?) {
-				$::log->information("Unable to determine the host for replica [$self->{MasterReplica}];\n$reply") if ( $VERSION eq 0.1012 );
 				$::log->assertion_failed("Unable to determine the host for replica [$self->{MasterReplica}];\n$reply");
 			}
 			else {
@@ -258,7 +262,6 @@ lost+found, but for for instance label types they is no way back.
 		chomp $reply;
 		$self->{Removed} = $reply;
 		if ($?) {
-			$::log->information("Unable remove type [$self->{InitiallyCreatedWith}];\n$reply") if ( $VERSION eq 0.1012 );
 			$::log->assertion_failed("Unable remove type [$self->{InitiallyCreatedWith}];\n$reply");
 		}
 		$::log->information("$self->{Removed}");
@@ -292,7 +295,6 @@ Returns undef
 		$self->{Locked} = $reply;
 
 		if ($?) {
-			$::log->information("Unable to lock type [$self->{InitiallyCreatedWith}];\n$reply") if ( $VERSION eq 0.1012 );
 			$::log->assertion_failed("Unable to lock type [$self->{InitiallyCreatedWith}];\n$reply");
 		}
 		$::log->information("$self->{Locked}");
@@ -321,7 +323,6 @@ Returns undef if we can not determine the creation time.
 		$ENV{'CCASE_ISO_DATE_FMT'} = "1";
 		my $reply = qx(cleartool des -fmt %Nd $self->{QualifedName} 2>&1 );
 		if ($?) {
-			$::log->information("Failed to get object creation data for [$self->{QualifedName}];\n$reply") if ( $VERSION eq 0.1012 );
 			$::log->assertion_failed("Failed to get object creation data for [$self->{QualifedName}];\n$reply");
 		}
 		else {
