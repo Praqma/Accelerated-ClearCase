@@ -82,8 +82,10 @@ sub set_verbose() {
 	my $self = shift;
 	$Verbose = shift;    # boolean
 	$Verbose && return;
-	if (   defined( $ENV{SCRIPTLOG_VERBOSE} )
-		|| defined( $ENV{CLEARCASE_TRIGGER_VERBOSE} ) )
+	if (
+		defined( $ENV{SCRIPTLOG_VERBOSE} )
+		|| defined( $ENV{CLEARCASE_TRIGGER_VERBOSE} )
+	  )
 	{
 		$Verbose = 1;
 	}
@@ -91,7 +93,7 @@ sub set_verbose() {
 
 sub set_logfile() {
 	my $self = shift;
-	$Logfile = shift;    # valid path+file
+	$Logfile = shift;                         # valid path+file
 }
 
 ####### Methods #############
@@ -126,6 +128,10 @@ sub information() {
 		my $prefix = $self->timestamp . " [I]:\t";
 		$Enabled && print LOGFILE $prefix . indent_msg($msg);
 		$Verbose && print STDOUT "$msg\n";
+		if ( defined $::HeCantMerge ) {
+			print STDERR "$msg\n";
+		}
+
 		$Info_count++;
 		return $Verbose;
 	  }
@@ -137,6 +143,10 @@ sub information_always() {
 	my $prefix = $self->timestamp . " [I]:\t";
 	$Enabled && print LOGFILE $prefix . indent_msg($msg);
 	print STDERR "$msg\n";    #unconditional print
+	if ( defined $::HeCantMerge ) {
+		print STDERR "$msg\n";
+	}
+
 	$Info_count++;
 	return $Verbose;
 }
@@ -148,6 +158,10 @@ sub warning($) {
 		my $prefix = $self->timestamp . " [W]:\t";
 		$Enabled && print LOGFILE $prefix . indent_msg($msg);
 		print STDERR $msg;
+		if ( defined $::HeCantMerge ) {
+			print "$msg\n";
+		}
+
 		$Warn_count++;
 		return $Verbose;
 	  }
@@ -159,6 +173,9 @@ sub error($) {
 	my $prefix = $self->timestamp . " [E]:\t";
 	$Enabled && print LOGFILE $prefix . indent_msg($msg);
 	print STDERR "$msg\n";
+	if ( defined $::HeCantMerge ) {
+		print "$msg\n";
+	}
 	$Err_count++;
 	return $Verbose;
 
@@ -177,6 +194,9 @@ sub assertion_failed($) {
 
 	my $prefix = $self->timestamp . " [ASSERTION FAILED]:\n";
 	if ($LogIsOpen) {
+		if ( defined $::HeCantMerge ) {
+			print STDERR "$prefix$msg";
+		}
 		print LOGFILE "$prefix$msg";
 	}
 	else {

@@ -82,10 +82,12 @@ use Getopt::Long;
 # File version
 my $major = 0;
 my $minor = 1;
-my $build = 11;                    # When you change this, the statements with "if ($VERSION eq 0.1011)" inactivates
-
+my $build = 12;
 die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
+
+#  This is kind of stupid, but for now we need this because of SaoS 1.0
+our $HeCantMerge = 1;
 
 # Header history
 my $header = <<ENDHEADER;
@@ -120,8 +122,6 @@ $Scriptfile -lock -object object -by_user login [-logfile \"path\"]
 $Scriptfile -help
 
 ENDUSAGE
-
-#($VERSION eq 0.1011)
 
 # Switch documentation
 my $doc = <<ENDDOC;
@@ -170,7 +170,6 @@ conditionalexit();
 
 unless ( $clearobj = trojaclear->new( \$sw_object ) ) {
 	$log->error("Couldn't create ClearObject\n");
-	$log->information("Couldn't create ClearObject\n") if ( $VERSION eq 0.1011 );
 }
 conditionalexit();
 queryobject() if ($sw_query);
@@ -181,7 +180,7 @@ exit $log->get_accumulated_errorlevel();
 
 sub lockobject {
 
-	$clearobj->locktype($sw_byuser);                                                 # Lock object
+	$clearobj->locktype($sw_byuser);    # Lock object
 
 }
 
@@ -190,12 +189,11 @@ sub queryobject {
 	# querymode
 
 	my @needed = ( 'QualifedName', 'ReplicaHost', 'MasterReplica' );
-	$clearobj->get_masterreplica();                                                  # update the property $clearobj->{MasterReplica}
-	$clearobj->get_replicahost();                                                    # update the property $clearobj->{ReplicaHost}
+	$clearobj->get_masterreplica();     # update the property $clearobj->{MasterReplica}
+	$clearobj->get_replicahost();       # update the property $clearobj->{ReplicaHost}
 
 	foreach (@needed) {
 		unless ( defined $clearobj->{$_} ) {
-			$log->information("Required property $_ wasn't found defined, quitting") if ( $VERSION eq 0.1011 );
 			$log->error("Required property $_ wasn't found defined, quitting");
 			last;
 		}
@@ -241,36 +239,30 @@ sub initialize {
 
 		if ( defined($sw_lock) && defined($sw_query) ) {
 			$msg = "Fail: -lock and -query are mutually exclusive";
-			$log->information("$msg") if ( $VERSION eq 0.1011 );
 			$log->assertion_failed("$msg");
 		}
 
 		if ( !defined($sw_object) ) {
 			$msg = "Fail: Object must be specified, i.e. mybranch\@\\vobtag";
-			$log->information("$msg") if ( $VERSION eq 0.1011 );
 			$log->assertion_failed("$msg");
 		}
 
 		if ( defined($sw_lock) && !( defined($sw_byuser) ) ) {
 			$msg = "Fail: Missing -by_user value";
-			$log->information("$msg") if ( $VERSION eq 0.1011 );
 			$log->assertion_failed("$msg");
 		}
 
 		if ( $sw_object !~ /@/ ) {    # object must contain vob identifier
 			$msg = "Fail: Object [$sw_object] does not seem to include a vobtag";
-			$log->information("$msg") if ( $VERSION eq 0.1011 );
 			$log->assertion_failed("$msg");
 		}
 		return;
 	}
 	else {
-		$log->information("$usage Must either lock or query") if ( $VERSION eq 0.1011 );
 		$log->assertion_failed("$usage Must either lock or query");
 	}
 
 	# We should not have made it this far (neither return due to query or execute so let's quit
-	$log->information("Error in usage ?\n$usage $doc") if ( $VERSION eq 0.1011 );
 	$log->error("Error in usage ?\n$usage $doc");
 
 }    # End sub initialize
