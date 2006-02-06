@@ -2,6 +2,7 @@
 
 require 5.001;
 use strict;
+$| = 1;
 
 =pod
 
@@ -71,8 +72,6 @@ BEGIN {
 }
 
 # Use clauses
-use strict;
-
 use lib "$Scriptdir..\\praqma";    # You may need to adjust this
 
 use scriptlog;
@@ -85,9 +84,6 @@ my $minor = 1;
 my $build = 12;
 die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
-
-#  This is kind of stupid, but for now we need this because of SaoS 1.0
-our $HeCantMerge = 1;
 
 # Header history
 my $header = <<ENDHEADER;
@@ -148,6 +144,9 @@ ENDDOC
 #########################    Define variables    #########################
 # global variables
 our $log = scriptlog->new;
+
+#  This is kind of stupid, but for now we need this because of SaoS 1.0
+our $HeCantMerge = 1;
 my $clearobj;
 
 # switch variables
@@ -167,9 +166,8 @@ my %options = (
 
 initialize();
 conditionalexit();
-
 unless ( $clearobj = trojaclear->new( \$sw_object ) ) {
-	$log->error("Couldn't create ClearObject\n");
+	$log->error("Couldn't create ClearObject, Exiting");
 }
 conditionalexit();
 queryobject() if ($sw_query);
