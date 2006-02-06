@@ -82,10 +82,14 @@ use Getopt::Long;
 # File version
 my $major = 0;
 my $minor = 1;
-my $build = 11;                    # When you change this, the statements with "if ($VERSION eq 0.1011)" inactivates
+my $build = 12;                    # When you change this, the statements with "if ($VERSION eq 0.1011)" inactivates
 
 die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
+
+#  This is kind of stupid, but for now we need this because of SaoS 1.0
+my $HeCantMerge=1;
+
 
 # Header history
 my $header = <<ENDHEADER;
