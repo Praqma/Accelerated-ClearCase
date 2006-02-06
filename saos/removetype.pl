@@ -203,7 +203,7 @@ sub removeobject {
 sub queryobject {
 
 	# querymode
-
+    undef $HeCantMerge;
 	my @needed = ( 'QualifedName', 'ReplicaHost', 'MasterReplica' );
 	$clearobj->get_masterreplica();    # update the property $clearobj->{MasterReplica}
 	$clearobj->get_replicahost();      # update the property $clearobj->{ReplicaHost}
