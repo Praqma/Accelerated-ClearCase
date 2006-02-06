@@ -83,7 +83,7 @@ die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
 
 #  This is kind of stupid, but for now we need this because of SaoS 1.0
-my $HeCantMerge=1;
+my $HeCantMerge = 1;
 
 # Header history
 my $header = <<ENDHEADER;

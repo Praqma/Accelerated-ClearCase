@@ -83,13 +83,11 @@ use Getopt::Long;
 my $major = 0;
 my $minor = 1;
 my $build = 12;                    # When you change this, the statements with "if ($VERSION eq 0.1011)" inactivates
-
 die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
 
 #  This is kind of stupid, but for now we need this because of SaoS 1.0
-my $HeCantMerge=1;
-
+my $HeCantMerge = 1;
 
 # Header history
 my $header = <<ENDHEADER;
@@ -185,7 +183,7 @@ exit $log->get_accumulated_errorlevel();
 
 sub lockobject {
 
-	$clearobj->locktype($sw_byuser);                                                 # Lock object
+	$clearobj->locktype($sw_byuser);    # Lock object
 
 }
 
@@ -194,8 +192,8 @@ sub queryobject {
 	# querymode
 
 	my @needed = ( 'QualifedName', 'ReplicaHost', 'MasterReplica' );
-	$clearobj->get_masterreplica();                                                  # update the property $clearobj->{MasterReplica}
-	$clearobj->get_replicahost();                                                    # update the property $clearobj->{ReplicaHost}
+	$clearobj->get_masterreplica();     # update the property $clearobj->{MasterReplica}
+	$clearobj->get_replicahost();       # update the property $clearobj->{ReplicaHost}
 
 	foreach (@needed) {
 		unless ( defined $clearobj->{$_} ) {
