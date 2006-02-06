@@ -77,7 +77,7 @@ use Getopt::Long;
 # File version
 my $major = 0;
 my $minor = 1;
-my $build = 6;
+my $build = 7;                     # When you change this, the statements with "if ($VERSION eq 0.1007)" inactivates
 
 die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
@@ -164,7 +164,12 @@ my %options = (
 
 initialize();
 conditionalexit();
-$log->error("Couldn't create ClearObject") unless $clearobj = trojaclear->new( \$sw_object );
+
+unless ( $clearobj = trojaclear->new( \$sw_object ) ) {
+	$log->information("Couldn't create ClearObject") if ( $VERSION eq 0.1007 );
+	$log->error("Couldn't create ClearObject");
+
+}
 conditionalexit();
 queryobject()  if ($sw_query);
 removeobject() if ($sw_remove);
@@ -192,6 +197,7 @@ sub removeobject {
 			$clearobj->removetype($sw_byuser);
 		}
 		else {
+			$log->information("so $clearobj->{QualifedName} is too old for removal by this tool") if ( $VERSION eq 0.1007 );
 			$log->warning("so $clearobj->{QualifedName} is too old for removal by this tool");
 		}
 
@@ -204,13 +210,14 @@ sub queryobject {
 	# querymode
 
 	my @needed = ( 'QualifedName', 'ReplicaHost', 'MasterReplica' );
-	$clearobj->get_masterreplica();                                                               # update the property $clearobj->{MasterReplica}
-	$clearobj->get_replicahost();                                                                 # update the property $clearobj->{ReplicaHost}
+	$clearobj->get_masterreplica();    # update the property $clearobj->{MasterReplica}
+	$clearobj->get_replicahost();      # update the property $clearobj->{ReplicaHost}
 
 	#Return values is they are the needed ones
 
 	foreach (@needed) {
 		unless ( defined $clearobj->{$_} ) {
+			$log->information("Required property $_ wasn't found defined, quitting") if ( $VERSION eq 0.1007 );
 			$log->error("Required property $_ wasn't found defined, quitting");
 			last;
 		}
@@ -256,16 +263,19 @@ sub initialize {
 
 		if ( defined($sw_remove) && defined($sw_query) ) {
 			$msg = "Fail: -remove and -query are mutually exclusive";
+			$log->information("$msg") if ( $VERSION eq 0.1007 );
 			$log->assertion_failed("$msg");
 		}
 
 		unless ( defined($sw_object) ) {
 			$msg = "Fail: Object must be specified, i.e. mybranch\@\\vobtag";
+			$log->information("$msg") if ( $VERSION eq 0.1007 );
 			$log->assertion_failed("$msg");
 		}
 
 		unless ( $sw_object =~ /@/ ) {    # object must contain vob identifier
 			$msg = "Fail: Object '$sw_object' does not seem to include a vobtag";
+			$log->information("$msg") if ( $VERSION eq 0.1007 );
 			$log->assertion_failed("$msg");
 		}
 
@@ -274,10 +284,12 @@ sub initialize {
 			# some switches are required in remove mode
 			unless ( defined($sw_byuser) ) {
 				$msg = "Fail: Missing -by_user value, while attempting to remove object";
+				$log->information("$msg") if ( $VERSION eq 0.1007 );
 				$log->assertion_failed("$msg");
 			}
 			unless ( $sw_max_age > 0 ) {
 				$msg = "Fail: Invalid -max_age value, while attempting to remove object";
+				$log->information("$msg") if ( $VERSION eq 0.1007 );
 				$log->assertion_failed("$msg");
 			}
 
@@ -285,11 +297,12 @@ sub initialize {
 		return;
 	}
 	else {
+		$log->information("$usage Must either -remove or -query") if ( $VERSION eq 0.1007 );
 		$log->assertion_failed("$usage Must either -remove or -query");
 	}
 
 	# We should not have made it this far (neither return due to query or execute so let's quit
+	$log->information("$usage Must either -remove or -query") if ( $VERSION eq 0.1007 );
 	$log->error("Error in usage ?\n$usage $doc");
 
 }    # End sub initialize
-

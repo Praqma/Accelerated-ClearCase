@@ -82,7 +82,7 @@ use Getopt::Long;
 # File version
 my $major = 0;
 my $minor = 1;
-my $build = 10;
+my $build = 11;                    # When you change this, the statements with "if ($VERSION eq 0.1011)" inactivates
 
 die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
@@ -112,13 +112,16 @@ ENDREVISION
 
 # Usage information
 my $usage = <<ENDUSAGE;
-Usage:
+$Scriptfile version $VERSION
 
+Usage:
 $Scriptfile -query -object object [-logfile \"path\"]
 $Scriptfile -lock -object object -by_user login [-logfile \"path\"]
 $Scriptfile -help
 
 ENDUSAGE
+
+#($VERSION eq 0.1011)
 
 # Switch documentation
 my $doc = <<ENDDOC;
@@ -164,7 +167,11 @@ my %options = (
 
 initialize();
 conditionalexit();
-$log->error("Couldn't create ClearObject\n") unless $clearobj = trojaclear->new( \$sw_object );
+
+unless ( $clearobj = trojaclear->new( \$sw_object ) ) {
+	$log->error("Couldn't create ClearObject\n");
+	$log->information("Couldn't create ClearObject\n") if ( $VERSION eq 0.1011 );
+}
 conditionalexit();
 queryobject() if ($sw_query);
 lockobject()  if ($sw_lock);
@@ -174,8 +181,8 @@ exit $log->get_accumulated_errorlevel();
 
 sub lockobject {
 
-	$clearobj->locktype($sw_byuser);    # Lock object
-	
+	$clearobj->locktype($sw_byuser);                                                 # Lock object
+
 }
 
 sub queryobject {
@@ -183,11 +190,12 @@ sub queryobject {
 	# querymode
 
 	my @needed = ( 'QualifedName', 'ReplicaHost', 'MasterReplica' );
-	$clearobj->get_masterreplica();                    # update the property $clearobj->{MasterReplica}
-	$clearobj->get_replicahost();                      # update the property $clearobj->{ReplicaHost}
+	$clearobj->get_masterreplica();                                                  # update the property $clearobj->{MasterReplica}
+	$clearobj->get_replicahost();                                                    # update the property $clearobj->{ReplicaHost}
 
 	foreach (@needed) {
 		unless ( defined $clearobj->{$_} ) {
+			$log->information("Required property $_ wasn't found defined, quitting") if ( $VERSION eq 0.1011 );
 			$log->error("Required property $_ wasn't found defined, quitting");
 			last;
 		}
@@ -201,7 +209,7 @@ sub conditionalexit {
 	# Set exit code if errors or warnings, and exit with that
 
 	my $status = $log->get_accumulated_errorlevel();
-	if ($status gt 0) {
+	if ( $status gt 0 ) {
 		exit $status;
 	}
 
@@ -231,32 +239,38 @@ sub initialize {
 	# Run only in either query or execute mode
 	if ( defined($sw_query) || defined($sw_lock) ) {
 
-        if ( defined($sw_lock) && defined($sw_query)) {
-            $msg = "Fail: -lock and -query are mutually exclusive";
-            $log->assertion_failed("$msg");
-        }
+		if ( defined($sw_lock) && defined($sw_query) ) {
+			$msg = "Fail: -lock and -query are mutually exclusive";
+			$log->information("$msg") if ( $VERSION eq 0.1011 );
+			$log->assertion_failed("$msg");
+		}
 
 		if ( !defined($sw_object) ) {
 			$msg = "Fail: Object must be specified, i.e. mybranch\@\\vobtag";
+			$log->information("$msg") if ( $VERSION eq 0.1011 );
 			$log->assertion_failed("$msg");
 		}
 
 		if ( defined($sw_lock) && !( defined($sw_byuser) ) ) {
 			$msg = "Fail: Missing -by_user value";
+			$log->information("$msg") if ( $VERSION eq 0.1011 );
 			$log->assertion_failed("$msg");
 		}
 
 		if ( $sw_object !~ /@/ ) {    # object must contain vob identifier
 			$msg = "Fail: Object [$sw_object] does not seem to include a vobtag";
+			$log->information("$msg") if ( $VERSION eq 0.1011 );
 			$log->assertion_failed("$msg");
 		}
 		return;
 	}
 	else {
+		$log->information("$usage Must either lock or query") if ( $VERSION eq 0.1011 );
 		$log->assertion_failed("$usage Must either lock or query");
 	}
 
 	# We should not have made it this far (neither return due to query or execute so let's quit
-	$log->error("Error in usage ?\n$usage $doc\n");
+	$log->information("Error in usage ?\n$usage $doc") if ( $VERSION eq 0.1011 );
+	$log->error("Error in usage ?\n$usage $doc");
 
 }    # End sub initialize

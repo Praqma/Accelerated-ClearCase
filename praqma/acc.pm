@@ -346,9 +346,7 @@ sub is_pvob($) {
 	my $vob    = shift;
 	my $retval = `cleartool lsvob $vob`;
 	$retval =~ s/\(ucmvob\)/\(ucmvob , replicated\)/;
-	
-	
-	
+
 	if ( $retval =~ /\(.*(ucmvob).*\)/ ) {
 		return 1;
 	}
@@ -397,7 +395,7 @@ sub get_vobtypes {
 	unless ( grep { VOBTYPE_UCM_CLIENT | VOBTYPE_BCC_CLIENT } @result ) {
 		push @result, VOBTYPE_BCC_CLIENT;                                                 # The VOB has an AdminVOB hlink pointin to a PVOB
 	}
-	
+
 	return @result;
 }
 

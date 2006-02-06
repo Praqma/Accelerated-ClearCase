@@ -1,22 +1,26 @@
 package acc_pro;
 use strict;
-our ($Scriptdir, $Scriptfile);BEGIN{$Scriptdir =".\\";$Scriptfile = $0; $Scriptfile =~/(.*\\)(.*)$/ &&  do{$Scriptdir=$1;$Scriptfile=$2;}}
-use lib $Scriptdir."..";
+our ( $Scriptdir, $Scriptfile );
+
+BEGIN {
+	$Scriptdir  = ".\\";
+	$Scriptfile = $0;
+	$Scriptfile =~ /(.*\\)(.*)$/ && do { $Scriptdir = $1; $Scriptfile = $2; }
+}
+use lib $Scriptdir. "..";
 use praqma::acc;
 require 5.001;
-
-
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
 $VERSION = "3.2";
 
 require Exporter;
-@ISA = qw(Exporter);
+@ISA    = qw(Exporter);
 @EXPORT = qw(new);
 
 # File version
-our $VERSION= "0.1";
-our $BULILD = "1";
+our $VERSION = "0.1";
+our $BULILD  = "1";
 
 our $header = <<ENDHEADER;
 #########################################################################
@@ -39,128 +43,132 @@ DATE         EDITOR        NOTE
 -------------------------------------------------------------------------
 ENDREVISION
 
-
 sub new {
-    my $class = shift;    #Cache the package name
-    my $self = {};
-    bless( $self, $class );
-    return $self;
+	my $class = shift;    #Cache the package name
+	my $self  = {};
+	bless( $self, $class );
+	return $self;
 }
 
-sub lbtype_is_frozen($){
-  my $ccobj = shift;
-  my $cmd = "cleartool desc -fmt \%[".acc::ATTYPE_FROZEN."]Na $ccobj";
-  # print "lbtype_is_frozen()\t\$cmd:\t$cmd\n";
-  my $retval = `$cmd`;
-  # print "lbtype_is_frozen()\t\$retval:\t$retval\n";
-  return ($retval ne "")? 1 :0;
+sub lbtype_is_frozen($) {
+	my $ccobj = shift;
+	my $cmd   = "cleartool desc -fmt \%[" . acc::ATTYPE_FROZEN . "]Na $ccobj";
+
+	# print "lbtype_is_frozen()\t\$cmd:\t$cmd\n";
+	my $retval = `$cmd`;
+
+	# print "lbtype_is_frozen()\t\$retval:\t$retval\n";
+	return ( $retval ne "" ) ? 1 : 0;
 }
 
-sub version_has_frozen_label($$){
-  my $cc_pn = shift;                                       # The version to examine
-  my $return_lbtype_ref = shift;                           # The lbtype to return
+sub version_has_frozen_label($$) {
+	my $cc_pn             = shift;    # The version to examine
+	my $return_lbtype_ref = shift;    # The lbtype to return
 
-  my $cmd = "cleartool desc -fmt \%Nl $cc_pn";             # Get the labels of the version
-  my @labels_on_version = split / /,`$cmd`;
-  foreach my $label (@labels_on_version){
-    if (lbtype_is_frozen("lbtype:$label\@$ENV{CLEARCASE_VOB_PN}")){
-      $$return_lbtype_ref = $label;
-      return 1;
-    }
-  }
-  return 0;
+	my $cmd = "cleartool desc -fmt \%Nl $cc_pn";    # Get the labels of the version
+	my @labels_on_version = split / /, `$cmd`;
+	foreach my $label (@labels_on_version) {
+		if ( lbtype_is_frozen("lbtype:$label\@$ENV{CLEARCASE_VOB_PN}") ) {
+			$$return_lbtype_ref = $label;
+			return 1;
+		}
+	}
+	return 0;
 }
 
-sub version_has_subtree_with_frozen_label($$$){
-  my $cc_pn = shift;
-  my $return_label_ref = shift;
-  my $return_ccpn_ref = shift;
+sub version_has_subtree_with_frozen_label($$$) {
+	my $cc_pn            = shift;
+	my $return_label_ref = shift;
+	my $return_ccpn_ref  = shift;
 
-  my @vtree;
-  get_versiontree_below_version($cc_pn, \@vtree) && return 1; # return an error if the sub fails;
-  print "\@vtree:\n"; foreach (@vtree){print "\t$_"}
-  return 0;
+	my @vtree;
+	get_versiontree_below_version( $cc_pn, \@vtree ) && return 1;    # return an error if the sub fails;
+	print "\@vtree:\n";
+	foreach (@vtree) { print "\t$_" }
+	return 0;
 }
 
-sub get_versiontree_below_version($$){
-  my $cc_pn = shift;
-  my $return_array_ref = shift;
+sub get_versiontree_below_version($$) {
+	my $cc_pn            = shift;
+	my $return_array_ref = shift;
 
-  my $cmd = "cleartool desc -fmt \%Vn $cc_pn";             # Get the version id
-  my $versionid = `$cmd`;
-  my $escvid = quotemeta($versionid);
-  return 0 unless ($versionid =~ /(.+?)\\(\d+)/);            # exit as FALSE if you don't have a valid version id
-  my $br = $1;                                             # ...the branch is part of the match
-  my $rev = $_= $2;                                        # ...and so it the revision number
-  my $expected_successor = "$br\\".++$_;                   # construct the id of the next successor
-  $cmd = "cleartool lsvtree -all -branch $br $cc_pn";
-  @$return_array_ref = `$cmd`;                             # Get the version tree - below the branch of the version
+	my $cmd       = "cleartool desc -fmt \%Vn $cc_pn";               # Get the version id
+	my $versionid = `$cmd`;
+	my $escvid    = quotemeta($versionid);
+	return 0 unless ( $versionid =~ /(.+?)\\(\d+)/ );                # exit as FALSE if you don't have a valid version id
+	my $br                 = $1;                                     # ...the branch is part of the match
+	my $rev                = $_ = $2;                                # ...and so it the revision number
+	my $expected_successor = "$br\\" . ++$_;                         # construct the id of the next successor
+	$cmd               = "cleartool lsvtree -all -branch $br $cc_pn";
+	@$return_array_ref = `$cmd`;                                        # Get the version tree - below the branch of the version
 
-  return 0 unless not $?;                                    # Exit as FALSE if the cleartool command failed
-  my $continue =1;                                         # A flag the allows us to exit the while loop when we've shifted'ed the uninteresting versions
-  $_ = shift @$return_array_ref;                           # shift the first value
-  while ($continue && defined($_)) {                       # Continued is set to 0 when we find what we're looking for - $_ is undefined when we pop from an empty array
-    if ($_ =~ /($escvid)/){                                # Look for the (escaped) versionid
-      $continue=0;                                         # We're done shifting
-      unshift @$return_array_ref, $_;                      # We've shifted one to many - put it back!
-    } else {
-      $_ = shift @$return_array_ref;                       # Carry on!
-    }
-  }
-  scalar(@$return_array_ref) eq 1 && return 0;             # If the version tree is empty (only the $cc_pn version)- return 0;
-  return 1 unless grep $expected_successor,@$return_array_ref; # Exis as TRUE if the $expected_successor isn't in the version tree
-  # OK - So the version tree is still too big - (Found: $expected_successor)
-  my $iterator = scalar(@$return_array_ref);
-  $escvid = quotemeta($expected_successor);
-  $continue = 1;
-  $_ = pop @$return_array_ref;
-  while ($continue && defined($_)){
-    if ($_ =~ /($escvid)/){                                # Look for the (escaped) successor versionid
-      $continue=0;                                         # We're done poping
-    } else {
-      $_ = pop @$return_array_ref;                         # Carry on!
-    }
-  }
-  return 1;                                                # We're done, Exit as TRUE
+	return 0 unless not $?;                                             # Exit as FALSE if the cleartool command failed
+	my $continue = 1;    # A flag the allows us to exit the while loop when we've shifted'ed the uninteresting versions
+	$_ = shift @$return_array_ref;    # shift the first value
+	while ( $continue && defined($_) ) { # Continued is set to 0 when we find what we're looking for - $_ is undefined when we pop from an empty array
+		if ( $_ =~ /($escvid)/ ) {       # Look for the (escaped) versionid
+			$continue = 0;               # We're done shifting
+			unshift @$return_array_ref, $_;    # We've shifted one to many - put it back!
+		}
+		else {
+			$_ = shift @$return_array_ref;     # Carry on!
+		}
+	}
+	scalar(@$return_array_ref) eq 1 && return 0;    # If the version tree is empty (only the $cc_pn version)- return 0;
+	return 1 unless grep $expected_successor, @$return_array_ref;    # Exis as TRUE if the $expected_successor isn't in the version tree
+	                                                                 # OK - So the version tree is still too big - (Found: $expected_successor)
+	my $iterator = scalar(@$return_array_ref);
+	$escvid   = quotemeta($expected_successor);
+	$continue = 1;
+	$_        = pop @$return_array_ref;
+
+	while ( $continue && defined($_) ) {
+		if ( $_ =~ /($escvid)/ ) {                                   # Look for the (escaped) successor versionid
+			$continue = 0;                                           # We're done poping
+		}
+		else {
+			$_ = pop @$return_array_ref;                             # Carry on!
+		}
+	}
+	return 1;                                                        # We're done, Exit as TRUE
 }
 
-sub frozen_label_in_version_tree(@$@){
-  my $debug = 0;
-  my $version_tree_ref = shift; # a reference to an array generated with cleartool lsvtree
-  my $vob              = shift; # The VOB to check lbtypes against;
-  my $return_arr_ref   = shift; # a reference to an ($lbtype, $version_pn) style array where we can put the search results
-  # print "frozen_label_in_version_tree()\n";
-  my ($lbtype, $version_pn);
-  foreach my $ln (@$version_tree_ref){
-    if ($ln =~ /(.*?)\s(\(.*\))$/){                      # Look for a string the has a paranthesis proceeded by a whitespace in the end e.g. "xxxx (xxx xxx)"
-      $version_pn = $1;                                  # The version string is the first match
-      $_ = $2;                                           # The paranthesis is the second match
-      $_ =~ s/\(|\)|\,//g;                               # Ret rid of the paranthesis and the commas (turning it into a white-space separated list of lbtypes)
-      $debug && scalar_dump(\$version_pn);
-      foreach my $lb ( split / /){
-        $lbtype = "lbtype:".$lb."\@$vob";
-        $debug && scalar_dump(\$lbtype);
-        lbtype_is_frozen($lbtype) && do {
-           @$return_arr_ref[0] = $lbtype;
-           @$return_arr_ref[1] = $version_pn;
-           return 1;                                     # Exit as TRUE;
-        }
-      }
-    }
-  }
-  return 0;                                              # Exit as FALSE
+sub frozen_label_in_version_tree(@$@) {
+	my $debug            = 0;
+	my $version_tree_ref = shift;    # a reference to an array generated with cleartool lsvtree
+	my $vob              = shift;    # The VOB to check lbtypes against;
+	my $return_arr_ref   = shift;    # a reference to an ($lbtype, $version_pn) style array where we can put the search results
+	                                 # print "frozen_label_in_version_tree()\n";
+	my ( $lbtype, $version_pn );
+	foreach my $ln (@$version_tree_ref) {
+		if ( $ln =~ /(.*?)\s(\(.*\))$/ ) {    # Look for a string the has a paranthesis proceeded by a whitespace in the end e.g. "xxxx (xxx xxx)"
+			$version_pn = $1;                 # The version string is the first match
+			$_          = $2;                 # The paranthesis is the second match
+			$_ =~ s/\(|\)|\,//g;              # Ret rid of the paranthesis and the commas (turning it into a white-space separated list of lbtypes)
+			$debug && scalar_dump( \$version_pn );
+			foreach my $lb ( split / / ) {
+				$lbtype = "lbtype:" . $lb . "\@$vob";
+				$debug && scalar_dump( \$lbtype );
+				lbtype_is_frozen($lbtype) && do {
+					@$return_arr_ref[0] = $lbtype;
+					@$return_arr_ref[1] = $version_pn;
+					return 1;                 # Exit as TRUE;
+				  }
+			}
+		}
+	}
+	return 0;                                 # Exit as FALSE
 }
 
-sub scalar_dump($){
-   my $ref = shift;
-   my ($package, $filename, $line) = caller;
-   print STDERR "   ########   Dumping scalar   ########\n".
-                "   Package:          \t$package '$filename'\n".
-                "   Line:             \t$line\n".
-                "   $ref: \t[".$$ref."]\n";
+sub scalar_dump($) {
+	my $ref = shift;
+	my ( $package, $filename, $line ) = caller;
+	print STDERR "   ########   Dumping scalar   ########\n"
+	  . "   Package:          \t$package '$filename'\n"
+	  . "   Line:             \t$line\n"
+	  . "   $ref: \t["
+	  . $$ref . "]\n";
 }
-
-
 
 sub DESTROY {
 }

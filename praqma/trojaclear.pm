@@ -9,7 +9,7 @@ use vars qw($VERSION);
 # File version
 my $major = 0;
 my $minor = 1;
-my $build = 10;
+my $build = 12;
 
 die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
@@ -140,6 +140,7 @@ Returns undef if the are problems - else it returns that replica name.
 		my $reply = qx(cleartool des -fmt %[master]p $self->{QualifedName} 2>&1 );
 		$self->{MasterReplica} = "replica:$reply";
 		if ($?) {
+			$::log->information("Failed to get Master replica for object [$self->{QualifedName}]:\n$reply") if ( $VERSION eq 0.1012 );
 			$::log->assertion_failed("Failed to get Master replica for object [$self->{QualifedName}]:\n$reply");
 		}
 	}
@@ -169,8 +170,9 @@ Returns undef if the are problems - else it returns that replica name.
 
 		( my $vobtag = $self->{QualifedName} ) =~ s/(\S+@)(\S+)$/$2/;    #isolate vobtag
 		my $reply = qx(cleartool des -fmt %[replica_name]p vob:$vobtag 2>&1 );
-        $self->{ReplicaName} = "replica:$reply\@$vobtag";
+		$self->{ReplicaName} = "replica:$reply\@$vobtag";
 		if ($?) {
+			$::log->information("Unable to determine replica name for vob [$vobtag];\n$reply") if ( $VERSION eq 0.1012 );
 			$::log->assertion_failed("Unable to determine replica name for vob [$vobtag];\n$reply");
 		}
 	}
@@ -214,7 +216,15 @@ Returns undef if the are problems - else it returns that host name.
 			# or are we not ?
 			my $reply = qx(cleartool des -fmt %[replica_host]p $self->{MasterReplica} 2>&1 );
 			chomp $reply;
+
+			# Remove this when we get support for multiple machines in SaoS
+			$::log->information("$self->{InitiallyCreatedWith} is NOT locally mastered");
+			$::log->information("Unfortunately we can't help you here.");
+			$::log->information("You need to find a SaoS running at the site for $reply");
+			$::log->assertion_failed("Mastership is not local");
+
 			if ($?) {
+				$::log->information("Unable to determine the host for replica [$self->{MasterReplica}];\n$reply") if ( $VERSION eq 0.1012 );
 				$::log->assertion_failed("Unable to determine the host for replica [$self->{MasterReplica}];\n$reply");
 			}
 			else {
@@ -248,10 +258,11 @@ lost+found, but for for instance label types they is no way back.
 		chomp $reply;
 		$self->{Removed} = $reply;
 		if ($?) {
+			$::log->information("Unable remove type [$self->{InitiallyCreatedWith}];\n$reply") if ( $VERSION eq 0.1012 );
 			$::log->assertion_failed("Unable remove type [$self->{InitiallyCreatedWith}];\n$reply");
 		}
-    	$::log->information("$self->{Removed}");
-    }
+		$::log->information("$self->{Removed}");
+	}
 
 	return $self->{Removed};
 }
@@ -281,6 +292,7 @@ Returns undef
 		$self->{Locked} = $reply;
 
 		if ($?) {
+			$::log->information("Unable to lock type [$self->{InitiallyCreatedWith}];\n$reply") if ( $VERSION eq 0.1012 );
 			$::log->assertion_failed("Unable to lock type [$self->{InitiallyCreatedWith}];\n$reply");
 		}
 		$::log->information("$self->{Locked}");
@@ -309,11 +321,14 @@ Returns undef if we can not determine the creation time.
 		$ENV{'CCASE_ISO_DATE_FMT'} = "1";
 		my $reply = qx(cleartool des -fmt %Nd $self->{QualifedName} 2>&1 );
 		if ($?) {
+			$::log->information("Failed to get object creation data for [$self->{QualifedName}];\n$reply") if ( $VERSION eq 0.1012 );
 			$::log->assertion_failed("Failed to get object creation data for [$self->{QualifedName}];\n$reply");
 		}
 		else {
+
 			# The next couple of conversions are not too pretty, but it works
 			my ( $year, $month, $date, $hour, $minute, $second ) = ( $reply =~ /^(\d{4})(\d{2})(\d{2})\.(\d{2})(\d{2})(\d{2})/ );
+
 			# make array, while removing leading zeroes, and remap year and month to values that are consistent with perl's time functions
 			my @epoch_creat = split /,/, sprintf( "%d,%d,%d,%d,%d,%d", $second, $minute, $hour, $date, $month - 1, $year - 1900 );
 			my $epoch_created = timegm(@epoch_creat);
