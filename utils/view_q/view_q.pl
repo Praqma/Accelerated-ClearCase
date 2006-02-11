@@ -1195,7 +1195,7 @@ sub quarantine_stg ($) {
 		s/-ngpath //;                                     # strip the -ngpath which isn't used in rmtag
 		push( @rmtags, "cleartool rmtag -view " . $_ );
 	}
-	my $view_q_file_loc = $stg . "\\admin\\" . $view_q_file;
+	my $view_q_file_loc = "$stg\\admin\\.$view_q_file";
 	open VIEW_Q_FILE, ">$view_q_file_loc" or $log->assertion_failed("Couldn't open '$view_q_file_loc'");
 	foreach (@mktags) { print VIEW_Q_FILE $_; }
 	close VIEW_Q_FILE;
@@ -1257,9 +1257,9 @@ sub vwsstgs_nasince ($$$) {
 			if ( $accessed le $cut_date ) {
 
 				#If the last accessed date is prior to the cut_date, push it onto the result tables.
-				my $info = "$accessed\t$stg\n";
-				push( @$result,                     $info );
-				push( @{ $views_per_user{$owner} }, $info );    # save the list of views per owner
+				my $info = "$accessed\t$stg";
+				push @$result, $info;
+				push @{ $views_per_user{$owner} }, $info;    # save to the list of views per owner
 
 			}
 
