@@ -436,13 +436,13 @@ sub isolatepath ($) {
 
 	if ( $lsview_reply =~ /$ENV{'COMPUTERNAME'}:/i ) {    # CC LT and WebView format
 		$lsview_reply =~ /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
-		$sw_debug && $log->information("\tlsview reply [$lsview_reply], path isolatede to [$2] \n ");
+		$sw_debug && $log->information("\tlsview reply [$lsview_reply], path isolated to [$2]");
 		return $2 if ( -e $2 );
 	}
 	elsif ( $lsview_reply =~ /\\\\$ENV{'COMPUTERNAME'}.*/i ) {    # Base CC format
 
 		$lsview_reply =~ /^[\s\*]*(\S*)\s*(\S*)$/;
-		$sw_debug && $log->information("\tlsview reply [$lsview_reply], path isolatede to [$2] \n ");
+		$sw_debug && $log->information("\tlsview reply [$lsview_reply], path isolated to [$2]");
 		return $2 if ( -e $2 );
 
 	}
@@ -609,12 +609,12 @@ sub enable_log () {
 	  && do {
 		$log->enable();
 		$log->set_verbose(1);
-		$log->information("DEBUG is ON\n");
+		$log->information("DEBUG is ON");
 	  };
 
 	# Region not allowed on ClearCase LT
 	if ( (acc::is_cclt) && defined($sw_region) ) {
-		$log->assertion_failed("ClearCase LT detected, -region switch is not allowed\n");
+		$log->assertion_failed("ClearCase LT detected, -region switch is not allowed");
 	}
 
 	if ($sw_sendmail) {
@@ -663,7 +663,7 @@ sub help_mode () {
 sub lsignore_mode () {
 
 	if ( defined($sw_lsignored) ) {
-		$log->information("lsignored\n");
+		$log->information("Listing Ignored views");
 		if (   defined($sw_purge)
 			|| defined($sw_nasince)
 			|| defined($sw_quarantine)
@@ -707,7 +707,7 @@ sub lsignore_mode () {
 
 sub recover_mode () {
 	defined($sw_recover) && do {
-		$log->information("recover\n");
+		$log->information("Recover Mode");
 		if (   defined($sw_lsquarantine)
 			|| defined($sw_purge)
 			|| defined($sw_nasince)
@@ -723,10 +723,10 @@ sub recover_mode () {
 		}
 		chomp($sw_recover);
 		if ( recover_stg($sw_recover) ) {
-			$log->information("View \"$sw_recover\" was recovered succesfully\n");
+			$log->information("View \"$sw_recover\" was recovered succesfully");
 		}
 		else {
-			$log->error("View \"$sw_recover\" was NOT recovered\n");
+			$log->error("View \"$sw_recover\" was NOT recovered");
 		}
 		exit $log->get_accumulated_errorlevel();
 	};
@@ -734,7 +734,7 @@ sub recover_mode () {
 
 sub lsquarantine_mode () {
 	defined($sw_lsquarantine) && do {
-		$log->information("lsquarantine\n");
+		$log->information("Listing quarantined views");
 		(        defined($sw_purge)
 			  || defined($sw_nasince)
 			  || defined($sw_quarantine)
@@ -757,10 +757,10 @@ sub lsquarantine_mode () {
 			};
 			defined($sw_autorecover) && do {
 				if ( recover_stg($_) ) {
-					$log->information("View was recovered succesfully\n");
+					$log->information("View was recovered succesfully");
 				}
 				else {
-					$log->error("View was NOT recovered\n");
+					$log->error("View was NOT recovered");
 				}
 			};
 		}
@@ -771,7 +771,7 @@ sub lsquarantine_mode () {
 
 sub purge_mode () {
 	defined($sw_purge) && do {
-		$log->information("purge\n");
+		$log->information("Purge Mode");
 		(        defined($sw_nasince)
 			  || defined($sw_quarantine)
 			  || defined(@sw_ignore)
@@ -788,7 +788,7 @@ sub purge_mode () {
 
 sub nasince_mode () {
 	defined($sw_nasince) && do {
-		$log->information("nasince\n");
+		$log->information("Listing views not accessed since ...");
 		(        defined($sw_quarantine)
 			  || defined(@sw_ignore)
 			  || defined($sw_autopurge)
@@ -802,18 +802,17 @@ sub nasince_mode () {
 			# change meaning of nasince date
 
 			my $cutdays = int($sw_nasince);    # only integers accepted
-
-			$log->error("Number of days $cutdays is not valid\n") unless ( $cutdays gt 0 );
+			$log->assertion_failed("Number of days $cutdays is not valid") unless ( $cutdays gt 0 );
 			my $offset    = $cutdays * 60 * 60 * 24;    # Convert to epoch by multiply with seconds per days
 			my $timesince = time() - $offset;
 
 			# slice date, month, year of time since
 			my ( $day, $month, $year ) = ( localtime($timesince) )[ 3, 4, 5 ];
 			$sw_nasince = sprintf( "%04d-%02d-%02d", $year + 1900, $month + 1, $day );
-			$debug && $log->information("Calculated cutdate is [$sw_nasince]\n");
+			$debug && $log->information("Calculated cutdate is [$sw_nasince]");
 		}
 		my @views;
-		$log->assertion_failed("ERROR: Wrong date format (use YYYY-DD-MM)\n")
+		$log->assertion_failed("ERROR: Wrong date format (use YYYY-DD-MM)")
 		  unless vwsstgs_nasince( $sw_nasince, \@views );
 		foreach ( sort @views ) {
 			$log->information($_);
@@ -821,10 +820,10 @@ sub nasince_mode () {
 			if ( defined($sw_autoquarantine) ) {
 				my ( $d, $stg ) = split( /\t/, $_ );
 				if ( quarantine_stg($stg) ) {
-					$log->information("View was quarantined succesfully\n");
+					$log->information("View was quarantined succesfully [$stg]");
 				}
 				else {
-					$log->error("View was NOT quarantined\n");
+					$log->error("View was NOT quarantined [$stg]");
 				}
 			}
 
@@ -836,7 +835,7 @@ sub nasince_mode () {
 
 sub quarantine_mode () {
 	defined($sw_quarantine) && do {
-		$log->information("quarantine\n");
+		$log->information("Quarantine");
 		(        defined(@sw_ignore)
 			  || defined($sw_autoquarantine)
 			  || defined($sw_autopurge)
@@ -845,10 +844,10 @@ sub quarantine_mode () {
 			  || defined($sw_lsignored) )
 		  && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
 		if ( quarantine_stg($sw_quarantine) ) {
-			$log->information("View \"$sw_quarantine\" was quarantined succesfully\n");
+			$log->information("View \"$sw_quarantine\" was quarantined succesfully");
 		}
 		else {
-			$log->error("View \"$sw_quarantine\" was NOT quarantined\n");
+			$log->error("View \"$sw_quarantine\" was NOT quarantined");
 		}
 		exit $log->get_accumulated_errorlevel();
 	};
@@ -858,7 +857,7 @@ sub ignore_mode () {
 	defined(@sw_ignore) && do {
 		( defined(@sw_noignore) || defined($sw_autoquarantine) || defined($sw_autopurge) || defined($sw_autorecover) || defined($sw_lsignored) )
 		  && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
-		$log->information("ignore\n");
+		$log->information("Ignore mode");
 
 		#rw2 cleanup project reimplement ARGV (remember logfile uses it right now)
 		@sw_ignore = split( /;/, join( ';', @sw_ignore ) );
@@ -867,28 +866,27 @@ sub ignore_mode () {
 			my $viewtag       = $_;
 			my $region_switch = ( defined($sw_region) ) ? "-region $sw_region" : "";
 			$_ = `cleartool lsview $region_switch $viewtag`;
-			$? && $log->error( $? . $_ . "\nCould not find view $viewtag to ignore\n" );
+			$? && $log->error( $? . $_ . "\nCould not find view $viewtag to ignore" );
 
 			$stg = isolatepath($_);
 			unless ($stg) {    #
-				$log->warning("Could determine storage for viewtag [$region_switch $viewtag], skipping it\n");
+				$log->warning("Could determine storage for viewtag [$region_switch $viewtag], skipping it");
 				next;
 			}
 
 			my $ignore_file_loc = "$stg\\admin\\.$view_q_ignore_file";
 
-			open VIEW_Q_IGNORE_FILE, ">$ignore_file_loc"
-			  or $log->assertion_failed("Couldn't open '$ignore_file_loc'\n");
+			open VIEW_Q_IGNORE_FILE, ">$ignore_file_loc" or $log->assertion_failed("Couldn't open '$ignore_file_loc'");
 			print VIEW_Q_IGNORE_FILE
 			  "This view storage is ignored by $Scriptfile\nDelete this file to reenable this storage for view_q.pl considerations\n";
-			close VIEW_Q_IGNORE_FILE or $log->error("Couldn't close '$ignore_file_loc'\n");
-			$log->information("Storage '$stg' has been set to ignored\n");
+			close VIEW_Q_IGNORE_FILE or $log->error("Couldn't close '$ignore_file_loc'");
+			$log->information("Storage '$stg' has been set to ignored");
 		}    # end foreach
 		exit $log->get_accumulated_errorlevel();
 	};    # end ignore
 
 	defined(@sw_noignore) && do {
-		$log->information("noignore\n");
+		$log->information("Un-ignore Mode (Clear ignore flag)");
 		@sw_noignore = split( /;/, join( ';', @sw_noignore ) );
 		foreach (@sw_noignore) {
 			my $stg           = "";
@@ -900,13 +898,13 @@ sub ignore_mode () {
 
 			$stg = isolatepath($_);
 			unless ($stg) {    #
-				$log->warning("Could determine storage for viewtag [$region_switch $viewtag], skipping it\n");
+				$log->warning("Could determine storage for viewtag [$region_switch $viewtag], skipping it");
 				next;
 			}
 			my $ignore_file_loc = get_ourfile( location => $stg, lookfor => $view_q_ignore_file );
 			if ( defined($ignore_file_loc) and -e $ignore_file_loc ) {
 				unlink $ignore_file_loc;
-				$log->information("Viewtag '$viewtag' has been unignored\n");
+				$log->information("Viewtag '$viewtag' has been unignored");
 			}
 			else {
 				$log->assertion_failed( "Viewtag [$viewtag] " . $region_switch . " is not in ignored state(Well, couldn't find $ignore_file_loc)" );
@@ -943,7 +941,7 @@ sub lsquarantined () {
 		/-local_path = \"(\S*)?\"/;
 
 		# $1 is here in local path notation
-		push( @result, "$1\n" ) if ( get_ourfile( location => $1, lookfor => $view_q_file ) );
+		push( @result, "$1" ) if ( get_ourfile( location => $1, lookfor => $view_q_file ) );
 	}
 	return @result;
 }
@@ -976,7 +974,7 @@ sub recover_stg ($) {
 		my $age = int( sprintf "%f", -C $view_q_file_loc );
 
 		if ( $age ge $sw_days ) {    # too old to recover (given number of days)
-			$log->information("Too old '$stg' has been quarantined for $age days, igoring for recovering\n");
+			$log->information("Too old '$stg' has been quarantined for $age days, ignoring for recovery");
 			return 0;
 		}
 	}
@@ -988,7 +986,7 @@ sub recover_stg ($) {
 		$_ = ($?) ? "ERROR\n" : "Success\n";
 		$log->information($_);
 	}
-	close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
+	close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'");
 
 	# Something is delaying the close above, the file is not ready for deletion
 	# I have to keep trying - I'll give it 40 shots and then I'll bail out
@@ -1025,7 +1023,7 @@ sub purge_stg ($) {
 	my $view_q_file_loc = get_ourfile( location => $stg, lookfor => $view_q_file );
 
 	( -e $view_q_file_loc ) || do {
-		$log->error("ERROR: '$stg' is not a quarantined storage\n");
+		$log->error("ERROR: '$stg' is not a quarantined storage");
 		return 0;
 	};
 
@@ -1033,7 +1031,7 @@ sub purge_stg ($) {
 		my $age = int( sprintf "%f", -C $view_q_file_loc );
 
 		if ( $age le $sw_days ) {    # too young to purge
-			$log->information("Too new; '$stg' has only been quarantined for $age days, igoring for purge\n");
+			$log->information("Too new; '$stg' has only been quarantined for $age days, igoring for purge");
 			return 1;
 		}
 
@@ -1041,13 +1039,13 @@ sub purge_stg ($) {
 
 	my $ignore_file_loc = get_ourfile( location => $stg, lookfor => $view_q_ignore_file );
 	if ( defined($ignore_file_loc) and -e $ignore_file_loc ) {
-		$log->error("ERROR: '$stg' ignored for quarantine\n");
+		$log->error("ERROR: '$stg' ignored for quarantine");
 		return 0;
 	}
 
 	open VIEW_Q_FILE, "$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
 	@_ = <VIEW_Q_FILE>;
-	close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
+	close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'");
 	$_ = $_[0];    # Cache the first entry (we really just need the global storage, so any entry will do)
 	my $ngpath = ( $_ =~ /-ngpath/ ) ? "-ngpath " : "";
 	/\s(\S*)$/;    # The stg is the last part (whitespace separated) of the stream;
@@ -1058,13 +1056,13 @@ sub purge_stg ($) {
 	my $rmtagcmd   = "cleartool rmtag -view $temptag";
 
 	# create temptag so we can get view's properties
-	$log->information("$mktagcmd\n");
+	$log->information("$mktagcmd");
 	system("$mktagcmd");
 	if ($?) {
 		$log->error( "Make tag failed with exitcode: " . ( ($?) / 256 ) . "\n" );
 	}
 	else {
-		$log->information("Make tag successful\n");
+		$log->information("Make tag successful");
 	}
 
 	# get view properties into hash
@@ -1075,13 +1073,13 @@ sub purge_stg ($) {
 	}
 
 	# end the view again
-	$log->information("$endviewcmd\n");
+	$log->information("$endviewcmd");
 	system("$endviewcmd");
 	if ($?) {
 		$log->error( "End view failed with exitcode: " . ( ($?) / 256 ) . "\n" );
 		my $i = 0;
 		while ( $i < 11 ) {
-			$log->information("Waiting a sec before trying to end that view...\n");
+			$log->information("Waiting a sec before trying to end that view...");
 			sleep 1;
 			system("$endviewcmd");
 			if   ($?) { $i++; }
@@ -1091,11 +1089,11 @@ sub purge_stg ($) {
 		$log->error( "End view failed with exitcode: " . ( ($?) / 256 ) . "\n" );
 	}
 	else {
-		$log->information("End view successful\n");
+		$log->information("End view successful");
 	}
 
 	# remove the temp tag again
-	$log->information("$rmtagcmd\n");
+	$log->information("$rmtagcmd");
 	system("$rmtagcmd");
 	if ($?) {
 		$log->error( "Removal of temp tag failed with exitcode: " . ( ($?) / 256 ) . "\n" );
@@ -1109,7 +1107,7 @@ sub purge_stg ($) {
 		}
 	}
 	else {
-		$log->information("Remove temp tag successful\n");
+		$log->information("Remove temp tag successful");
 	}
 
 	# using the properties we found, unregister the view by uuid
@@ -1120,19 +1118,19 @@ sub purge_stg ($) {
 		$log->error( "Unregister view failed with exitcode: " . ( ($?) / 256 ) . "\n" );
 	}
 	else {
-		$log->information("Unregister view successful\n");
+		$log->information("Unregister view successful");
 	}
 
 	# rmview by UUID
 	my $rmviewcmd = "cleartool rmview -force -all -uuid $viewuuid 2>&1";
-	$log->information("$rmviewcmd\n");
+	$log->information("$rmviewcmd");
 	system("$rmviewcmd");
 	if ($?) {
 		$log->error( "Remove view failed with exitcode: " . ( ($?) / 256 ) . "\n" );
 	}
 	else {
 		push( @{ $views_per_user{'PURGED:'} }, "$stg" );    # save the list of views that was purged
-		$log->information("Remove view successful\n");
+		$log->information("Remove view successful");
 	}
 
 	# something is holding on the old storage, wait a bit before continuing
@@ -1147,7 +1145,7 @@ sub purge_stg ($) {
 			$log->error( "Removal of old view storage at $localstorage failed with exitcode: " . ( ($?) / 256 ) . "\n" );
 		}
 		else {
-			$log->information("Removal of old view storage at $localstorage successful\n");
+			$log->information("Removal of old view storage at $localstorage successful");
 		}
 	}
 
@@ -1181,7 +1179,7 @@ sub quarantine_stg ($) {
 
 	my $ignore_file_loc = get_ourfile( location => $stg, lookfor => $view_q_ignore_file );
 	if ( defined($ignore_file_loc) and -e $ignore_file_loc ) {
-		$log->error( $stg . " ignored for quarantine\n" );
+		$log->error( $stg . " ignored for quarantine" );
 		return 0;
 	}
 
@@ -1198,7 +1196,7 @@ sub quarantine_stg ($) {
 		push( @rmtags, "cleartool rmtag -view " . $_ );
 	}
 	my $view_q_file_loc = $stg . "\\admin\\" . $view_q_file;
-	open VIEW_Q_FILE, ">$view_q_file_loc" or $log->assertion_failed("Couldn't open '$view_q_file_loc'\n");
+	open VIEW_Q_FILE, ">$view_q_file_loc" or $log->assertion_failed("Couldn't open '$view_q_file_loc'");
 	foreach (@mktags) { print VIEW_Q_FILE $_; }
 	close VIEW_Q_FILE;
 	foreach (@rmtags) { $log->information( $_ . "\n" ); system($_); }
@@ -1235,25 +1233,25 @@ sub vwsstgs_nasince ($$$) {
 	prepare_stg_directory();
 	foreach my $stg ( sort keys(%stg_directory) ) {
 		next if ( $stg eq "" );
-		$debug && $log->information("Looking at view: [$stg]\n");
+		$debug && $log->information("Looking at view: [$stg]");
 		@_ = split( /;/, $stg_directory{"$stg"} );    # Turn the semi-colon seprated list of tags into an array
 		$_ = $_[0];                                   # Get a region/tag pair (anyone will do, so we just grab the first)
 		s/-tag//;                                     # strip the -tag switch, it's not used in lsview
 		s/-ngpath//;                                  # strip the -ngpath switch, it's not used in lsview
 
-		$debug && $log->information("Found path : [$_]\n");
+		$debug && $log->information("Found path : [$_]");
 		my @viewdetails = split( /\n/, `cleartool lsview -properties $_` );    # lsview with the -age switch return two lines
 		my $accessed = $viewdetails[3];                                        # Grab fourth line (where the relevant timestamp is listed)
-		$debug && $log->information("Last accessed string is: [$accessed]\n");
+		$debug && $log->information("Last accessed string is: [$accessed]");
 		$accessed =~ s/.*(\d\d\d\d-\d\d-\d\d).*/$1/;                           # Get the date in the format YYYY-MM-DD
-		$debug && $log->information("Last accessed Now changed to: [$accessed]\n");
+		$debug && $log->information("Last accessed Now changed to: [$accessed]");
 		my $owner = $viewdetails[4];                                           # Grab 5'th line - owner information
 		$owner =~ s/.*\\(\S+).*/$1/;                                           # Isolate owner (the login ID)
 
 		if ( $accessed eq "" ) {
 
 			# Snapshot views that have lost their .access_info can not tell when they where used last so $accessed will be empty
-			$log->warning("Warning, consider manual removal of the view at $stg - we have no accessed date\n");
+			$log->warning("Warning, consider manual removal of the view at $stg - we have no accessed date");
 		}
 		else {
 			if ( $accessed le $cut_date ) {
@@ -1355,7 +1353,7 @@ sub prepare_stg_directory () {
 		}
 
 	}
-	$log->assertion_failed("No views are hosted on this machine [$ENV{'COMPUTERNAME'}]\n.") unless keys(%stg_directory);
+	$log->assertion_failed("No views are hosted on this machine [$ENV{'COMPUTERNAME'}].") unless keys(%stg_directory);
 	return 1;
 }
 
@@ -1394,13 +1392,13 @@ sub do_mail {
 			# $_maildomain has a value, email adress is login ($key) plus that value
 			if ( $_maildomain ne "" ) {
 				$envelope{'-to'} = $key . $_maildomain;
-				$log->information("Using default domain, recipient was set to $envelope{'-to'}.\n");
+				$log->information("Using default domain, recipient was set to $envelope{'-to'}");
 			}
 			else {
 
 				# get email of login ID, by asking the active directory, so we... kind of depend on that :-(
 				$envelope{'-to'} = qx(dsquery user forestroot -name $key  2>&1 | dsget user -email 2>&1 | findstr @ 2>&1 );
-				$log->information("Using dsquery domain, recipient was set to $envelope{'-to'}.\n");
+				$log->information("Using dsquery domain, recipient was set to $envelope{'-to'}");
 			}
 
 			# can't find email of login, try the next
