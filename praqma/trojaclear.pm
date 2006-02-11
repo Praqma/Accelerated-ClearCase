@@ -110,7 +110,8 @@ undef if not.
 	if ( grep { /$ident/ } values %fqt ) {
 		$self->{QualifedName} = $self->{InitiallyCreatedWith};    # Ensure Qualified name
 		$self->{NAME}         = $self->{QualifedName};
-		$::log->information("Object $self->{InitiallyCreatedWith} is accepted, Looks like an object");
+
+		# $::log->information("Object $self->{InitiallyCreatedWith} is accepted, Looks like an object");
 	}
 	else {
 		return undef;
@@ -122,6 +123,7 @@ undef if not.
 		$::log->error("ClearCase doesn't seem to recognize $self->{InitiallyCreatedWith} ? Spelling error ?");
 		return undef;
 	}
+
 	return $self;
 }
 
@@ -222,18 +224,20 @@ Returns undef if the are problems - else it returns that host name.
 			my $reply = qx(cleartool des -fmt %[replica_host]p $self->{MasterReplica} 2>&1 );
 			chomp $reply;
 
-			# Remove this when we get support for multiple machines in SaoS
-			$::log->information("$self->{InitiallyCreatedWith} is NOT locally mastered");
-			$::log->information("Unfortunately we can't help you here.");
-			$::log->information("You need to find a SaoS running at the site for $reply");
-			$::log->assertion_failed("Mastership is not local");
-
 			if ($?) {
 				$::log->assertion_failed("Unable to determine the host for replica [$self->{MasterReplica}];\n$reply");
 			}
 			else {
 				$self->{ReplicaHost} = $reply;
 			}
+
+			# Remove this when we get support for multiple machines in SaoS
+			$::log->information("$self->{InitiallyCreatedWith} is NOT locally mastered");
+			$::log->information("Unfortunately we can't help you here.");
+			$::log->information("You need to find a SaoS running at the site for $reply");
+			$::log->error("Mastership is not local");
+			return undef;
+
 		}
 	}
 
@@ -258,7 +262,7 @@ lost+found, but for for instance label types they is no way back.
 	my $byuser = shift;
 
 	unless ( defined $self->{Removed} ) {
-		my $reply = qx(cleartool rmtype -force -rmall -c " removed by Troja webservice, on request by $byuser" $self->{InitiallyCreatedWith} 2>&1 );
+		my $reply = qx(cleartool rmtype -force -rmall -c " removed by SaoS webservice, on request by $byuser" $self->{InitiallyCreatedWith} 2>&1 );
 		chomp $reply;
 		$self->{Removed} = $reply;
 		if ($?) {
