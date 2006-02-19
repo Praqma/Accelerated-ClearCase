@@ -38,7 +38,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "33";
+our $REVISION = "34";
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 my $debug_on = defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} ) ? $ENV{'CLEARCASE_TRIGGER_DEBUG'} : undef;
 
@@ -86,6 +86,7 @@ DATE        EDITOR         NOTE
                            now using File::Basename instead of split_dir_file. (v1.0.31)
 2011-04-06  Jens Brejner   Add external config file dependency (v1.0.32)
 2011-06-07  Jens Brejner   Implement Automatic merge to fix evil twin (v1.0.33)
+2011-10-11  Jens Brejner   Updated documentation, minor beautification (v1.0.34)
 
 ------------------------   ----------------------------------------------
 
@@ -140,10 +141,11 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		$log->enable(1);
 		$log->set_verbose(1);
 		$logfile = $log->get_logfile();
-
-		$log->information("Found evil twin, value of \$twincfg{AutoMerge} is $twincfg{AutoMerge}");
-
+		if ($debug_on) {
+			$log->information("Found evil twin, value of \$twincfg{AutoMerge} is $twincfg{AutoMerge}");
+		}
 		if ( $twincfg{AutoMerge} eq 2 ) {
+
 			# check if auto merge appears to be safe
 			has_one_diff_only();
 		}
@@ -152,6 +154,9 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 
 			# We will do no work for user, just inform and block OP
 			print_no_merge_msg();
+			my $fixcommand = build_fixcommands();
+			$fixcommand =~ s/\//\\/g;
+			$log->information("You can run $fixcommand, to get the proposed solution for the situation");
 			exit 1;
 		}
 
@@ -161,16 +166,16 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		if ( $twincfg{AutoMerge} eq 1 ) {
 
 			# Merge that name back for the user
-			runcmd( 'cmd' => $fixcommand );
+			runcmd( 'cmd' => "call \"$fixcommand\"" );
 			$log->information("Evil twin detected.");
-			$log->information("We have tried to get around it, but haven't checked in the changes");
-			$log->information("Please verify, and check in if you are satisfied");
+			$log->information("We have tried to get around it, but haven't checked in the changes, please verify the result");
+			$log->information("And check in if you are satisfied");
 			exit 1;
 		}
 		if ( $twincfg{AutoMerge} eq 2 ) {
 
 			# Do the required merge and check in
-			runcmd( 'cmd' => $fixcommand );
+			runcmd( 'cmd' => "call \"$fixcommand\"" );
 			$log->information("Evil twin detected. We have tried to get around it, we hope you are happy with it.");
 			exit 0;
 		}
@@ -239,7 +244,7 @@ sub runcmd {
 	my %args = (@_);
 	$log->assertion_failed("A command is required") unless exists $args{'cmd'};
 	my $command = $args{'cmd'} . ' 2>&1';
-	my @retval  = qx($command);
+    my @retval  = qx($command);
 	if ($?) {
 		$log->assertion_failed( "The command [$args{'cmd'}] exited with " . scalar($?) / 256 . " :\n" . join( '', @retval ) );
 	}
@@ -254,7 +259,7 @@ sub build_fixcommands {
 		$mergeoptions = "-delete";
 		$version = exists $uncatalogued{$element} ? $uncatalogued{$element} : $added{$element};
 	}
-	elsif ( $twincfg{AutoMerge} eq 1 ) {
+	elsif ( $twincfg{AutoMerge} lt 2 ) {
 		$mergeoptions = "-graphical";
 		$version      = $added{$element};
 	}
@@ -268,6 +273,7 @@ sub build_fixcommands {
 	( $win32parent    = $parent )    =~ tr#/#\\#;
 	( $win32foundpath = $foundpath ) =~ tr#/#\\#;
 	( $win32element   = $element )   =~ tr#/#\\#;
+	my $winsource = $twincfg{AutoMerge} eq 0 ? "$win32element " : "$win32element.mkelem ";
 
 	@mkmerge = ( <<"END_OF_MKMERGE" =~ m/^\s*(.+)/gm );
 REM The proper way to correct the situation, is to re-introduce the name
@@ -275,7 +281,7 @@ REM $win32element in the directory by executing the following commands in order:
 REM BATCH START
 
 pushd  "$win32parent"
-rename "$win32element.mkelem" $tmpfilename
+rename "$winsource " $tmpfilename
 cleartool co -c "Re-introducing the name $element from $version" .
 cleartool merge $mergeoptions -c "Re-introducing the name $element" -to . "$win32foundpath"
 cleartool co -nc "$win32element"
@@ -292,8 +298,8 @@ END_OF_MKCI
 
 	# Add checkin commands if fully automatic
 	push @mkmerge, @mkci if ( $twincfg{AutoMerge} eq 2 );
-
-	my $fixbat = "$parent/fix_evil_twin_of_" . $element . "_" . $tmpfilename . ".bat";
+	# Write commands to batch file
+	my $fixbat = $parent . "fix_evil_twin_of_" . $element . "_" . $tmpfilename . ".bat";
 	open( AUTOBAT, " > $fixbat" ) or die "Couldn't open $fixbat for writing : $!";
 	foreach (@mkmerge) {
 		print AUTOBAT "$_\n";
