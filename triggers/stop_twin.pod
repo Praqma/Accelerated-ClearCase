@@ -26,7 +26,7 @@ To learn the full syntax simply execute the the script without the -vob switch:
 
 =head2 Restrictions
 
-During the install process, that script is supposed to run under the account which owns the VOB.
+During the install process, that script is supposed to run under the account which owns the VOB, or a member of the ClearCase Administrators group.
 The script will fail if that is not the case.
 
 An exception is if you execute it in -preview mode
@@ -55,21 +55,101 @@ directory if the name has been used. If the name have been used, you are not all
 If you must reuse the name, you will need to merge a directory version that contains the name in question to the
 directory version you are working with.
 
-=head2 Case sensivity
+=head1 Features of C<ACC_STOP_TWIN> trigger
 
-By default the trigger operates in Case sensitive mode, so elements with for instance  CamelCase errors can be renamed
+=over
+
+
+=item * External Configuration file per site
+
+=item * Automerge Mode
+
+=item * CaseSensivity
+
+=item * Script generation
+
+=item * Logfile
+
+=item * Debugging
+
+=item * Bypassing the Trigger.
+
+=back
+
+
+=head2 External Configuration file per site
+
+Some options are configurable by the ClearCase administrator, so you can make the trigger behave like according to your enterprise policies.
+The currently supported configurable options are AutoMerge mode and CaseSensivity
+
+In order do utilize the External configuration, the Administrator must locate the file stop_twin.pl.ini in the same folder as the trigger script 
+F<stop_twin.pl> and copy it unmodified to the subfolder ..\CustomCfg. 
+Then open the file which looks like this:
+
+ # Configuration file for stop_twin.pl
+
+ our %trigger_parms = (
+ # Casesensensitive Name search
+ # 0 means off, so a CamelCase rename operation would be stopped
+ # 1 means on, so a CamelCase rename operation would not be seen as an evil twin attempt
+ "CaseSensitive" => 0,
+ # 0 means off, no automatic merge, based on based on best guess
+ # 1 means active. Partial merge of directory on best guess, do not check in
+ # 2 means active. Full automatic.Merge directory on best guess, check in changes.
+ "AutoMerge" => 0
+ );
+  
+ __END__
+
+This is actually perl syntax here, so lines starting with a # sign are comments.
+Now if you for instance want to enable case sensitivity, change the line:
+
+ "CaseSensitive" => 0,
+ 
+to 
+
+  "CaseSensitive" => 1,
+  
+And save the change.
+
+The original file must exists unmmodifed in the original location, or the script will fail, as the file gives the defaults to the script. But if the customized file 
+exists, the settings from the customization takes precedence.
+
+=head2 Automerge Mode
+
+Automerge mode is optional, and refers to the 3 operating modes for the trigger.
+
+The default is no merging at all, just stop the action if there is a name clash.
+
+To make life easier for the users, partial merge mode is supported, that means the trigger will perform a best guess merge, but leave everything checked out, and 
+ask the user to verify that the got what they wanted. It is kind of similar to a deliver operation, were you are asked to 
+build and test before completing the operation.
+In full Automerge mode, we will do as above - but also do the checkin. The mode is by nature not bulletproof, we will only try if we the merge candidate is
+in the previous directory version, and only if the ClearCase Administrator selected this operating mode. To be safe consider this mode experimental.
+
+=head2 CaseSensivity
+
+By default the trigger operates in Case sensitive mode, so elements with for instance CamelCase errors can be renamed
 without involving the vob owner.
 
-The case sensitive pattern matching can be changed to case insensitive if that is required, to do that, you will edit the
-trigger script and change the line
+=head2 Script generation
 
-        my $case_sensitive = 1;
+When the an evil twin possibility is detected we create a batch file for you right in the same folder as the element you attempt add. You can run the batch to
+fix the situation - or let us do - because that is what happens in automatic mode.
 
-to
+=head2 Logfile
 
-        my $case_sensitive = 0;
+When the an evil twin possibility is detected we create a logfile in the executing users TEMP folder. The logfile will be named like stop_twin.plPID3852.log 
+where the number refers to the PID of that process.
 
-=head2 Bypassing the trigger.
+=head2 Debugging
+
+Additional Debug information will be written to screen and Logfile by defining one or two system environment variables 
+CLEARCASE_TRIGGER_DEBUG=1 and/or CLEARCASE_TRIGGER_VERBOSE=1. After defining them you must restart the proces that will end up spawning the cleartool mkelem 
+command, if you do not, the environment variables won't be seen. 
+With either of these environment variables set, a lot more information will be written.
+
+=head2 Bypassing the trigger in general
 
 To bypass the script you must create the appropriate semaphore file first
 (see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
@@ -77,6 +157,8 @@ To bypass the script you must create the appropriate semaphore file first
 It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
 that triggers are executed - and semaphore files ar looked-up - at locations where common users only
 have read access.
+
+=head2 Bypassing the trigger by user action
 
 Trigger script stop_twin.pl respects a local semaphore directory. That means that any user can create the environment varible
 with a value of a existing directory.
@@ -117,7 +199,7 @@ If more time is required, the semaphore file must be recreated (not copied, dele
 
 =head1 AUTHOR
 
-Jens Brejner, E<lt>jbr@praqma.netE<gt>.
+Jens Brejner, E<lt>jbrejner@praqma.netE<gt>.
 
 =head1 BUGS
 
@@ -127,7 +209,7 @@ See the website below.
 
 This program is distributed under the GNU General Pulic License v3.0
 
-Support:    http://launchpad.net/acc
+Support:    http://wiki.praqma.net/acc
 
 =for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
 
