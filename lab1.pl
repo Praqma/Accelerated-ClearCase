@@ -44,7 +44,28 @@ foreach (sort @views) {print $_}
 
 #############################
 
-sub lsquarantined($){
+=head2 lsquarantined( )
+
+NOTE: This function will only run on ClearCase registry servers!!!
+
+This function lists all the quarantined views.
+
+The format of the listing is the local view storage.
+
+A quarantined view is defined as a view that is reported "stranded" by rgy_check and which has
+a .view_quarantine file in the admin directory of the storage.
+
+Parameters:
+
+  none 
+
+Returns:
+
+  @result    =    The list of quarantined storages.
+
+=cut
+
+sub lsquarantined( $ ){
   my $result = shift;
   foreach (grep(/-local_path/, `rgy_check -views 2>&1`)){
     /-local_path = \"(\S*)?\"/;
@@ -53,7 +74,26 @@ sub lsquarantined($){
   return 1;
 }
 
-sub recover_stg($){
+
+=head2 recover_stg( $stg )
+
+This function recovers a view storage.
+
+It will recreat all the tags in all regions where it was tagged at the time it was quarantiend.
+
+Parameters:
+
+  $stg   = The storage to quarantine (the global one, as reported by a lsview command, or 
+           simply the local-path as reported by rgy_check) 
+
+Returns:
+
+  1    =    Success
+  0    =    The $stg does not conatain a .view_quarantine file in the admin directory.
+
+=cut
+
+sub recover_stg( $ ){
   my $stg = shift;
   chomp($stg);
   my $view_q_file_loc = "$stg\\admin\\$view_q_file";
@@ -61,13 +101,33 @@ sub recover_stg($){
   open  VIEW_Q_FILE ,"$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
   foreach (<VIEW_Q_FILE>){print $_; system($_);};
   close VIEW_Q_FILE or print STDERR "Couldn't close '$view_q_file_loc'\n";
-  #system("del $view_q_file_loc");
-  my $cnt = unlink $view_q_file_loc; print "Deleted $cnt file(s)\n";
+  # my $cnt = unlink $view_q_file_loc; print "Deleted $cnt file(s)\n";
   return 1;
 }
 
-sub quarantine_stg($){
+=head2 quarantine_stg( $stg )
+
+This function quarantines a view storage.
+
+It will untag tags in all regions and record the reverse commands (the corresponding
+mktag commands) in a file named .view_quarantine located in the admin directory of the 
+view storage.
+
+Parameters:
+
+  $stg   = The storage to quarantine (the global one, as reported by a lsview command) 
+
+Returns:
+
+  1    =    Success
+  0    =    The $stg parameter is invald - nothing to do!
+
+=cut
+
+
+sub quarantine_stg( $ ){
   my $stg = shift;
+  chomp($stg);
   prepare_stg_directory();
   return 0 unless defined($stg_directory{"$stg"}); # Get out if the view storage has no entry in the directory
   my @rmtags;
@@ -85,21 +145,23 @@ sub quarantine_stg($){
   return 1;
 }
 
-=head2 vwsstgs_nasince($cut_date \@result)
+=head2 vwsstgs_nasince( $cut_date, \@result )
 
 This function pushes (global) view storage locations onto the result array
 handed into the sub as a refernce if they havent been accessed since $cut_date.
 
 The format of the resulting list entries are like this:
-<YYYY-MM-DD> <view_stg>
+  <YYYY-MM-DD> <view_stg>
 
 Where  view <YYYY-MM-DD> is the last accessed date, and <view_stg> is the global view storage location.
 
 Parameters:
+
   $cut_date      =  The date to compare against. The scalar must be in the format YYYY-DD-MM
   \@result       =  An arrary reference passed into the sub function
 
 Returns:
+
   1    =    The content of @result is trust worthy
   0    =    The $cut_date is in an unsupported format. The content of @result is crab!
 
@@ -132,6 +194,7 @@ This function is related to the global hash: %stg_directory.
 and view tags.
 
 After it has been prepared, the format of the hash entries are like this:
+
   keys                 = The global view storage location;
   values               = A semi-colon separated list of all region/tags pairs in the 
                          format: -region <region> -tag <tag>
@@ -142,9 +205,11 @@ loaded and trustworthy.
 All operations querying the directory should call this sub function first.
 
 Parameters:
+
   none
 
 Returns:
+
   0      The %stg_directory is already prepared, it will be reused.
   1      The %stg_directory has been prepared.
 
