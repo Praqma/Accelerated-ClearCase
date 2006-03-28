@@ -661,9 +661,9 @@ sub recover_stg ($) {
 	return 0 unless ( -e $view_q_file_loc );
 
 	if ($sw_days) {
-		my $age = int( sprintf "%f", -C $view_q_file_loc );
+		my $age = int( -C $view_q_file_loc );
 
-		if ( $age ge $sw_days ) {    # too old to recover (given number of days)
+		if ( $age > $sw_days ) {    # too old to recover (given number of days)
 			$log->information("Too old '$stg' has been quarantined for $age days, ignoring for recovery");
 			return 0;
 		}
@@ -706,15 +706,12 @@ sub purge_stg ($) {
 			$log->information("Too new; '$stg' has only been quarantined for $age days (which is less than $sw_days), ignoring for purge");
 			return 1;
 		}
-		else {
-			$log->information("Age: $age; Would purge '$stg'");
-			return 1;
-
-		}
-
 	}
 
-	my $ignore_file_loc = get_ourfile( location => $stg, lookfor => $view_q_ignore_file );
+            $log->information("security swithc - Age: $age; Would purge '$stg'");
+            return 1;
+
+    my $ignore_file_loc = get_ourfile( location => $stg, lookfor => $view_q_ignore_file );
 	if ( defined($ignore_file_loc) and -e $ignore_file_loc ) {
 		$log->error("ERROR: '$stg' ignored for quarantine and purge");
 		return 0;
