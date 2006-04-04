@@ -708,10 +708,10 @@ sub purge_stg ($) {
 		}
 	}
 
-            $log->information("security swithc - Age: $age; Would purge '$stg'");
-            return 1;
+	$log->information("security switch - Age: $age; Would purge '$stg'");
+	return 1;
 
-    my $ignore_file_loc = get_ourfile( location => $stg, lookfor => $view_q_ignore_file );
+	my $ignore_file_loc = get_ourfile( location => $stg, lookfor => $view_q_ignore_file );
 	if ( defined($ignore_file_loc) and -e $ignore_file_loc ) {
 		$log->error("ERROR: '$stg' ignored for quarantine and purge");
 		return 0;
