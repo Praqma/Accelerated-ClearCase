@@ -25,7 +25,7 @@ use constant BLATEXE => "$Scriptdir..\\..\\praqma\\Blat\\Blat.exe";
 
 # File version
 our $VERSION = "0.7";
-our $BUILD   = "18";
+our $BUILD   = "19";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;                           # Set 1 for testing purpose
@@ -82,6 +82,7 @@ DATE        EDITOR         NOTE
 2011-08-31  Jens Brejner   Version 0.7.16: Always exit non-zero if error.
 2011-10-03  Jens Brejner   Version 0.7.17: Support both formats of ignore files
 2011-11-07  Jens Brejner   Version 0.7.18: Simpler syntax in purge_stg
+2011-11-24  Jens Brejner   Version 0.7.19: Enhanced feedback in lsquarantined mode
  
 -------------------------------------------------------------------------
  
@@ -480,7 +481,7 @@ sub lsquarantine_mode () {
 		  && do { $log->assertion_failed( "Using -days requires either -autopurge or -autorecover\n" . $usage ); };
 
 		foreach ( lsquarantined() ) {
-			$log->information($_);
+			$log->information($_) unless ( defined($sw_autopurge) || defined($sw_autorecover) );
 			defined($sw_autopurge) && do {
 				purge_stg($_);
 			};
@@ -667,6 +668,9 @@ sub recover_stg ($) {
 			$log->information("Too old '$stg' has been quarantined for $age days, ignoring for recovery");
 			return 0;
 		}
+		else {
+			$log->information("Will recover '$stg' which has been quarantined for $age days");
+		}
 	}
 
 	open VIEW_Q_FILE, "$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
@@ -704,12 +708,13 @@ sub purge_stg ($) {
 
 			# too young for purge
 			$log->information("Too new; '$stg' has only been quarantined for $age days (which is less than $sw_days), ignoring for purge");
-			return 1;
+			return 0;
+		}
+		else {
+			$log->information("Will purge '$stg' which has been quarantined for $age days");
+
 		}
 	}
-
-	$log->information("security switch - Age: $age; Would purge '$stg'");
-	return 1;
 
 	my $ignore_file_loc = get_ourfile( location => $stg, lookfor => $view_q_ignore_file );
 	if ( defined($ignore_file_loc) and -e $ignore_file_loc ) {
