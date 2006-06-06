@@ -1,22 +1,19 @@
 require 5.000;
 use strict;
 
-BEGIN {
-
-  # Ensure that the view-private file will get named back on rejection.
-  END {
-    rename( "$ENV{CLEARCASE_PN}.mkelem", $ENV{CLEARCASE_PN} )
-      if $? && !-e $ENV{CLEARCASE_PN} && -e "$ENV{CLEARCASE_PN}.mkelem";
-  }
-}
-
-our ( $Scriptdir, $Scriptfile );
+our ( $Scriptdir, $Scriptfile, $parentdir );
 
 BEGIN {
-  use File::Basename;
-  $Scriptdir  = dirname(__FILE__) . "\\";
-  $Scriptfile = basename(__FILE__);
+	use File::Basename;
+	$Scriptdir  = dirname(__FILE__) . "\\";
+	$Scriptfile = basename(__FILE__);
 
+	# Ensure that the view-private file will get named back on rejection.
+	END {
+		rename( "$ENV{CLEARCASE_PN}.mkelem", $ENV{CLEARCASE_PN} )
+		  if $? && !-e $ENV{CLEARCASE_PN} && -e "$ENV{CLEARCASE_PN}.mkelem";
+
+	}
 }
 
 use lib $Scriptdir . "..\\";
@@ -30,9 +27,9 @@ $| = 1;
 our $TRIGGER_NAME = "ACC_PRE_LNNAME";
 
 our %install_params = (
-  "name"     => $TRIGGER_NAME,                     # The name of the trigger
-  "mktrtype" => "-element -all -preop lnname ",    # The stripped-down mktrtype command
-  "supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
+	"name"     => $TRIGGER_NAME,                     # The name of the trigger
+	"mktrtype" => "-element -all -preop lnname ",    # The stripped-down mktrtype command
+	"supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
 );
 
 # File version
@@ -100,38 +97,62 @@ exit 0 if -l $ENV{CLEARCASE_PN};
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
 
-  # Check pathlength if requested
-  if ( $trgconfig{pathlength} > 0 ) {
-    my $pathlength = length( $ENV{CLEARCASE_PN} );
-    if ( $pathlength > $trgconfig{pathlength} ) {
-      $log->error("The length of [$ENV{CLEARCASE_PN}] is $pathlength, which exceeds $trgconfig{pathlength}. Use a shorter name.");
-      $log->error("The path length limitation of $trgconfig{pathlength}, has been chosen by ClearCase Administrator.");
-    }
-    else {
-      $log->information("Length of [$ENV{CLEARCASE_XPN}] is OK; $pathlength is less than $trgconfig{pathlength}");
-    }
-  }
+	# Check pathlength if requested
+	if ( $trgconfig{pathlength} > 0 ) {
+		my $pathlength = length( $ENV{CLEARCASE_PN} );
+		if ( $pathlength > $trgconfig{pathlength} ) {
+			$log->error("The length of [$ENV{CLEARCASE_PN}] is $pathlength, which exceeds $trgconfig{pathlength}. Use a shorter name.");
+			$log->error("The path length limitation of $trgconfig{pathlength}, has been chosen by ClearCase Administrator.");
+		}
+		else {
+			$log->information("Length of [$ENV{CLEARCASE_XPN}] is OK; $pathlength is less than $trgconfig{pathlength}");
+		}
+	}
 
-  # Check for whitespaces
-  if ( $trgconfig{whitespacecheck} ) {
-    my ( $name, $extension ) = ( fileparse( $ENV{CLEARCASE_PN}, qr/\.[^.]*/ ) )[ 0, 2 ];
-    my $filename = $name . $extension;
+	# Check for whitespaces
+	if ( $trgconfig{whitespacecheck} ) {
+		my ( $name, $extension ) = ( fileparse( $ENV{CLEARCASE_PN}, qr/\.[^.]*/ ) )[ 0, 2 ];
+		my $filename = $name . $extension;
 
-    # Double whitespace anywhere ?
-    complain( $filename, $name )      if ( $name      =~ m/\s{2,}/g );
-    complain( $filename, $extension ) if ( $extension =~ m/\s{2,}/g );
+		# Double whitespace anywhere ?
+		complain( $filename, $name )      if ( $name      =~ m/\s{2,}/g );
+		complain( $filename, $extension ) if ( $extension =~ m/\s{2,}/g );
 
-    # Starts with whitespace ?
-    complain( $filename, $name )      if ( $name      =~ m/^\s+.*/g );
-    complain( $filename, $extension ) if ( $extension =~ m/^\s+.*/g );
+		# Starts with whitespace ?
+		complain( $filename, $name )      if ( $name      =~ m/^\s+.*/g );
+		complain( $filename, $extension ) if ( $extension =~ m/^\s+.*/g );
 
-    # Ends with whitespace ?
-    complain( $filename, $name )      if ( $name      =~ m/.*\s+$/g );
-    complain( $filename, $extension ) if ( $extension =~ m/.*\s+$/g );
+		# Ends with whitespace ?
+		complain( $filename, $name )      if ( $name      =~ m/.*\s+$/g );
+		complain( $filename, $extension ) if ( $extension =~ m/.*\s+$/g );
 
-  }
+	}
 
-  exit $log->get_accumulated_errorlevel();
+	# Cleanup
+	my $exitcode = $log->get_accumulated_errorlevel();
+
+	if ( $exitcode eq 2 ) {
+		$parentdir = dirname( $ENV{CLEARCASE_PN} );
+
+		# is parentdir checked-out ?
+		if ( -w $parentdir ) {
+			$log->information("[$parentdir] is checkedout");
+
+			if (`cleartool diff -pre \"$parentdir\"`) {
+
+				# "cleartool diff" returns 0 if versions are identical
+				$log->information("[$parentdir] is being checked in");
+				qx(cleartool checkin -nc \"$parentdir\");
+
+			}
+			else {
+				$log->information("Undoing checkout of [$parentdir]");
+				qx(cleartool uncheckout -rm -nc \"$parentdir\");
+			}
+
+		}
+	}
+	exit $exitcode;
 
 }
 
@@ -140,12 +161,12 @@ die "Trigger called out of context, we should never end here.";
 ############################## S U B S ########################################
 
 sub complain {
-  my $filename = shift;
-  my $part     = shift;
-  my $msg      = "\n\"$filename\" contains forbidden whitespace in this part:\n\"$part\"\n\"";
-  $msg = $msg . "+" x ( length($part) ) . "\"\n";
+	my $filename = shift;
+	my $part     = shift;
+	my $msg      = "\n\"$filename\" contains forbidden whitespace in this part:\n\"$part\"\n\"";
+	$msg = $msg . "+" x ( length($part) ) . "\"\n";
 
-  $log->error($msg);
+	$log->error($msg);
 
 }
 
