@@ -26,19 +26,24 @@ To learn the full syntax simply execute the the script without the -vob switch:
 
   no_rmname_if_co.pl -install
 
-To enable parent folder checking, make a copy of file no_rmname_if_co.pl.ini to the subfolder 
-.\CustomCfg\.
+To enable parent folder checking, make a copy of file no_rmname_if_co.pl.ini to the subfolder .\CustomCfg\.
+
 Open the copy of the file which looks like this;
 
-	# Configuration file for no_rmname_if_co.pl
-	
-	our %trigger_parms = (
-	# Also search for Checkout of parent folder
-	# 0 means off, do not check if parent folder is checked out
-	# 1 means on, please check if parent folder is checked out
-	"AlsoParent" => 0,
-	
-	);
+    our %trigger_parms = (
+        # Also search for Checkout of parent folder
+        # 0 means off, do not check if parent folder is checked out
+        # 1 means on, please check if parent folder is checked out
+        "AlsoParent" => 0,
+        # Use Clearprompt for reporting. Bug in ClearCase causes our message
+        # to get lost in GUI mode. So we are defaulting to use Clearprompt
+        # The drawback is that user get's 2 dialogue's
+        # 0 means off, do use clearprompt
+        # 1 means on use clearprompt
+        "UseClearPrompt" => 1,
+    );
+
+
 
 and change the value 0 to 1 in the line 	"AlsoParent" => 0, and save the file.
 
@@ -67,7 +72,11 @@ Jens Brejner, E<lt>jbrejner@praqma.netE<gt>.
 
 =head1 BUGS
 
-See the website below.
+Due to a bug in ClearCase the GUI dialogue does not capture what is printed to STDOUT, when a preop trigger
+on operation rmmname stops the operation.
+So our explanation about what is wrong never get's through to the user in GUI mode. So this trigger uses clearprompt
+for informing the user. The drawback is that the user get's 2 dialogues about the error. If you don't like that, you
+can switch "UseClearPrompt" to 0 (zero) in the conguration file. (see above).
 
 =head1 COPYRIGHT
 

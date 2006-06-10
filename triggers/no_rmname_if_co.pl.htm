@@ -1,103 +1,91 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<title>no_rmname_if_co - ClearCase trigger</title>
-<link rel="stylesheet" href="C:/Program Files/OptiPerl/Pod2Html.css" type="text/css" />
-<link rev="made" href="mailto:" />
-</head>
+=pod
 
-<body>
+=head1 NAME
 
-<p><a name="__index__"></a></p>
-<!-- INDEX BEGIN -->
-<!--
+no_rmname_if_co - ClearCase trigger
 
-<ul>
+Script:        F<no_rmname_if_co.pl>
 
-	<li><a href="#name">NAME</a></li>
-	<li><a href="#synopsis">SYNOPSIS</a></li>
-	<ul>
+Trigger name:  C<ACC_BLOCK_RMNAME_IF_CO>
 
-		<li><a href="#restrictions">Restrictions</a></li>
-	</ul>
+Used as a generic trigger which prevents renaming of an element which is checked out somewhere.
+It can also check if the element's parent folder is checked out, that setting is non-default.
 
-	<li><a href="#description">DESCRIPTION</a></li>
-	<li><a href="#author">AUTHOR</a></li>
-	<li><a href="#bugs">BUGS</a></li>
-	<li><a href="#copyright">COPYRIGHT</a></li>
-</ul>
--->
-<!-- INDEX END -->
+The default operation is controlled via a copy of the file no_rmname_if_co.pl.ini.
 
-<p>
-</p>
-<hr />
-<h1><a name="name">NAME</a></h1>
-<p>no_rmname_if_co - ClearCase trigger</p>
-<p>Script:        <em>no_rmname_if_co.pl</em></p>
-<p>Trigger name:  <code>ACC_BLOCK_RMNAME_IF_CO</code></p>
-<p>Used as a generic trigger which prevents renaming of an element which is checked out somewhere.
-It can also check if the element's parent folder is checked out, that setting is non-default.</p>
-<p>The default operation is controlled via a copy of the file no_rmname_if_co.pl.ini.</p>
-<p>
-</p>
-<hr />
-<h1><a name="synopsis">SYNOPSIS</a></h1>
-<p>Runs as ClearCase trigger script installed on basevobs and ucmvobs (not adminvobs or pvobs)</p>
-<p>The scripts installs itself correctly when executed outside a trigger context using:</p>
-<pre>
-  no_rmname_if_co.pl -install -vob \thevob</pre>
-<p>To learn the full syntax simply execute the the script without the -vob switch:</p>
-<pre>
-  no_rmname_if_co.pl -install</pre>
-<p>To enable parent folder checking, make a copy of file no_rmname_if_co.pl.ini to the subfolder 
-.\CustomCfg\.
-Open the copy of the file which looks like this;</p>
-<pre>
-        # Configuration file for no_rmname_if_co.pl
-        
-        our %trigger_parms = (
+
+=head1 SYNOPSIS
+
+Runs as ClearCase trigger script installed on basevobs and ucmvobs (not adminvobs or pvobs)
+
+The scripts installs itself correctly when executed outside a trigger context using:
+
+  no_rmname_if_co.pl -install -vob \thevob
+
+To learn the full syntax simply execute the the script without the -vob switch:
+
+  no_rmname_if_co.pl -install
+
+To enable parent folder checking, make a copy of file no_rmname_if_co.pl.ini to the subfolder .\CustomCfg\.
+
+Open the copy of the file which looks like this;
+
+    our %trigger_parms = (
         # Also search for Checkout of parent folder
         # 0 means off, do not check if parent folder is checked out
         # 1 means on, please check if parent folder is checked out
-        &quot;AlsoParent&quot; =&gt; 0,
-        
-        );</pre>
-<p>and change the value 0 to 1 in the line 	``AlsoParent'' =&gt; 0, and save the file.</p>
-<p>
-</p>
-<h2><a name="restrictions">Restrictions</a></h2>
-<p>During the install process, that script is supposed to run under the account which owns the VOB.
-The script will fail if that is not the case.</p>
-<p>An exception is if you execute it in -preview mode</p>
-<p>To bypass the script you must create the appropriate semaphor file first
-(see the POD documentation for praqma::trigger_helper-&gt;enable_semaphore_backdoor).</p>
-<p>It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
-that triggers are executed - and semaphore files ar looked-up - at locations where common users only
-have read access. ...There! I said it anyway!</p>
-<p>
-</p>
-<hr />
-<h1><a name="description">DESCRIPTION</a></h1>
-<p>Elements and versions of elements can be removed by the users who owns them. This trigger prevents the
-operations all togeteher - with the vobowner as the built-in exception.</p>
-<p>
-</p>
-<hr />
-<h1><a name="author">AUTHOR</a></h1>
-<p>Jens Brejner, &lt;<a href="mailto:jbrejner@praqma.net">jbrejner@praqma.net</a>&gt;.</p>
-<p>
-</p>
-<hr />
-<h1><a name="bugs">BUGS</a></h1>
-<p>See the website below.</p>
-<p>
-</p>
-<hr />
-<h1><a name="copyright">COPYRIGHT</a></h1>
-<p>This program is distributed under the GNU General Pulic License v3.0</p>
-<p>Support:    <a href="http://launchpad.net/acc">http://launchpad.net/acc</a></p>
-<a href="http://launchpad.net/acc">Project home at Launchpad</a>
-</body>
+        "AlsoParent" => 0,
+        # Use Clearprompt for reporting. Bug in ClearCase causes our message
+        # to get lost in GUI mode. So we are defaulting to use Clearprompt
+        # The drawback is that user get's 2 dialogue's
+        # 0 means off, do use clearprompt
+        # 1 means on use clearprompt
+        "UseClearPrompt" => 1,
+    );
 
-</html>
+
+
+and change the value 0 to 1 in the line 	"AlsoParent" => 0, and save the file.
+
+=head2 Restrictions
+
+During the install process, that script is supposed to run under the account which owns the VOB.
+The script will fail if that is not the case.
+
+An exception is if you execute it in -preview mode
+
+To bypass the script you must create the appropriate semaphor file first
+(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
+
+It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
+that triggers are executed - and semaphore files ar looked-up - at locations where common users only
+have read access. ...There! I said it anyway!
+
+=head1 DESCRIPTION
+
+Elements and versions of elements can be removed by the users who owns them. This trigger prevents the
+operations all togeteher - with the vobowner as the built-in exception.
+
+=head1 AUTHOR
+
+Jens Brejner, E<lt>jbrejner@praqma.netE<gt>.
+
+=head1 BUGS
+
+Due to a bug in ClearCase the GUI dialogue does not capture what is printed to STDOUT, when a preop trigger
+on operation rmmname stops the operation.
+So our explanation about what is wrong never get's through to the user in GUI mode. So this trigger uses clearprompt
+for informing the user. The drawback is that the user get's 2 dialogues about the error. If you don't like that, you
+can switch "UseClearPrompt" to 0 (zero) in the conguration file. (see above).
+
+=head1 COPYRIGHT
+
+This program is distributed under the GNU General Pulic License v3.0
+
+Support:    http://launchpad.net/acc
+
+=for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
+
+=cut
+
+
