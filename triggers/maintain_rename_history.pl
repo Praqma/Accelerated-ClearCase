@@ -5,8 +5,8 @@ use strict;
 our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
-  use File::Basename;
-  ( $Scriptfile, $Scriptdir ) = fileparse($0);
+	use File::Basename;
+	( $Scriptfile, $Scriptdir ) = fileparse($0);
 }
 use File::Basename;
 use lib $Scriptdir. "..";
@@ -16,9 +16,9 @@ use praqma::trigger_helper;
 #Required if you call trigger_helper->enable_install
 our $TRIGGER_NAME   = "ACC_RENAME_HISTORY";
 our %install_params = (
-  "name"     => $TRIGGER_NAME,                     # The name og the trigger
-  "mktrtype" => "-postop lnname -element -all",    # The stripped-down mktrtype command
-  "supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
+	"name"     => $TRIGGER_NAME,                     # The name og the trigger
+	"mktrtype" => "-postop lnname -element -all",    # The stripped-down mktrtype command
+	"supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
 );
 
 # File version
@@ -78,81 +78,108 @@ $log->conditional_enable();
 $log->set_verbose();
 our $logfile = $log->get_logfile();
 if ($logfile) {
-  $debug_on = 1;
-  $log->set_verbose($debug_on);
+	$debug_on = 1;
+	$log->set_verbose($debug_on);
 }
 $log->information("logfile is: $logfile\n") if ($debug_on);
 $log->information($semaphore_status)        if ($debug_on);
 $log->dump_ccvars()                         if ($debug_on);
 
 # Main:
+my ( $targetfolder, $sourcefolder );
+
 # Continue only if operation type is what we are intended for..
 if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
-  $log->information("Fired for Clearcase operation $ENV{CLEARCASE_OP_KIND}") if ($debug_on);
-  my $parentfolder = dirname( $ENV{CLEARCASE_PN} );
-  my $cmd          = "cleartool diff -ser -pre \"$parentfolder\" 2>&1";
-  $log->information("Diffcommand is [$cmd]") if ($debug_on);
-  my @diffoutput = qx($cmd);
-  $log->information( "\@diffoutput contains " . scalar(@diffoutput) . " lines: " . join(@diffoutput) ) if ($debug_on);
-  my ( $action, $index );
-  $index = 0;
+	$log->information("Fired for Clearcase operation $ENV{CLEARCASE_OP_KIND}") if ($debug_on);
+	$targetfolder = dirname( $ENV{CLEARCASE_PN} );
+	$sourcefolder = dirname( $ENV{CLEARCASE_PN2} );
+	$log->information("\$targetfolder has value [$targetfolder], \$sourcefolder has value [$sourcefolder]") if ($debug_on);
 
-  while ( $index < @diffoutput ) {
-    $_ = $diffoutput[$index];
+	if ( $targetfolder eq $sourcefolder ) {
+		$log->information("Rename in same folder, running sub elementrenamed") if ($debug_on);
+		elementrenamed();
+	}
+	else {
+		$log->information("Element moved to different folder, running sub elementmoved") if ($debug_on);
+		elementmoved();
+	}
 
-    # look for pattern like this '-----[ renamed to ]-----'
-    if (/^(-{5}\[\s)(.*)(\s\]-{5})/) {
-      $action = $2;
-    }
-    else {
-      $index++;
-      next;
-    }
-
-    if ( $action =~ /renamed to/i ) {
-
-      # Work on block of 4 lines, which describes the rename operation
-      if ($logfile) {
-        $log->information("Found rename pattern starting at line $index of diffoutput:");
-        foreach ( $diffoutput[ $index .. ( $index + 3 ) ] ) {
-          $log->information("\t$_");
-        }
-      }
-
-      # Extract element names
-      ( my $oldname = $diffoutput[ $index + 1 ] ) =~ s/(^..)(.*)(.\s+--\d+.*$)/$2/;
-      ( my $newname = $diffoutput[ $index + 3 ] ) =~ s/(^..)(.*)(.\s+--\d+.*$)/$2/;
-      chomp $oldname;
-      chomp $newname;
-      my $comment = "Element [$newname] previously named [$oldname]";
-      &update_event( 'comment' => "$comment", 'object' => $parentfolder );
-      &update_event( 'comment' => "$comment", 'object' => "$ENV{CLEARCASE_PN}$ENV{CLEARCASE_XN_SFX}" );
-
-      # Move forward to next interesting block
-      $index = $index + 4;
-      next;
-    }
-    else {
-
-      # Move forward to next interesting block
-      $log->information("Found line $_ - moving on...") if ($debug_on);
-      $index = $index + 2;
-      next;
-    }
-  }
+	else {
+		$log->information("Fired for Clearcase operation $ENV{CLEARCASE_OP_KIND}");
+	}
 }
-else {
-  $log->information("Fired for Clearcase operation $ENV{CLEARCASE_OP_KIND}");
+
+sub elementmoved {
+	# Update info on version of sourcefolder
+    # Update info on version of targetfolder	
+    # Update info on element that was moved
+    
+    
+
+}
+
+sub elementrenamed {
+
+	my $cmd = "cleartool diff -ser -pre \"$targetfolder\" 2>&1";
+	$log->information("Diffcommand is [$cmd]") if ($debug_on);
+	my @diffoutput = qx($cmd);
+	$log->information( "\@diffoutput contains " . scalar(@diffoutput) . " lines: " . join(@diffoutput) ) if ($debug_on);
+	my ( $action, $index );
+	$index = 0;
+
+	while ( $index < @diffoutput ) {
+		$_ = $diffoutput[$index];
+
+		# look for pattern like this '-----[ renamed to ]-----'
+		if (/^(-{5}\[\s)(.*)(\s\]-{5})/) {
+			$action = $2;
+		}
+		else {
+			$index++;
+			next;
+		}
+
+		if ( $action =~ /renamed to/i ) {
+
+			# Work on block of 4 lines, which describes the rename operation
+			if ($logfile) {
+				$log->information("Found rename pattern starting at line $index of diffoutput:");
+				foreach ( $diffoutput[ $index .. ( $index + 3 ) ] ) {
+					$log->information("\t$_");
+				}
+			}
+
+			# Extract element names
+			( my $oldname = $diffoutput[ $index + 1 ] ) =~ s/(^..)(.*)(.\s+--\d+.*$)/$2/;
+			( my $newname = $diffoutput[ $index + 3 ] ) =~ s/(^..)(.*)(.\s+--\d+.*$)/$2/;
+			chomp $oldname;
+			chomp $newname;
+			my $comment = "Element [$newname] previously named [$oldname]";
+			update_event( 'comment' => "$comment", 'object' => $targetfolder );
+			update_event( 'comment' => "$comment", 'object' => "$ENV{CLEARCASE_PN}$ENV{CLEARCASE_XN_SFX}" );
+
+			# Move forward to next interesting block
+			$index = $index + 4;
+			next;
+		}
+		else {
+
+			# Move forward to next interesting block
+			$log->information("Found line $_ - moving on...") if ($debug_on);
+			$index = $index + 2;
+			next;
+		}
+	}
 }
 
 sub update_event () {
 
-  # update object event
-  my %parms = @_;
-  $log->information("Called sub update_event with [comment] = [$parms{'comment'}] and [object] = $parms{'object'}") if ($debug_on);
-  my @reply = qx(cleartool chevent -append -c \"$parms{'comment'}\" "$parms{'object'}" 2>&1);
-  $log->warning( "Trouble appending comment: " . join(@reply) ) if ($?);
-  $log->information("$parms{'comment'}") if ($debug_on);
+	# update object event
+	my %parms = @_;
+	$log->information("Called sub update_event with [comment] = [$parms{'comment'}] and [object] = $parms{'object'}") if ($debug_on);
+	my @reply = qx(cleartool chevent -append -c \"$parms{'comment'}\" "$parms{'object'}" 2>&1);
+	$log->warning( "Trouble appending comment: " . join(@reply) ) if ($?);
+	$log->information("$parms{'comment'}") if ($debug_on);
 }
 
 __END__
