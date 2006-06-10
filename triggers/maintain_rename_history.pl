@@ -8,8 +8,9 @@ BEGIN {
 	use File::Basename;
 	( $Scriptfile, $Scriptdir ) = fileparse($0);
 }
+
 use File::Basename;
-use lib $Scriptdir. "..";
+use lib $Scriptdir . "../";
 use praqma::scriptlog;
 use praqma::trigger_helper;
 
@@ -23,7 +24,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "3";
+our $REVISION = "4";
 my $debug_on = defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} ) ? $ENV{'CLEARCASE_TRIGGER_DEBUG'} : 0;
 
 # Header and revision history
@@ -52,6 +53,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         		NOTE
 ----------  -----------------   -------------------------------------------
+2012-01-30  Jens Brejner        Support for move between directories (v 0.1.4)
 2011-08-24  Jens Brejner        Fixed bug on write to element (v 0.1.3)
 2011-08-17  Jens Brejner        Praqmatized (v 0.1.2)
 2011-08-04  Margit Bennetzen    Script created (v 0.1.1)
@@ -103,18 +105,48 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		$log->information("Element moved to different folder, running sub elementmoved") if ($debug_on);
 		elementmoved();
 	}
+}
+else {
 
-	else {
-		$log->information("Fired for Clearcase operation $ENV{CLEARCASE_OP_KIND}");
-	}
+	$log->enable(1);
+	$log->assertion_failed("Fired for Clearcase operation $ENV{CLEARCASE_OP_KIND}");
+}
+
+###############################################################################
+
+sub unqualifypath {
+
+	# remove drive and view part of a pathname
+	#
+	my %parms = @_;
+	$log->assertion_failed("Failed unqualifying path") unless ( $parms{'fullpath'} =~ m/$ENV{CLEARCASE_VIEW_TAG}/ );
+
+	( my $unqualifiedpath = $parms{'fullpath'} ) =~ s/(.*$ENV{CLEARCASE_VIEW_TAG})(.*)/$2/;
+	$log->information("\$unqualifiedpath is now $unqualifiedpath, taken from $parms{'fullpath'}") if ($debug_on);
+	my ( $filename, $directory ) = fileparse($unqualifiedpath);
+	chop $directory;    # chop trailing path sep.
+	$log->information("\$directory is [$directory] , \$filename is [$filename]") if ($debug_on);
+	return ( $directory, $filename );
 }
 
 sub elementmoved {
+
+	$log->information("Is in elementmoved sub") if ($debug_on);
+	my $comment;
+	my ( $old_dir, $old_element ) = unqualifypath( 'fullpath' => $ENV{CLEARCASE_PN2} );
+	my ( $new_dir, $new_element ) = unqualifypath( 'fullpath' => $ENV{CLEARCASE_PN} );
+
 	# Update info on version of sourcefolder
-    # Update info on version of targetfolder	
-    # Update info on element that was moved
-    
-    
+	$comment = "Element [$old_element] moved to [$new_dir] as [$new_element]";
+	update_event( 'comment' => "$comment", 'object' => "$sourcefolder" );
+
+	# Update info on version of targetfolder
+	$comment = "Element [$new_element] moved from [$old_dir] (was named [$old_element])";
+	update_event( 'comment' => "$comment", 'object' => "$targetfolder" );
+
+	# Update info on element that was moved
+	$comment = "Element moved from [$old_dir] to [$new_dir]";
+	update_event( 'comment' => "$comment", 'object' => "$ENV{CLEARCASE_PN}$ENV{CLEARCASE_XN_SFX}" );
 
 }
 
@@ -177,7 +209,9 @@ sub update_event () {
 	# update object event
 	my %parms = @_;
 	$log->information("Called sub update_event with [comment] = [$parms{'comment'}] and [object] = $parms{'object'}") if ($debug_on);
-	my @reply = qx(cleartool chevent -append -c \"$parms{'comment'}\" "$parms{'object'}" 2>&1);
+	my $cmd = "cleartool chevent -append -c \"$parms{'comment'}\" \"$parms{'object'}\" 2>&1";
+	$log->information("Will call [$cmd]") if ($debug_on);
+	my @reply = qx($cmd);
 	$log->warning( "Trouble appending comment: " . join(@reply) ) if ($?);
 	$log->information("$parms{'comment'}") if ($debug_on);
 }

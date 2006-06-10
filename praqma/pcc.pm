@@ -18,7 +18,8 @@ use lib "$_packagedir/..";
 my $major = 0;
 my $minor = 1;
 my $build = 3;
-our $VERSION = &format_version_number(my $major,$minor,$build);
+our $VERSION = &format_version_number($major,$minor,$build);
+
 use vars qw($VERSION);
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 
@@ -181,9 +182,9 @@ Returns: Decimal representation of the above following the described rules
 
 sub format_version_number ($$$)  {
 
-  my $l_major = scalar(@_[0]);
-  my $l_minor = scalar(@_[1]);
-  my $l_build = scalar(@_[2]);
+  my $l_major = scalar($_[0]);
+  my $l_minor = scalar($_[1]);
+  my $l_build = scalar($_[2]);
   die "Versioning failed\n" unless ( $l_build < 1000 );
   return sprintf( "%.4f", $l_major + ( $l_minor / 10 ) + ( $l_build / 10000 ) );
 }
