@@ -1,4 +1,5 @@
 require 5.001;
+chdir $ENV{SYSTEMDRIVE};
 
 use strict;
 
@@ -27,7 +28,7 @@ $| = 1;    # autoflush on
 our $VERSION = "1.0";
 
 # BUILD is revision number!
-our $BUILD = "176";
+our $BUILD = "177";
 
 =head1 NAME
 
@@ -106,7 +107,9 @@ DATE         EDITOR         NOTE
 2011-09-20 Margit Bennetzen Fixed bug so -livesync no longer exludes directories 
 							called db in other than vobs.
 							Added feature so the cleartext library c in vobs isn't 
-							copied when backing up vobs.
+							copied when backing up vobs.							
+2012-07-06   Jens Brejner   Fix bug - all folders named "c" were excluded. Now they
+                            are copied. (v 1.0.176)							
 
 -------------------------------------------------------------------------
 
@@ -1023,14 +1026,6 @@ Returns:
 	my $vob = shift;
 	debug_print("Entering sub: copy_vob_stg($vob)\n");
 	my ($vobstg);
-
-	my $robocopy_params_vob = $robocopy_params . " /XD c ";
-
-	if ( $sw_livesync && ( $sw_database eq 0 ) ) {
-		$robocopy_params_vob = $robocopy_params_vob . " /XD db ";
-		$log->information("Switch -nodatabase enabled, adding /XD db to robocopy parameters\n");
-	}
-
 	my $retval    = 0;
 	my $cmd       = "cleartool lsvob $vob 2\>\&1";
 	my $stderrout = `$cmd`;
@@ -1077,6 +1072,12 @@ Returns:
 
 			my $finaltarget = $vobtargetroot . "\\vobs\\" . $vobtarget;
 			&debug_print("Final target:\t$finaltarget\n");
+
+			my $robocopy_params_vob = $robocopy_params . " /XD $vobstg\\c ";
+			if ( $sw_livesync && ( $sw_database eq 0 ) ) {
+				$robocopy_params_vob = $robocopy_params_vob . " /XD $vobstg\\db ";
+				$log->information("Switch -nodatabase enabled, adding /XD db to robocopy parameters\n");
+			}
 
 			# make the copy
 
@@ -1664,7 +1665,7 @@ Return 1 on failure
 =cut
 
 	my $notrecursive = "/LEV:1 /COPYALL /MIR /SEC /R:2 /A-:A /W:5 ";    # robocopy will only copy 1'st level subdir's a.k.a not recursive
-	my @dirs         = split( /,/, $sw_directory );
+	my @dirs = split( /,/, $sw_directory );
 
 	foreach my $dir (@dirs) {
 
