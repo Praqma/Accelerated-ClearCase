@@ -109,7 +109,7 @@ DATE         EDITOR         NOTE
 							Added feature so the cleartext library c in vobs isn't 
 							copied when backing up vobs.							
 2012-07-06   Jens Brejner   Fix bug - all folders named "c" were excluded. Now they
-                            are copied. (v 1.0.176)							
+                            are copied. (v 1.0.177)							
 
 -------------------------------------------------------------------------
 
