@@ -1,0 +1,83 @@
+=pod
+
+=head1 NAME
+
+only_serial_deleviry.pl - A ClearCase trigger script
+
+Script:        F<only_serial_deleviry.pl>
+
+Trigger name:  C<ACC_SERIAL_DELIVER>
+
+This is an UCM ClearCase trigger script to control usage of UCM activities and eventually the naming of activities.
+
+=head1 SYNOPSIS
+
+Runs as ClearCase trigger script installed on UCM project VOBs.
+
+The script installs itself correctly when executed outside a trigger context using:
+
+ ratlperl only_serial_deleviry.pl -install -vob \thevob
+
+To learn the full syntax simply execute the the script without the -vob switch:
+
+ ratlperl only_serial_deleviry.pl -install
+
+=head2 Restrictions
+
+During the install process, that script is supposed to run under the account which owns the VOB.
+The script will fail if that is not the case.
+
+The script will only install the trigger on UCM project vobs.
+
+An exception is if you execute it in -preview mode
+
+
+=head1 DESCRIPTION
+
+By default ClearCase allows more than one concurrent deliver operation to a target stream.
+
+While that is uncomplicated as long as each deliver changes different elememts, is will cause complications if the same elememt is
+changed by 2 concurrent deliveries.
+Imagine deliver operation one checks out foo.c for merging some changes - and deliver operation 2 needs to check out the same element -
+that will not be possible before deliver operation 1 has completed, so the second deliver will fail.
+
+So the - natural - aim of this trigger is to prevent concurrent deliveries to the same stream. As long as a deliver to the
+stream is started, but not completed, any attempt to start a second deliver operation is prohibited.
+
+=head1 Features
+
+
+=head2 Bypassing the trigger.
+
+To bypass the script you must create the appropriate semaphore file first
+(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
+
+It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
+that triggers are executed - and semaphore files ar looked-up - at locations where common users only
+have read access.
+
+=head2 Test suggestions
+
+
+Please refer to the description at the project wiki page,
+
+=for html <a href="http://wiki.praqma.net/acc/comp/triggers/only_serial_delivery">The trigger's wiki page</a>
+
+
+=head1 AUTHOR
+
+Jens Brejner, E<lt>jbr@praqma.netE<gt>.
+
+=head1 BUGS
+
+See the website below.
+
+=head1 COPYRIGHT
+
+This program is distributed under the GNU General Pulic License v3.0
+
+Support:    http://launchpad.net/acc
+
+=for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
+
+=cut

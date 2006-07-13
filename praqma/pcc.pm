@@ -6,8 +6,8 @@ require Exporter;
 our ( $_packagedir, $_packagefile );
 
 BEGIN {
-  use File::Basename;
-  ( $_packagefile, $_packagedir ) = fileparse(__FILE__);
+	use File::Basename;
+	( $_packagefile, $_packagedir ) = fileparse(__FILE__);
 }
 
 use lib "$_packagedir";
@@ -18,7 +18,7 @@ use lib "$_packagedir/..";
 my $major = 0;
 my $minor = 1;
 my $build = 3;
-our $VERSION = &format_version_number($major,$minor,$build);
+our $VERSION = &format_version_number( $major, $minor, $build );
 
 use vars qw($VERSION);
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
@@ -51,7 +51,7 @@ $stuff = '';
 my $priv_var        = '';
 my %secret_hash     = ();
 my $get_ct_exit_val = sub {
-  return ( scalar($?) / 256 );
+	return ( scalar($?) / 256 );
 };
 
 # make all your functions, whether exported or not;
@@ -63,11 +63,64 @@ Creates an object used access object methods and properties
 =cut
 
 sub new {
-  my $package = shift;
-  my %params  = @_;
-  my $self    = {};
-  bless( $self, $package );
-  return $self;
+	my $package = shift;
+	my %params  = @_;
+	my $self    = {};
+	bless( $self, $package );
+	return $self;
+}
+
+=head2  pccObject->get_dependants( baseline => "fully_qualified_baseline" )
+
+Returns an array baseline that this baseline depends on 
+Returns 0 if there no depending baselines
+
+=cut
+
+sub get_dependants ($){
+
+	my $self  = shift;
+	my %parms = @_;
+	die "Incorrect parameters received, expected parameter \"baseline\" with a fully qualifed baseline name"
+	  unless ( $parms{baseline} =~ /baseline:\S+\@\S+/ );
+	my @reply = split( /, /, $self->ct( command => "describe -fmt %[depends_on]Cp $parms{baseline}" ) );
+	if ( scalar(@reply) ) {
+		foreach (@reply) {
+			$_ = "baseline:$_";
+		}
+
+		return @reply;
+	}
+	else {
+		return 0;
+	}
+
+}
+
+=head2 pccObject->is_rootless(component=> "fully_qualified_component" )
+
+True if component is a rootless component
+
+returns 1 (as true) if the component is a rootless component
+returns 0 (as false) if the component has a root directory
+
+=cut
+
+sub is_rootless ($) {
+	my $self  = shift;
+	my %parms = @_;
+	die "Incorrect parameters received, expected parameter \"component\" with a fully qualifed compoenent name"
+	  unless ( $parms{component} =~ /component:\S+\@\S+/ );
+	my $reply = $self->ct( command => "des -fmt %[root_dir]p $parms{component}" );
+	if ($reply) {
+
+		# is something, so there is a root
+		return 0;
+	}
+	else {
+		return 1;
+	}
+
 }
 
 =head2 pccObject->ct(command=> "string", [err_ok => 1] )
@@ -83,25 +136,25 @@ Depending on the caller context, either list or scalar is returned, it looks for
 =cut
 
 sub ct ($) {
-  my $self  = shift;
-  my %parms = @_;
-  die "input parameter for key 'command' requied" unless ( $parms{command} );
+	my $self  = shift;
+	my %parms = @_;
+	die "input parameter for key 'command' requied" unless ( $parms{command} );
 
-  # unless $parms{err_ok} is set, force it to be zero
-  $parms{err_ok} = defined( $parms{err_ok} ) ? $parms{err_ok} : 0;
+	# unless $parms{err_ok} is set, force it to be zero
+	$parms{err_ok} = defined( $parms{err_ok} ) ? $parms{err_ok} : 0;
 
-  my $cmd = 'cleartool ' . $parms{command} . ' 2>&1';
-  my @res = qx($cmd);
+	my $cmd = 'cleartool ' . $parms{command} . ' 2>&1';
+	my @res = qx($cmd);
 
-  # Report errors unless we expect the call to generate non-zero exit value
-  unless ( $parms{err_ok} ) {
-    if ($?) {
-      my $msg =
-        "The command [$cmd]\ndidn't return as expected.\nExit value was " . &$get_ct_exit_val() . "\nThe system reply was\n" . join( '', @res );
-      die "$msg";
-    }
-  }
-  return ( wantarray ? @res : ( join( '', @res ) ) );
+	# Report errors unless we expect the call to generate non-zero exit value
+	unless ( $parms{err_ok} ) {
+		if ($?) {
+			my $msg =
+			  "The command [$cmd]\ndidn't return as expected.\nExit value was " . &$get_ct_exit_val() . "\nThe system reply was\n" . join( '', @res );
+			die "$msg";
+		}
+	}
+	return ( wantarray ? @res : ( join( '', @res ) ) );
 }
 
 =head2 pccObject->get_components_invob(pvob => pvob_tag )
@@ -111,20 +164,20 @@ Returns an array reference fully qualified streamsof the visible (current region
 =cut
 
 sub get_components_invob( ) {
-  my $self  = shift;
-  my %parms = @_;
-  die "named parameter 'pvob' required!" unless defined( $parms{pvob} );
+	my $self  = shift;
+	my %parms = @_;
+	die "named parameter 'pvob' required!" unless defined( $parms{pvob} );
 
-  my $property = "components_$parms{pvob}";
-  my ( @retval, $tagonly );
-  return $self->{$property} if defined( $self->{$property} );
+	my $property = "components_$parms{pvob}";
+	my ( @retval, $tagonly );
+	return $self->{$property} if defined( $self->{$property} );
 
-  # get components in one vob
-  chomp( $parms{pvob} );
-  @retval = sort $self->ct( command => 'lscomp -fmt %Xn\n -invob ' . $parms{pvob}, err_ok => "0" );
-  chomp(@retval);
-  @{ $self->{$property} } = @retval;
-  return $self->{$property};
+	# get components in one vob
+	chomp( $parms{pvob} );
+	@retval = sort $self->ct( command => 'lscomp -fmt %Xn\n -invob ' . $parms{pvob}, err_ok => "0" );
+	chomp(@retval);
+	@{ $self->{$property} } = @retval;
+	return $self->{$property};
 
 }
 
@@ -134,14 +187,14 @@ Returns an array reference of the visible (current region) vobs
 =cut
 
 sub get_vobs {
-  my $self = shift;
-  return $self->{vobs} if defined( $self->{vobs} );
+	my $self = shift;
+	return $self->{vobs} if defined( $self->{vobs} );
 
-  # find all vobs, return an array of the vobtags
-  my @retval = sort $self->ct( command => "lsvob", err_ok => "0" );
-  chomp(@retval);
-  push @{ $self->{vobs} }, @retval;
-  return $self->{vobs};
+	# find all vobs, return an array of the vobtags
+	my @retval = sort $self->ct( command => "lsvob", err_ok => "0" );
+	chomp(@retval);
+	push @{ $self->{vobs} }, @retval;
+	return $self->{vobs};
 }
 
 =head2 pccObject->get_pvobs( )
@@ -151,17 +204,17 @@ Returns an array reference containing the vobtags of the visible ucm project vob
 
 sub get_pvobs {
 
-  my $self = shift;
-  return $self->{p_vobs} if defined( $self->{p_vobs} );
+	my $self = shift;
+	return $self->{p_vobs} if defined( $self->{p_vobs} );
 
-  # find all pvobs in vob's list
-  my @retval = grep { /(.*ucmvob.*)/ } @{ $self->get_vobs() };
-  foreach (@retval) {
-    s/(^..)(\S+)(\s+.*$)/$2/;
-  }
-  chomp(@retval);
-  push @{ $self->{p_vobs} }, @retval;
-  return $self->{p_vobs}
+	# find all pvobs in vob's list
+	my @retval = grep { /(.*ucmvob.*)/ } @{ $self->get_vobs() };
+	foreach (@retval) {
+		s/(^..)(\S+)(\s+.*$)/$2/;
+	}
+	chomp(@retval);
+	push @{ $self->{p_vobs} }, @retval;
+	return $self->{p_vobs}
 
 }
 
@@ -180,58 +233,25 @@ Returns: Decimal representation of the above following the described rules
 
 =cut 
 
-sub format_version_number ($$$)  {
+sub format_version_number ($$$) {
 
-  my $l_major = scalar($_[0]);
-  my $l_minor = scalar($_[1]);
-  my $l_build = scalar($_[2]);
-  die "Versioning failed\n" unless ( $l_build < 1000 );
-  return sprintf( "%.4f", $l_major + ( $l_minor / 10 ) + ( $l_build / 10000 ) );
+	my $l_major = scalar( $_[0] );
+	my $l_minor = scalar( $_[1] );
+	my $l_build = scalar( $_[2] );
+	die "Versioning failed\n" unless ( $l_build < 1000 );
+	return sprintf( "%.4f", $l_major + ( $l_minor / 10 ) + ( $l_build / 10000 ) );
 }
-
 
 =head2 pcc->DESTROY( )
 Destroys the pcc object
 =cut
 
 sub DESTROY {
-  my $self = shift;
+	my $self = shift;
 
-  # printf( "$self self-destroying at %s\n", scalar localtime );
+	# printf( "$self self-destroying at %s\n", scalar localtime );
 
 }
 
-########### REMAINING SUBS ARE FROM THE TEMPLATE  - THEY SHALL GO AWAY LATER       ####
-
-# here's a file-private function as a closure,
-# callable as &$priv_func.
-my $priv_func = sub {
-
-  # stuff goes here.
-};
-
-# no prototype
-sub func1 {
-
-  return if (1);
-}
-
-# proto'd void
-sub func2() {
-
-  return if (1);
-}
-
-# proto'd to 2 scalars
-sub func3($$) {
-
-  return if (1);
-}
-
-# this one isn't auto-exported, but could be called!
-# proto'd to 1 hash
-sub func4(\%) {
-  return if (1);
-}
-
+# Modules must end with:
 1;
