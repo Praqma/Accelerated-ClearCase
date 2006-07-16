@@ -120,18 +120,27 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'chbl' ) {
 		$log->information("No baselines depends on $baseline, nothing to do");
 		exit 0;
 	}
+
 	# Determine if any of the found baselines, qualify for change
 	foreach (@depends_on) {
 		$log->information("Checking dependant baseline $_");
 
-		my ( $dep_level, $dep_stream, $dep_comp ) =
-		  split( /,/, $clearcase->ct( command => "describe -fmt %[plevel]p,%[bl_stream]Xp,%[component]Xp $_" ) );
+		my $cmd = "describe -fmt %[plevel]p,%[bl_stream]Xp,%[component]Xp $_";
+		my ( $dep_level, $dep_stream, $dep_comp ) = split( /,/, $clearcase->ct( command => $cmd ) );
+		
+		$log->information("Baseline [$_], in component [$dep_comp], on stream [$dep_stream], is level [$dep_level]");
+		
 		unless ( $clearcase->is_rootless( component => "$dep_comp" ) ) {
 			$log->information("Nothing to do, $dep_comp has a root directory");
 			next;
 		}
 		$log->information("$dep_comp is a rootless component");
-		next unless ( $stream eq $dep_stream );
+		
+		unless ( $stream eq $dep_stream ){
+            $log->information("Nothing to do, [$stream] is different from [$dep_stream]");
+            next;
+		}
+		
 		$log->information("Stream matches ...");
 		if ( $plevel eq $dep_level ) {
 			$log->information("The promotion level is already as set properly");
