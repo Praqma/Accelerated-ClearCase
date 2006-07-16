@@ -29,7 +29,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "5";
+our $REVISION = "6";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -55,6 +55,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR             NOTE
 ----------  -----------------  ---------------------------------------------------
+2012-02-16  Jens Brejner       No abbreviation in cleartool command (v 0.1.6)
 2011-04-26  Jens Brejner       Use clearprompt for error message is default (v0.1.5)
 2011-04-26  Jens Brejner       Add external config so parent folder can be considered.
 2011-04-05  Margit Bennetzen   Script added to acc (v0.1)
