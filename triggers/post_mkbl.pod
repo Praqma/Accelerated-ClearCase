@@ -2,13 +2,16 @@
 
 =head1 NAME
 
-only_serial_deleviry.pl - A ClearCase trigger script
+post_mkbl.pl - A ClearCase trigger script
 
-Script:        F<only_serial_deleviry.pl>
+Script:        F<post_mkbl.pl>
 
-Trigger name:  C<ACC_SERIAL_DELIVER>
+Trigger name:  C<ACC_SET_BL_PLEVEL>
 
-This is an UCM ClearCase trigger script to control usage of UCM activities and eventually the naming of activities.
+This is an ClearCase UCM trigger script to intended to keep the promotion level
+of rootless, composite baselines identical on the same stream.
+
+The trigger fires after the 'chbl' (change baseline) event.
 
 =head1 SYNOPSIS
 
@@ -24,7 +27,8 @@ To learn the full syntax simply execute the the script without the -vob switch:
 
 =head2 Restrictions
 
-During the install process, that script is supposed to run under the account which owns the VOB.
+During the install process, that script is supposed to run under the account
+which owns the VOB.
 The script will fail if that is not the case.
 
 The script will only install the trigger on UCM project vobs.
@@ -34,15 +38,26 @@ An exception is if you execute it in -preview mode
 
 =head1 DESCRIPTION
 
-By default ClearCase allows more than one concurrent deliver operation to a target stream.
+When the promotion level of a rootless, composite baseline component is changed,
+the trigger examines the first level dependencies.
+The promotion level of depending baselines is changed if the following is true:
 
-While that is uncomplicated as long as each deliver changes different elememts, is will cause complications if the same elememt is
-changed by 2 concurrent deliveries.
-Imagine deliver operation one checks out foo.c for merging some changes - and deliver operation 2 needs to check out the same element -
-that will not be possible before deliver operation 1 has completed, so the second deliver will fail.
+=over 4
 
-So the - natural - aim of this trigger is to prevent concurrent deliveries to the same stream. As long as a deliver to the
-stream is started, but not completed, any attempt to start a second deliver operation is prohibited.
+=item * The dependecy baseline is on the same stream
+
+=item * The dependecy baseline has a different promotion level
+
+=item * The dependecy baseline belongs to a rootless component
+
+=back
+
+
+If all above is true, that baseline will have it's promotion level changed.
+Because we are changing a rootless component's baseline - the trigger fires again
+on that change baseline event.
+
+
 
 =head1 Features
 
