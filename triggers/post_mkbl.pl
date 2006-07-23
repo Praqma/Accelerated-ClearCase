@@ -28,13 +28,13 @@ our %install_params = (
 
 # File version
 our $VERSION = "1.0";
-our $BUILD   = "0";
+our $BUILD   = "1";
 
 # Header and revision history
 our $header = <<ENDHEADER;
 #########################################################################
 #
-#    $Scriptfile  version $VERSION\.$BUILD
+#    $Scriptfile  version $VERSION.$BUILD
 #
 #    This script is intended as ClearCase trigger script for the
 #    $TRIGGER_NAME trigger.
@@ -67,8 +67,9 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
-2010-03-10  Jens Brejner   1st release prepared for Novo (version 1.0.1)
--------------------------  ----------------------------------------------
+2012-03-13  Jens Brejner   Initial version (version 1.0.1)
+
+----------  -------------  ----------------------------------------------
 
 ENDREVISION
 
@@ -101,11 +102,16 @@ $log->dump_ccvars();                            # Run this statement to have the
 ########################### MAIN ###########################
 if ( $ENV{CLEARCASE_OP_KIND} eq 'chbl' ) {
 
-	my $plevel    = defined( $ENV{CLEARCASE_PROMOTION_LEVEL} ) ? "$ENV{CLEARCASE_PROMOTION_LEVEL}"     : 0;
-	my $stream    = defined( $ENV{CLEARCASE_STREAM} )          ? "stream:$ENV{CLEARCASE_STREAM}"       : 0;
-	my $baseline  = defined( $ENV{CLEARCASE_BASELINES} )       ? "baseline:$ENV{CLEARCASE_BASELINES}"  : 0;
-	my $component = defined( $ENV{CLEARCASE_COMPONENT} )       ? "component:$ENV{CLEARCASE_COMPONENT}" : 0;
+	my ( $plevel, $stream, $baseline, $component );
 
+	$plevel = defined( $ENV{CLEARCASE_PROMOTION_LEVEL} ) ? "$ENV{CLEARCASE_PROMOTION_LEVEL}" : 0;
+	$log->assertion_failed("Required variable \$plevel is empty") unless ($plevel);
+	$stream = defined( $ENV{CLEARCASE_STREAM} ) ? "stream:$ENV{CLEARCASE_STREAM}" : 0;
+	$log->assertion_failed("Required variable \$stream is empty") unless ($stream);
+	$baseline = defined( $ENV{CLEARCASE_BASELINES} ) ? "baseline:$ENV{CLEARCASE_BASELINES}" : 0;
+	$log->assertion_failed("Required variable \$baseline is empty") unless ($baseline);
+	$component = defined( $ENV{CLEARCASE_COMPONENT} ) ? "component:$ENV{CLEARCASE_COMPONENT}" : 0;
+	$log->assertion_failed("Required variable \$component is empty") unless ($component);
 	$log->information(
 		"\$plevel has value [$plevel]\n\$stream has value [$stream]\n\$baseline has value [$baseline]\n\$component has value [$component]\n");
 
@@ -127,20 +133,20 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'chbl' ) {
 
 		my $cmd = "describe -fmt %[plevel]p,%[bl_stream]Xp,%[component]Xp $_";
 		my ( $dep_level, $dep_stream, $dep_comp ) = split( /,/, $clearcase->ct( command => $cmd ) );
-		
+
 		$log->information("Baseline [$_], in component [$dep_comp], on stream [$dep_stream], is level [$dep_level]");
-		
+
 		unless ( $clearcase->is_rootless( component => "$dep_comp" ) ) {
 			$log->information("Nothing to do, $dep_comp has a root directory");
 			next;
 		}
 		$log->information("$dep_comp is a rootless component");
-		
-		unless ( $stream eq $dep_stream ){
-            $log->information("Nothing to do, [$stream] is different from [$dep_stream]");
-            next;
+
+		unless ( $stream eq $dep_stream ) {
+			$log->information("Nothing to do, [$stream] is different from [$dep_stream]");
+			next;
 		}
-		
+
 		$log->information("Stream matches ...");
 		if ( $plevel eq $dep_level ) {
 			$log->information("The promotion level is already as set properly");

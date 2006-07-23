@@ -193,6 +193,7 @@ sub assertion_failed($) {
 	my $msg  = shift;
 
 	my $prefix = $self->timestamp . " [ASSERTION FAILED]:\n";
+	$self->enable() unless ($LogIsOpen);
 	if ($LogIsOpen) {
 		if ( defined $::HeCantMerge ) {
 			print STDERR "$prefix$msg";
