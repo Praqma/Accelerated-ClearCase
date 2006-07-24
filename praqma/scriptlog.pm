@@ -30,7 +30,7 @@ my $LogIsOpen  = 0;           #Flag indicating wether the log is succesfully ope
 
 # Module version
 our $VERSION = "1.0";
-our $BUILD   = "6";
+our $BUILD   = "7";
 our $header  = <<ENDHEADER;
 #########################################################################
 #     This module contains a class which enables easy script logging
@@ -45,7 +45,7 @@ ENDHEADER
 #########################################################################
 our $revision = <<ENDREVISION;
 DATE        EDITOR  NOTE
-----------  -------------  ----------------------------------------------
+----------  -------------  ----------------------------------------------------
 2007-08-27  Lars Kruse     1st release prepared for Novo (version 1.0)
                            https://svn.praqma.net/svn/acc/dock revision 76
 2009-07-02  Lars Kruse     Prepared for Novo Nordisk (version 1.0.4)
@@ -56,7 +56,9 @@ DATE        EDITOR  NOTE
                            It now check for environment variables
                            SCRIPTLOG_VERBOSE or CLEARCASE_TRIGGER_VERBOSE
                            (version 1.0.6)
--------------------------------------------------------------------------
+2012-03-13  Jens Brejner   Enable logging if assertion_failed is called (v1.0.7)
+                                                    
+-------------------------------------------------------------------------------
 ENDREVISION
 
 sub new {

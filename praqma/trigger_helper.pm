@@ -65,6 +65,7 @@ DATE         EDITOR        NOTE
 2010-07-06  Jens Brejner   rmtype in replicated vob requires switch -rmall
                            (version 1.1.7)
 2012-03-01  Jens Brejner   Support trigger comment string from script (v 1.1.9)
+2012-03-01  Jens Brejner   Fix bug in require_trigger_context (v 1.1.10)
 
 -------------------------------------------------------------------------------
 ENDREVISION
