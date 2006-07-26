@@ -104,7 +104,7 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'chbl' ) {
 
 	my ( $plevel, $stream, $baseline, $component );
 
-	$plevel = defined( $ENV{CLEARCASE_PROMOTION_LEVELA} ) ? "$ENV{CLEARCASE_PROMOTION_LEVEL}" : 0;
+	$plevel = defined( $ENV{CLEARCASE_PROMOTION_LEVEL} ) ? "$ENV{CLEARCASE_PROMOTION_LEVEL}" : 0;
 	$log->assertion_failed("Required variable \$plevel is empty") unless ($plevel);
 	$stream = defined( $ENV{CLEARCASE_STREAM} ) ? "stream:$ENV{CLEARCASE_STREAM}" : 0;
 	$log->assertion_failed("Required variable \$stream is empty") unless ($stream);
