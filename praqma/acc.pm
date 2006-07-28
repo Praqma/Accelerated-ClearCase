@@ -197,7 +197,7 @@ Returns:
     if ( $retval eq "" ) {
         return $vob;
     } else {
-        return get_adminvob($retval);
+        return &get_adminvob($retval);
     }
 }
 
@@ -908,11 +908,11 @@ Returns:
     my $level     = shift;
     my $resultref = shift;
 
-    push @$resultref, indent( $level++ ) . $lbtype;
+    push @$resultref, &indent( $level++ ) . $lbtype;
     my @children;
     get_to_hlinks( \$lbtype, \acc::HLTYPE_COMPOSITE, \@children );
     foreach my $child (@children) {
-        get_composite( $child, $level, $resultref );
+        &get_composite( $child, $level, $resultref );
     }
 
     sub indent($)
