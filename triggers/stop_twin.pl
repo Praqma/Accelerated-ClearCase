@@ -1,6 +1,4 @@
-######################## STANDARD STUFF ##############################
-#
-require 5.001;
+require 5.000;
 use strict;
 
 BEGIN {
@@ -15,40 +13,45 @@ BEGIN {
 our( $Scriptdir, $Scriptfile );
 
 BEGIN {
-
-    # Capture current working directory, to be used in the "use lib" statement
-    # following this BEGIN block
-    $0 =~ /(.*[\/\\])(.*)$/;
-    $Scriptdir  = $1;
-    $Scriptfile = $2;
+    $Scriptdir  = ".\\";
+    $Scriptfile = $0;      # Assume the script is called from 'current directory' (no leading path - $0 is the file)
+    $Scriptfile =~ /(.*\\)(.*)$/
+      && do { $Scriptdir = $1; $Scriptfile = $2; }    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
 
-use lib $Scriptdir . "..\\PraqmaLib";
+use lib $Scriptdir. "..";
 
-# Use clauses
-use scriptlog;
-use trigger_utils;
+use praqma::scriptlog;
+use praqma::trigger_helper;
+
+#Required if you call trigger_helper->enable_install
+our $TRIGGER_NAME    = "STOP_TWIN";
+our $TRIGGER_INSTALL = "mktrtype -preop lnname -element -all vob:both";    # vob: is on of clientvob | adminvob | both
 
 # File version
-our $VERSION = "1.0";
-our $BUILD   = "18";    # Praqma SVN repoistory revision
+our $VERSION  = "1.0";
+our $REVISION = "19";
 
-# Support trigger_utils::enable_install()
-our $TRIGGER_NAME    = "STOP_TWIN";                                        #Required if you call trigger_utils::enable_install()
-our $TRIGGER_INSTALL = "mktrtype -preop lnname -element -all vob:both";    #Required if you call trigger_utils::enable_install()
+my $verbose_mode = 1;
 
 # Header and revision history
 our $header = <<ENDHEADER;
 #########################################################################
-#     $Scriptfile  version $VERSION\.$BUILD
-#     This script is intended as trigger script for the
-#     $TRIGGER_NAME trigger which prevents creation of
-#     evil twins in ClearCase
+#     $Scriptfile  version $VERSION\.$REVISION
+#     This script is intended as ClearCase trigger script for the
+#     $TRIGGER_NAME trigger.
 #
-#     Date:       2008-10-24
-#     Author:     Jens Brejner, jbrejner\@praqma.net
-#     Copyright:  Jens Brejner
-#     License:    GNU General Pulic License
+#     The trigger prevents creation of evil twins in ClearCase.
+#
+#     This script supports self-install (execute with the -install
+#     switch to learn more).
+#
+#     Read the POD documentation in the script for more details
+#     Date:       2009-07-28
+#     Author:     Jens Brejner, jbr\@praqma.net
+#     Copyright:  Praqma A/S
+#     License:    GNU General Pulic License v3.0
+#     Support:    http://launchpad.net/acc
 #########################################################################
 ENDHEADER
 
@@ -64,65 +67,38 @@ DATE        EDITOR         NOTE
 -------------------------  ----------------------------------------------
 ENDREVISION
 
-# 	Version 1.0.18 has been tested and verified on ClearCase LT 6.16.
-#	There is one known issue if running the script on ClearCase version 7.*, which is
-#	the formatting of the messsage box (clearprompt). If opgrading to CC version 7 the
-#	double-escaped newlines should only be ecaped once, that means; expect to change
-#	'\\n' to '\n' when found in the definition of $prompt
+#Enable the features in trigger_helper
+our $thelp = trigger_helper->new;
+$thelp->enable_install;
 
-my $debug          = 1;    # Write more messages to the log file
-my $verbose_mode   = 1;    # When verbose is on messages are wittten to console as well as logfile
-my $case_sensitive = 0;    # 1 means Case Sensitive name matching
+print "HEY ! Need to remove here, before releasing\n";
 
-if ( $ENV{'DEBUG_STOP_TWIN'} ) { $debug = 1; }
+#        $thelp->require_trigger_context;
 
-enable_install();
-require_trigger_context();
+our $semaphore_file = $thelp->enable_semaphore_backdoor;
 
-# Prepare logging capabilities
+#Enable the features in scriptlog
 our $log = scriptlog->new;
-$log->conditional_enable();
-$verbose_mode && $log->set_verbose($verbose_mode);
-$debug
-  && do {
-    $log->enable();
-    $log->dump_ccvars();
-    $log->set_verbose($verbose_mode);
-    $log->information("DEBUG is ON\n");
-  };
+$log->conditional_enable();    #Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->set_verbose($verbose_mode);
+our $logfile = $log->get_logfile;
+($logfile) && $log->information("logfile is: $logfile\n");
+$log->information("Searching valid semaphore file at '$semaphore_file'\n\t\t...but couldn't find any!\n");
 
-# Check for valid semaphore file, so trigger could be bypassed
-my $backdoor = enable_semaphore_backdoor();
+my $debug = 0;                 # Write more messages to the log file
+$ENV{'CLEARCASE_TRIGGER_DEBUG'} && do {
+    $log->dump_ccvars;         # Run this statement to have the trigger dump the CLEARCASE variables
+    $debug = 1;
+};
 
-if ($backdoor) {
+## Here starts the actual evil twin searching code.
 
-    #        Found valid semaphore file
-    #        Format message, write to log, allow operation and quit
+my $case_sensitive = 0;        # 1 means Case Sensitive name matching
 
-    my $msg = " Triggerscript " . uc($Scriptfile) . " \\n";
-    $msg = "$msg was ignored for:\\n";
-    $msg = "$msg $ENV{'CLEARCASE_PN'}\\n";
-    $msg = "$msg by a valid semaphore file:\\n";
-    $msg = "$msg $backdoor\\n";
-    my $log = scriptlog->new;
-    $log->enable();
-
-    foreach ( split ( /\n/, $msg ) ) {
-        $log->information("$_\n");
-    }
-    $msg = "$msg\\n\\nAction is logged in logfile:\\n" . $log->get_logfile;
-    `clearprompt proceed -type ok -mask proceed -default proceed -newline -pre -pro "$msg"`;
-    $log->DESTROY();
-    exit 0;
-}
-
-# No valid backdoor, prepare to look duplicate name.
 my ( $dir_delim, $possible_dupe, $dupver );
 my $viewkind = $ENV{CLEARCASE_VIEW_KIND};
 my $pathname = $ENV{CLEARCASE_PN};
 my $sfx      = $ENV{'CLEARCASE_XN_SFX'} ? $ENV{'CLEARCASE_XN_SFX'} : '@@';
-
-############################
 
 if ( $ENV{'OS'} =~ /[Ww]indows*/ ) {
 
@@ -214,10 +190,10 @@ if ( $pop_kind eq "mkelem" ) {
     $ENV{'CLEARCASE_PN2'} =~ /(.*[\/\\])(.*)$/;
     my $old_path_name = $1;
     chomp( my $old_element_name = $2 );
-#	Rev 18 take out
+
+    #        Rev 18 take out
     $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$old_path_name = [$old_path_name]\n" );
     $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$old_element_name = [$old_element_name]\n" );
-
 
     if ( !$pop_kind || ( $pop_kind eq "rmname" ) || ( $pop_kind eq "mkslink" ) ) {
 
@@ -246,4 +222,88 @@ $log->DESTROY();
 # Stop operation
 exit 1;
 
-#################################################################################################################
+__END__
+
+######################## DOCUMENTATION ##############################
+
+=pod
+
+=head1 NAME
+
+stop_twin - ClearCase trigger
+
+Script:        F<stop_twin.pl>
+
+Trigger name:  C<STOP_TWIN>
+
+Used as a generic trigger which prevents creation of evil twins in ClearCase - please see the Description
+
+=head1 SYNOPSIS
+
+Runs as ClearCase trigger script installed on any vob, but primaryly on basevobs and ucmvobs ( it less likely to create elements on adminvobs or pvobs).
+
+The scripts installs itself correctly when executed outside a trigger context using:
+
+  (ratl)perl stop_twin -install -vob \thevob
+
+To learn the full syntax simply execute the the script without the -vob switch:
+
+  stop_twin -install
+
+=head2 Restrictions
+
+During the install process, that script is supposed to run under the account which owns the VOB.
+The script will fail if that is not the case.
+
+An exception is if you execute it in -preview mode
+
+To bypass the script you must create the appropriate semaphore file first
+(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
+
+It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
+that triggers are executed - and semaphore files ar looked-up - at locations where common users only
+have read access. ...There! I said it anyway!
+
+=head1 DESCRIPTION
+
+In ClearCase all files and directories are elements, and directory elements are versioned just like file elements are.
+Every ClearCase element is identfied by an Object ID internally in ClearCase, and these Object ID's each have a name.
+Each version of a Directory Element contains a list of file- or directory names which where contained by the directory
+element - in that version, and a diff of two versions will display a change in the list of names contained by the directory
+element.
+
+In a normal filesystem we delete files - or names - in order to remove them from the directory, but in ClearCase, because the names
+actually are names of other elements, we can not accept that an entire element vanishes from Clearcase, just because we don't like or
+need the name anymore.
+So Clearcase does the only right thing - it removes the name from the directory element version.
+
+Suppose that we at some time after removing the name foo.c from a directory version, ClearCase by itself does not stop us from creating
+a brand new element, with the name foo.c, and have that recorded in the directory contents, but what ClearCase has created for us is 2
+completely different element, with a history and contents of their own - but they look, by their name - like identical twins.
+And they are evil. ClearCase can - and will not - merge what you see as one file, because it is 2 files.
+
+That is the evil twin situation - and this trigger script, prevents the situation from happening, by looking in previous versions of the
+directory if the name has been used. If the name have been used, you are not allowed to reuse it.
+
+If you must reuse the name, you will need to merge a directory version that contains the name in question to the
+directory version you are working with.
+
+
+
+=head1 AUTHOR
+
+Jens Brejner, E<lt>jbr@praqma.netE<gt>.
+
+=head1 BUGS
+
+See the website below.
+
+=head1 COPYRIGHT
+
+This program is distributed under the GNU General Pulic License v3.0
+
+Support:    http://launchpad.net/acc
+
+=for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
+
+=cut
