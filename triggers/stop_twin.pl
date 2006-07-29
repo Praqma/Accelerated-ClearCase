@@ -30,7 +30,7 @@ our $TRIGGER_INSTALL = "mktrtype -preop lnname -element -all vob:both";    # vob
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "19";
+our $REVISION = "20";
 
 my $verbose_mode = 1;
 
@@ -72,8 +72,7 @@ our $thelp = trigger_helper->new;
 $thelp->enable_install;
 
 print "HEY ! Need to remove here, before releasing\n";
-
-#        $thelp->require_trigger_context;
+$thelp->require_trigger_context;
 
 our $semaphore_file = $thelp->enable_semaphore_backdoor;
 
@@ -87,12 +86,16 @@ $log->information("Searching valid semaphore file at '$semaphore_file'\n\t\t...b
 
 my $debug = 0;                 # Write more messages to the log file
 $ENV{'CLEARCASE_TRIGGER_DEBUG'} && do {
-    $log->dump_ccvars;         # Run this statement to have the trigger dump the CLEARCASE variables
     $debug = 1;
+    $log->dump_ccvars;         # Run this statement to have the trigger dump the CLEARCASE variables
 };
 
-## Here starts the actual evil twin searching code.
+# End of standard stuff
 
+# Here starts the actual trigger code.
+
+#ToDo
+# $case_sensitive might not be needed?
 my $case_sensitive = 0;        # 1 means Case Sensitive name matching
 
 my ( $dir_delim, $possible_dupe, $dupver );
@@ -135,7 +138,6 @@ if ( exists( $ENV{'CLEARCASE_VIEW_KIND'} ) && $ENV{'CLEARCASE_VIEW_KIND'} ne 'dy
     $debug && $log->information( "DEBUG\tLine " . __LINE__ . " Value of \$snapview after vob root test is [$snapview]\n" );
 }
 
-# Now search for evil twin
 my $found = 0;
 my $pattern;
 if ($case_sensitive) {
@@ -148,28 +150,54 @@ if ($case_sensitive) {
 
 $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$pattern is [$pattern]\n" );
 
-foreach my $branchversion ( reverse qx(cleartool lsvtree -a -s -obs -nco "$parent_dna") ) {
-    chomp $branchversion;
-    $debug && $log->information( "DEBUG\tLine " . __LINE__ . " Looking at \$branchversion: $branchversion\n" );
-    chomp( my @match = grep /$pattern$/, `cleartool ls -s \"$branchversion\"` );
-    if (@match) {
-        $dupver = $match[$#match];
-        $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$dupver before = [$dupver]\n" );
-        $dupver =~ s/\\/\//g;    # normalize path sep
-        $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$dupver normalized = [$dupver]\n" );
-        $dupver =~ s/(.*)($sfx)$/$1/;    # strip directory part
-        $found = $dupver;
-        $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$dupver after = [$dupver]\n" );
-        last;
+# Now search for evil twin
+
+# get lines from lshist that begins with non-whitespace and ends with digit
+my @lines = grep { /^\S.*\\\d+$/ } qx(cleartool lshist -nop -min -nco -dir -fmt "%Nc%Vn\\n" "$parent_dna");
+
+my %added        = ();    #  table of latest version where NAME was added
+my %uncatalogued = ();    #  table of latest version where NAME was seen before uncatalog
+
+foreach (@lines) {
+
+    next unless /^Added|^Uncat/i;
+
+    # isolate elementname and branch version
+    my ( $action, $name, $junk, $branch ) = /(.*")(.*)("\.)(.*)/;
+
+    # Fill table of latest version where file was added
+    if (/^Added/i) {
+        $added{$name} = $branch unless $added{$name};
     }
+
+    # Fill table of latest version where NAME was seen before uncatalog
+    if (/^Uncat/i) {
+
+        # chop branch and version number
+        my ( $b, $v ) = ( $branch =~ /(.*)(\d+)/ );
+        $v--;    # decrement version number
+        my $lastknown = "$b$v";
+        $uncatalogued{$name} = $lastknown unless $uncatalogued{$name};
+    }
+}
+
+chomp( my @match = grep /$pattern$/, keys %added );
+if (@match) {
+    $dupver = $match[$#match];
+
+    #        $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$dupver before = [$dupver]\n" );
+    #        $dupver =~ s/\\/\//g;    # normalize path sep
+    #        $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$dupver normalized = [$dupver]\n" );
+    #        $dupver =~ s/(.*)($sfx)$/$1/;    # strip directory part
+    $found = $dupver;
+    $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$dupver after = [$dupver]\n" );
+
 }
 
 # No duplicate element is found on invisible branches
 # Allow the creation of the element.
 exit 0 unless $found;
 
-# Possible duplicate element is found - start logging.
-$log->enable();
 my $user      = "$ENV{'CLEARCASE_USER'}";
 my $pop_kind  = "$ENV{'CLEARCASE_POP_KIND'}";
 my $vob_owner = `cleartool desc -fmt %u vob:$ENV{'CLEARCASE_VOB_PN'}`;
@@ -204,9 +232,19 @@ if ( $pop_kind eq "mkelem" ) {
 }
 
 $prompt = "$prompt ALREADY exists for the directory:\\n [$parent]\\n";
-$prompt = "$prompt in another branch as:\\n";
-$prompt = "$prompt [$found].\\n";
+$prompt = "$prompt it was added in branch branch version:\\n";
+$prompt = "$prompt [$added{$element}].\\n";
 $prompt = "$prompt \\n";
+
+# check if it has been uncatogued
+chomp( my @lastseen = grep /$pattern$/, keys %uncatalogued );
+
+if (@lastseen) {
+    $prompt = "$prompt The name has last been seen in: \\n";
+    $prompt = "$prompt [@lastseen].\\n";
+    $prompt = "$prompt \\n";
+}
+
 $prompt = "$prompt NOTE:  If you feel you really need to perform this action\\n";
 $prompt = "$prompt e-mail the VOB_OWNER ($vob_owner).\\n\\n";
 
@@ -217,9 +255,8 @@ foreach ( split ( /\\n/, $prompt ) ) {
 $prompt = "$prompt Action is logged in logfile:\\n " . $log->get_logfile;
 
 `clearprompt yes_no -pro \"$prompt\" -type error -mask abort -default abort -newline -prefer_gui`;
-$log->DESTROY();
 
-# Stop operation
+# prevent the operation
 exit 1;
 
 __END__
