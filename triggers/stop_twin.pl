@@ -70,8 +70,6 @@ ENDREVISION
 #Enable the features in trigger_helper
 our $thelp = trigger_helper->new;
 $thelp->enable_install;
-
-print "HEY ! Need to remove here, before releasing\n";
 $thelp->require_trigger_context;
 
 our $semaphore_file = $thelp->enable_semaphore_backdoor;
@@ -100,7 +98,7 @@ my $case_sensitive = 0;        # 1 means Case Sensitive name matching
 
 my ( $dir_delim, $possible_dupe, $dupver );
 my $viewkind = $ENV{CLEARCASE_VIEW_KIND};
-my $pathname = $ENV{CLEARCASE_PN};
+my $pathname = $ENV{CLEARCASE_XPN};
 my $sfx      = $ENV{'CLEARCASE_XN_SFX'} ? $ENV{'CLEARCASE_XN_SFX'} : '@@';
 
 if ( $ENV{'OS'} =~ /[Ww]indows*/ ) {
@@ -114,10 +112,7 @@ if ( $ENV{'OS'} =~ /[Ww]indows*/ ) {
 $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$pathname is now [$pathname]\n" );
 
 # split element name in dir and leaf
-$pathname =~ /(.*)([\/\\])(.*)$/;
-my $parent  = $1;
-my $element = $3;
-
+my ( $parent, $element ) = acc::split_dir_file($pathname);
 $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$parent is now [$parent]\n" );
 $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$element is now [$element]\n" );
 
@@ -140,12 +135,13 @@ if ( exists( $ENV{'CLEARCASE_VIEW_KIND'} ) && $ENV{'CLEARCASE_VIEW_KIND'} ne 'dy
 
 my $found = 0;
 my $pattern;
+
 if ($case_sensitive) {
     $debug && $log->information( "DEBUG\tLine " . __LINE__ . " Case sensitive matching is performed\n" );
-    $pattern = "$element$sfx";
+    $pattern = "$element";
 } else {
     $debug && $log->information( "DEBUG\tLine " . __LINE__ . " Case INSENSITIVE matching is performed\n" );
-    $pattern = "(?i)$element$sfx";
+    $pattern = "(?i)$element";
 }
 
 $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$pattern is [$pattern]\n" );
@@ -240,8 +236,9 @@ $prompt = "$prompt \\n";
 chomp( my @lastseen = grep /$pattern$/, keys %uncatalogued );
 
 if (@lastseen) {
+	# my $bv = $lastseen[$#lastseen];
     $prompt = "$prompt The name has last been seen in: \\n";
-    $prompt = "$prompt [@lastseen].\\n";
+    $prompt = "$prompt [$uncatalogued{$element}].\\n";
     $prompt = "$prompt \\n";
 }
 
