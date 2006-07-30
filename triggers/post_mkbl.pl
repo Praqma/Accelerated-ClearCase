@@ -100,7 +100,7 @@ $log->information($semaphore_status);
 $log->dump_ccvars();                            # Run this statement to have the trigger dump the CLEARCASE variables
 
 ########################### MAIN ###########################
-if ( $ENV{CLEARCASE_OP_KIND} eq 'chbl' ) {
+if ( ($ENV{CLEARCASE_OP_KIND} eq 'chbl' ) && defined( $ENV{CLEARCASE_PROMOTION_LEVEL} ) ) {
 
 	my ( $plevel, $stream, $baseline, $component );
 
