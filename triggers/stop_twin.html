@@ -1,0 +1,123 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>stop_twin - ClearCase trigger</title>
+<link rel="stylesheet" href="C:/Program Files/OptiPerl/Pod2Html.css" type="text/css" />
+<link rev="made" href="mailto:" />
+</head>
+
+<body>
+
+<p><a name="__index__"></a></p>
+<!-- INDEX BEGIN -->
+<!--
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<ul>
+
+		<li><a href="#restrictions">Restrictions</a></li>
+	</ul>
+
+	<li><a href="#description">DESCRIPTION</a></li>
+	<ul>
+
+		<li><a href="#case_sensivity">Case sensivity</a></li>
+		<li><a href="#bypassing_the_trigger_">Bypassing the trigger.</a></li>
+	</ul>
+
+	<li><a href="#author">AUTHOR</a></li>
+	<li><a href="#bugs">BUGS</a></li>
+	<li><a href="#copyright">COPYRIGHT</a></li>
+</ul>
+-->
+<!-- INDEX END -->
+
+<p>
+</p>
+<hr />
+<h1><a name="name">NAME</a></h1>
+<p>stop_twin - ClearCase trigger</p>
+<p>Script:        <em>stop_twin.pl</em></p>
+<p>Trigger name:  <code>STOP_TWIN</code></p>
+<p>Used as a generic trigger which prevents creation of evil twins in ClearCase - please see the Description</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>Runs as ClearCase trigger script installed on any vob, but primaryly on basevobs and ucmvobs ( it less likely to create elements on adminvobs or pvobs).</p>
+<p>The scripts installs itself correctly when executed outside a trigger context using:</p>
+<pre>
+  (ratl)perl stop_twin -install -vob \thevob</pre>
+<p>To learn the full syntax simply execute the the script without the -vob switch:</p>
+<pre>
+  stop_twin -install</pre>
+<p>
+</p>
+<h2><a name="restrictions">Restrictions</a></h2>
+<p>During the install process, that script is supposed to run under the account which owns the VOB.
+The script will fail if that is not the case.</p>
+<p>An exception is if you execute it in -preview mode</p>
+<p>
+</p>
+<hr />
+<h1><a name="description">DESCRIPTION</a></h1>
+<p>In ClearCase all files and directories are elements, and directory elements are versioned just like file elements are.
+Every ClearCase element is identfied by an Object ID internally in ClearCase, and these Object ID's each have a name.
+Each version of a Directory Element contains a list of file- or directory names which where contained by the directory
+element - in that version, and a diff of two versions will display a change in the list of names contained by the directory
+element.</p>
+<p>In a normal filesystem we delete files - or names - in order to remove them from the directory, but in ClearCase, because the names
+actually are names of other elements, we can not accept that an entire element vanishes from Clearcase, just because we don't like or
+need the name anymore.
+So Clearcase does the only right thing - it removes the name from the directory element version.</p>
+<p>Suppose that we at some time after removing the name foo.c from a directory version, ClearCase by itself does not stop us from creating
+a brand new element, with the name foo.c, and have that recorded in the directory contents, but what ClearCase has created for us is 2
+completely different element, with a history and contents of their own - but they look, by their name - like identical twins.
+And they are evil. ClearCase can - and will not - merge what you see as one file, because it is 2 files.</p>
+<p>That is the evil twin situation - and this trigger script, prevents the situation from happening, by looking in previous versions of the
+directory if the name has been used. If the name have been used, you are not allowed to reuse it.</p>
+<p>If you must reuse the name, you will need to merge a directory version that contains the name in question to the
+directory version you are working with.</p>
+<p>
+</p>
+<h2><a name="case_sensivity">Case sensivity</a></h2>
+<p>By default the trigger operates in Case sensitive mode, so elements with for instance  CamelCase errors can be renamed
+without involving the vob owner.</p>
+<p>The case sensitive pattern matching can be changed to case insensitive if that is required, to do that, you will edit the
+trigger script and change the line</p>
+<pre>
+        my $case_sensitive = 1;</pre>
+<p>to</p>
+<pre>
+        my $case_sensitive = 0;</pre>
+<p>
+</p>
+<h2><a name="bypassing_the_trigger_">Bypassing the trigger.</a></h2>
+<p>To bypass the script you must create the appropriate semaphore file first
+(see the POD documentation for praqma::trigger_helper-&gt;enable_semaphore_backdoor).</p>
+<p>It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
+that triggers are executed - and semaphore files ar looked-up - at locations where common users only
+have read access.</p>
+<p>
+</p>
+<hr />
+<h1><a name="author">AUTHOR</a></h1>
+<p>Jens Brejner, &lt;<a href="mailto:jbr@praqma.net">jbr@praqma.net</a>&gt;.</p>
+<p>
+</p>
+<hr />
+<h1><a name="bugs">BUGS</a></h1>
+<p>See the website below.</p>
+<p>
+</p>
+<hr />
+<h1><a name="copyright">COPYRIGHT</a></h1>
+<p>This program is distributed under the GNU General Pulic License v3.0</p>
+<p>Support:    <a href="http://launchpad.net/acc">http://launchpad.net/acc</a></p>
+<a href="http://launchpad.net/acc">Project home at Launchpad</a>
+</body>
+
+</html>
