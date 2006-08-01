@@ -10,13 +10,17 @@ BEGIN {
     }
 }
 
-our( $Scriptdir, $Scriptfile );
+our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
-    $Scriptdir  = ".\\";
-    $Scriptfile = $0;      # Assume the script is called from 'current directory' (no leading path - $0 is the file)
+    $Scriptdir = ".\\";
+    $Scriptfile =
+      $0;  # Assume the script is called from 'current directory' (no leading path - $0 is the file)
     $Scriptfile =~ /(.*\\)(.*)$/
-      && do { $Scriptdir = $1; $Scriptfile = $2; }    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+      && do {
+        $Scriptdir  = $1;
+        $Scriptfile = $2;
+      }  # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
 
 use lib $Scriptdir. "..";
@@ -25,8 +29,10 @@ use praqma::scriptlog;
 use praqma::trigger_helper;
 
 #Required if you call trigger_helper->enable_install
-our $TRIGGER_NAME    = "STOP_TWIN";
-our $TRIGGER_INSTALL = "mktrtype -preop lnname -element -all vob:both";    # vob: is on of clientvob | adminvob | both
+our $TRIGGER_NAME = "STOP_TWIN";
+
+# vob: is on of clientvob | adminvob | both
+our $TRIGGER_INSTALL = "mktrtype -preop lnname -element -all vob:both";
 
 # File version
 our $VERSION  = "1.0";
@@ -76,25 +82,26 @@ our $semaphore_file = $thelp->enable_semaphore_backdoor;
 
 #Enable the features in scriptlog
 our $log = scriptlog->new;
-$log->conditional_enable();    #Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+
+# Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or
+# SCRIPTLOG_ENABLE=1 to start logging
+$log->conditional_enable();
 $log->set_verbose($verbose_mode);
 our $logfile = $log->get_logfile;
 ($logfile) && $log->information("logfile is: $logfile\n");
-$log->information("Searching valid semaphore file at '$semaphore_file'\n\t\t...but couldn't find any!\n");
+$log->information(
+    "Searching valid semaphore file at '$semaphore_file'\n\t\t...but couldn't find any!\n");
 
-my $debug = 0;                 # Write more messages to the log file
+my $debug = 0;    # Write more messages to the log file
 $ENV{'CLEARCASE_TRIGGER_DEBUG'} && do {
     $debug = 1;
-    $log->dump_ccvars;         # Run this statement to have the trigger dump the CLEARCASE variables
+    $log->dump_ccvars;    # Run this statement to have the trigger dump the CLEARCASE variables
 };
 
 # End of standard stuff
 
 # Here starts the actual trigger code.
-
-#ToDo
-# $case_sensitive might not be needed?
-my $case_sensitive = 0;        # 1 means Case Sensitive name matching
+my $case_sensitive = 1;    # 0 means Case IN-Sensitive name matching
 
 my ( $dir_delim, $possible_dupe, $dupver );
 my $viewkind = $ENV{CLEARCASE_VIEW_KIND};
@@ -106,50 +113,43 @@ if ( $ENV{'OS'} =~ /[Ww]indows*/ ) {
     # Convert any "X:\view_tag\vob_tag\.\*" to "X:\view_tag\vob_tag\*"
     $pathname =~ s/\\.\\/\\/;
     $dir_delim = "\\";
-} else {
+}
+else {
     $dir_delim = "/";
 }
-$debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$pathname is now [$pathname]\n" );
 
 # split element name in dir and leaf
 my ( $parent, $element ) = acc::split_dir_file($pathname);
-$debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$parent is now [$parent]\n" );
-$debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$element is now [$element]\n" );
 
 # Make parent directory DNA
 my $parent_dna = "$parent" . "$dir_delim" . ".$sfx";
-$debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$parent_dna is now [$parent_dna]\n" );
 
 # Are we in a snapshot view?
 my $snapview;
-if ( exists( $ENV{'CLEARCASE_VIEW_KIND'} ) && $ENV{'CLEARCASE_VIEW_KIND'} ne 'dynamic' ) {
+if ( exists( $ENV{'CLEARCASE_VIEW_KIND'} )
+    && $ENV{'CLEARCASE_VIEW_KIND'} ne 'dynamic' )
+{
     $snapview = 1;
-    $debug && $log->information( "DEBUG\tLine " . __LINE__ . " Viewtype is SNAPSHOT\n" );
-} else {
-    $debug && $log->information( "DEBUG\tLine " . __LINE__ . " Viewtype is DYNAMIC\n" );
+}
+else {
 
     # The 2nd test is a special case for the vob root.
     $snapview = !-e "$parent$sfx/main" && !-e "$parent/$sfx/main";
-    $debug && $log->information( "DEBUG\tLine " . __LINE__ . " Value of \$snapview after vob root test is [$snapview]\n" );
 }
 
 my $found = 0;
-my $pattern;
+my $pattern;    # Casesensitive search pattern - or not
 
 if ($case_sensitive) {
-    $debug && $log->information( "DEBUG\tLine " . __LINE__ . " Case sensitive matching is performed\n" );
     $pattern = "$element";
-} else {
-    $debug && $log->information( "DEBUG\tLine " . __LINE__ . " Case INSENSITIVE matching is performed\n" );
+}
+else {
     $pattern = "(?i)$element";
 }
 
-$debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$pattern is [$pattern]\n" );
-
-# Now search for evil twin
-
 # get lines from lshist that begins with non-whitespace and ends with digit
-my @lines = grep { /^\S.*\\\d+$/ } qx(cleartool lshist -nop -min -nco -dir -fmt "%Nc%Vn\\n" "$parent_dna");
+my @lines =
+  grep { /^\S.*\\\d+$/ } qx(cleartool lshist -nop -min -nco -dir -fmt "%Nc%Vn\\n" "$parent_dna");
 
 my %added        = ();    #  table of latest version where NAME was added
 my %uncatalogued = ();    #  table of latest version where NAME was seen before uncatalog
@@ -181,12 +181,7 @@ chomp( my @match = grep /$pattern$/, keys %added );
 if (@match) {
     $dupver = $match[$#match];
 
-    #        $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$dupver before = [$dupver]\n" );
-    #        $dupver =~ s/\\/\//g;    # normalize path sep
-    #        $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$dupver normalized = [$dupver]\n" );
-    #        $dupver =~ s/(.*)($sfx)$/$1/;    # strip directory part
     $found = $dupver;
-    $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$dupver after = [$dupver]\n" );
 
 }
 
@@ -194,6 +189,8 @@ if (@match) {
 # Allow the creation of the element.
 exit 0 unless $found;
 
+$log->enable();
+$log->set_verbose($verbose_mode);
 my $user      = "$ENV{'CLEARCASE_USER'}";
 my $pop_kind  = "$ENV{'CLEARCASE_POP_KIND'}";
 my $vob_owner = `cleartool desc -fmt %u vob:$ENV{'CLEARCASE_VOB_PN'}`;
@@ -206,29 +203,22 @@ if ( $pop_kind eq "mkelem" ) {
     # From a mkelem command
     $prompt = "$prompt The name: [$element]\\n";
 
-} else {
+}
+else {
 
     # From a "ln", "ln -s" or "mv" command
-    $debug && $log->information( "DEBUG\tLine " . __LINE__ . " Operation is not mkelem, but $pop_kind\n" );
-    $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$ENV{'CLEARCASE_PN2'} is [$ENV{'CLEARCASE_PN2'}]\n" );
-    $ENV{'CLEARCASE_PN2'} =~ /(.*[\/\\])(.*)$/;
-    my $old_path_name = $1;
-    chomp( my $old_element_name = $2 );
-
-    #        Rev 18 take out
-    $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$old_path_name = [$old_path_name]\n" );
-    $debug && $log->information( "DEBUG\tLine " . __LINE__ . " \$old_element_name = [$old_element_name]\n" );
-
     if ( !$pop_kind || ( $pop_kind eq "rmname" ) || ( $pop_kind eq "mkslink" ) ) {
 
-        $debug && $log->information( "DEBUG\tLine " . __LINE__ . " Operation is not mkelem, but $pop_kind\n" );
+        $debug
+          && $log->information(
+            "DEBUG\tLine " . __LINE__ . " Operation is not mkelem, but $pop_kind\n" );
         $prompt = "$prompt The element name [$element]\\n";
 
     }
 }
 
 $prompt = "$prompt ALREADY exists for the directory:\\n [$parent]\\n";
-$prompt = "$prompt it was added in branch branch version:\\n";
+$prompt = "$prompt That name was added in branch version:\\n";
 $prompt = "$prompt [$added{$element}].\\n";
 $prompt = "$prompt \\n";
 
@@ -236,7 +226,6 @@ $prompt = "$prompt \\n";
 chomp( my @lastseen = grep /$pattern$/, keys %uncatalogued );
 
 if (@lastseen) {
-	# my $bv = $lastseen[$#lastseen];
     $prompt = "$prompt The name has last been seen in: \\n";
     $prompt = "$prompt [$uncatalogued{$element}].\\n";
     $prompt = "$prompt \\n";
@@ -245,7 +234,7 @@ if (@lastseen) {
 $prompt = "$prompt NOTE:  If you feel you really need to perform this action\\n";
 $prompt = "$prompt e-mail the VOB_OWNER ($vob_owner).\\n\\n";
 
-foreach ( split ( /\\n/, $prompt ) ) {
+foreach ( split( /\\n/, $prompt ) ) {
     $log->warning("$_\n");
 }
 
@@ -291,13 +280,6 @@ The script will fail if that is not the case.
 
 An exception is if you execute it in -preview mode
 
-To bypass the script you must create the appropriate semaphore file first
-(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
-
-It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
-that triggers are executed - and semaphore files ar looked-up - at locations where common users only
-have read access. ...There! I said it anyway!
-
 =head1 DESCRIPTION
 
 In ClearCase all files and directories are elements, and directory elements are versioned just like file elements are.
@@ -322,7 +304,28 @@ directory if the name has been used. If the name have been used, you are not all
 If you must reuse the name, you will need to merge a directory version that contains the name in question to the
 directory version you are working with.
 
+=head2 Case sensivity
 
+By default the trigger operates in Case sensitive mode, so elements with for instance  CamelCase errors can be renamed
+without involving the vob owner.
+
+The case sensitive pattern matching can be changed to case insensitive if that is required, to do that, you will edit the
+trigger script and change the line
+
+	my $case_sensitive = 1;
+
+to
+
+	my $case_sensitive = 0;
+
+=head2 Bypassing the trigger.
+
+To bypass the script you must create the appropriate semaphore file first
+(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
+
+It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
+that triggers are executed - and semaphore files ar looked-up - at locations where common users only
+have read access.
 
 =head1 AUTHOR
 
