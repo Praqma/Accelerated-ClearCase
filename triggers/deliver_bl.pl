@@ -75,10 +75,12 @@ ENDREVISION
 
 ######################################## Basic trigger stuff ###############################################
 
+my %triggerconfig;
 our $clearcase = pcc->new();
 
 #Enable the features in trigger_helper
 our $thelp = trigger_helper->new();
+$thelp->get_config( \%triggerconfig );
 $thelp->enable_install( \%install_params );    #Pass a reference to the install-options
 $thelp->require_trigger_context;
 
@@ -171,30 +173,34 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 
 	}
 
-	# Change baseline(s) mastership
+	# Check baseline(s) mastership
 	my @to_be_delivered;
 	foreach my $baseline (@bl_list) {
 		my $bl_master = $clearcase->get_master_replica( object => $baseline );
 		if ( $bl_master eq $dev_master ) {
-			$log->information("Must change mastership of $baseline replica $int_master");
+			$log->information("Could change mastership of $baseline replica $int_master");
 			push @to_be_delivered, $baseline;
-			$clearcase->ct( command => "chmaster -c \"Trigger $TRIGGER_NAME changed mastership for Promotion Level update\" $int_master $baseline" );
+
+			if ( $triggerconfig{ChgBaselineMasterShip} ) {
+
+				# Only change master ship if enabled through configuration file
+				my $chmaster_cmd = "chmaster -c \"Trigger $TRIGGER_NAME changed mastership for Promotion Level update\" $int_master $baseline";
+				$clearcase->ct( command => $chmaster_cmd );
+			}
 		}
 		else {
 			$log->information("Baseline mastership of $baseline is $bl_master");
 		}
 	}
-	push @to_be_delivered, @bl_list unless ( $#to_be_delivered > -1 );
-	my $deliver_cmd = "deliver -stream $ENV{CLEARCASE_STREAM} -baseline " . join  (',',  @to_be_delivered );
+
 	# Start deliver of baseline to default target.
-	$clearcase->ct( command => $deliver_cmd);
-	
+	push @to_be_delivered, @bl_list unless ( $#to_be_delivered > -1 );
+	my $deliver_cmd = "deliver -stream $ENV{CLEARCASE_STREAM} -baseline " . join( ',', @to_be_delivered );
+	$clearcase->ct( command => $deliver_cmd );
 	exit 0;
 
 }
 
-print "Change to happy exit \n";
-exit 1;
-
+$log->assertion_failed( "$Scriptfile did not expect to end here at line " . __LINE__ );
 
 __END__
