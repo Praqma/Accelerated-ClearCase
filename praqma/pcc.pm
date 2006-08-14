@@ -70,6 +70,69 @@ sub new {
 	return $self;
 }
 
+=head2 pccObject->get_master_replica( object => "fully_qualifed_object" )
+
+Get the replica name mastering the object
+
+Returns the Name of object's master replica
+or
+returns 0 if that couldn't be found, and we haven't died already
+
+=cut
+
+
+sub get_master_replica ($) {
+
+	my $self  = shift;
+	my %parms = @_;
+#	$self->assert_parm( lookfor => "object", search_in => $parms{object} );
+	my $reply = $self->ct( command => "describe -fmt %[master]p $parms{object}" );
+	return ($reply) ? $reply : 0;
+
+	
+}
+
+sub assert_parm {
+	my $self      = shift;
+	my %parms     = @_;
+	my $lookfor   = $parms{lookfor};
+	my $search_in = $parms{search_in};
+
+	unless ( $search_in =~ /$lookfor:\S+\@\S+/ ) {
+
+		my $msg = "Incorrect parameters received, expected parameter \"$lookfor\" with a fully qualifed $lookfor name";
+
+		if ($::log) {
+			# in the hope that a log object have been created - and named accordingly
+			$::log->assertion_failed($msg);
+		}
+		else {
+			die "$msg\n";
+		}
+
+	}
+
+}
+
+=head2 pccObject->get_integration_stream( project => "fully_project" )
+
+Get the integration stream name.
+
+Returns the fully qualified stream name of the project's integrations
+or
+returns 0 if that couldn't be found, and we haven't died already
+
+=cut
+
+sub get_integration_stream ($) {
+	my $self  = shift;
+	my %parms = @_;
+	$self->assert_parm( lookfor => "project", search_in => $parms{project} );
+	my $reply = $self->ct( command => "describe -fmt %[istream]Xp $parms{project}" );
+	return ($reply) ? $reply : 0;
+
+}
+
 =head2  pccObject->get_dependants( baseline => "fully_qualified_baseline" )
 
 Returns an array baseline that this baseline depends on 
@@ -77,7 +140,7 @@ Returns 0 if there no depending baselines
 
 =cut
 
-sub get_dependants ($){
+sub get_dependants ($) {
 
 	my $self  = shift;
 	my %parms = @_;
