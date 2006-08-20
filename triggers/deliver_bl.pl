@@ -91,22 +91,11 @@ our $semaphore_status = $thelp->enable_semaphore_backdoor();
 
 our $log = scriptlog->new();
 
-if ( $ENV{COMPUTERNAME} eq "VM-JBR-CC2" ) {
+#Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->conditional_enable();
 
-	# My development environment - always debug
-	$log->set_logfile("$ENV{TEMP}\\minfil.log");
-	$log->enable(1);
-	$log->set_verbose(1);
-
-}
-else {
-
-	#Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
-	$log->conditional_enable();
-
-	#Define either environment variable CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
-	$log->set_verbose();
-}
+#Define either environment variable CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
+$log->set_verbose();
 
 our $logfile = $log->get_logfile;
 $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
@@ -195,7 +184,8 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 
 	# Start deliver of baseline to default target.
 	push @to_be_delivered, @bl_list unless ( $#to_be_delivered > -1 );
-	my $deliver_cmd = "deliver -stream $ENV{CLEARCASE_STREAM} -baseline " . join( ',', @to_be_delivered );
+	my $forcedeliver = $triggerconfig{ShowConfirmation} ? "-force" : "";
+	my $deliver_cmd = "deliver $forcedeliver -stream $ENV{CLEARCASE_STREAM} -baseline " . join( ',', @to_be_delivered );
 	$clearcase->ct( command => $deliver_cmd );
 	exit 0;
 
