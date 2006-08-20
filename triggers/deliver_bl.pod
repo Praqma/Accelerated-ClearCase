@@ -1,0 +1,127 @@
+
+=pod
+
+=head1 NAME
+
+deliver_bl.pl - A ClearCase trigger script
+
+Script:        F<deliver_bl.pl>
+
+Trigger name:  C<ACC_DELIVER_BASELINE>
+
+This is an ClearCase UCM trigger script that will deliver a baseline to the integration stream if the baseline is created on a development (child stream)
+It is intended to supplement the support for posted deliveries in the "ClearCase UCM Plugin" Jenkins plugin - see
+
+=for html <a href="https://wiki.jenkins-ci.org/display/JENKINS/ClearCase+UCM+Plugin">ClearCase UCM Plugin Jenkins plugin</a>
+
+The trigger fires after the 'mkbl_complete' (when all baselines are created) event.
+
+=head1 SYNOPSIS
+
+Runs as ClearCase trigger script installed on UCM project VOBs.
+It will self install on a vob that has a string type attribute attached with value "ccucm_plugin_supported" attached to the vob.
+To achieve that run the following commands
+
+C<cleartool mkattype -nc -vtype string ACC_VOBType@>I<vobtag>
+
+then
+
+C<cleartool mkattr ACC_VOBType \"ccucm_plugin_supported\" vob:>I<vobtag>
+
+The attribute should only be attached to UCM Project vobs (pvobs).
+The script installs itself correctly when executed outside a trigger context using:
+
+C<ratlperl only_serial_deleviry.pl -install -vob >I<vobtag>
+
+To learn the full syntax simply execute the the script without the -vob switch:
+
+C<ratlperl deliver_bl.pl -install -preview -vob >I<vobtag>
+
+=head2 Restrictions
+
+During the install process, that script is supposed to run under the account
+who owns the VOB. The script will fail if that is not the case.
+The script will only install the trigger on UCM project vobs.
+An exception is if you execute it in -preview mode
+
+=head1 DESCRIPTION
+
+After a baseline is created in a stream, the trigger is fired.
+The trigger will exit silently B<unless> the following is true:
+
+=over 4
+
+=item * The baseline is created on a development stream
+
+=item * The mastership of the development is different than the project's integration stream
+
+=back
+
+If all conditions is met, the baselines will be delivered to the integration stream.
+As the deliver is from a differently mastered child stream it is a posted deliver.
+
+=head1 Features
+
+=head2 Configuration of behaviour
+
+To change defaults for a site / an install, copy the file deliver_bl.ini to a relative subdirectory named "CustomCfg"
+You can now make edits to the file, and behaviour changes accordingly.
+
+=head2 Configuration options
+
+The metioned ini-file contains:
+
+ our %trigger_parms = ( )
+
+ 	# Change Baseline Mastership setting:
+	# 0 means off, Do NOT change the mastership of the involved baselines
+	# 1 means on, Change the mastership of the involved baselines, this is the default
+	"ChgBaselineMasterShip" => 1,
+	# Show Deliver confirmation:
+	# When the trigger starts a deliver ClearCase prompts "Do you wish to continue with this deliver operation?"
+	# 0 means off, Do NOT show confirmation message, this is the default
+	# 1 means on, Show the confirmation message
+	"ShowConfirmation" => 0,
+ );
+
+So you can could values for ChgBaselineMasterShip and or ShowConfirmation
+
+=head2 Bypassing the trigger.
+
+To bypass the script you must create the appropriate semaphore file first
+(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
+
+It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
+that triggers are executed - and semaphore files ar looked-up - at locations where common users only
+have read access.
+
+=head2 Test suggestions
+
+Please refer to the description at the project wiki page,
+
+=for html <a href="http://wiki.praqma.net/acc/comp/triggers/acc_deliver_baseline">The trigger's wiki page</a>
+
+=head1 AUTHOR
+
+Jens Brejner, E<lt>jbr@praqma.netE<gt>.
+
+=head1 BUGS
+
+Please send a mail to
+
+=begin html
+
+<a href="mailto:support@praqma.net">support@praqma.net</a>
+
+=end html
+
+
+=head1 COPYRIGHT
+
+This program is distributed under the GNU General Pulic License v3.0
+
+Support:    http://launchpad.net/acc
+
+=for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
+
+=cut

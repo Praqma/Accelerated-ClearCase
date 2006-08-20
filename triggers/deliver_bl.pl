@@ -22,13 +22,13 @@ our $TRIGGER_NAME = "ACC_DELIVER_BASELINE";
 our %install_params = (
 	"name"     => $TRIGGER_NAME,                                              # The name og the trigger
 	"mktrtype" => "-ucmobject -all -postop mkbl_complete ",                   # The stripped-down mktrtype command
-	"supports" => "ccucm_supported",                                          # csv list of generic and/or custom VOB types (case insensetive)
+	"supports" => "ccucm_plugin_supported",                                   # csv list of generic and/or custom VOB types (case insensetive)
 	"comment"  => "Start deliver of remotely created development baselines"
 );
 
 # File version
 our $VERSION = "1.0";
-our $BUILD   = "1";
+our $BUILD   = "2";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -39,15 +39,11 @@ our $header = <<ENDHEADER;
 #    This script is intended as ClearCase trigger script for the
 #    $TRIGGER_NAME trigger.
 #
-#    If the promotion level of a composite baseline on a rootless componenent 
-#    is changed, the new promotion level is propagated to the baselines 
-#    it is directly depending on.
-#    The propagation of promotion level is limited to baselines with the 
-#    following criteria:
-#    * The baseline must be on rootless component
-#    * The baseline must be on the same stream as the "parent" baseline
-#    
-#    The trigger fires after the change baseline event
+#    Delivers a baseline created in child stream to the integration stream 
+#    if the mastership of the child stream is different from the  
+#    mastership of the integration stream
+#
+#    The trigger fires after the mkbl_complete event
 #
 #    This script supports self-install (execute with the -install
 #    switch to learn more).
@@ -57,7 +53,7 @@ our $header = <<ENDHEADER;
 #    Author:     Jens Brejner, jbrejner\@praqma.net
 #    Copyright:  Praqma A/S
 #    License:    GNU General Pulic License v3.0
-#    Support:    http://launchpad.net/acc
+#    Support:    mailto:support\@praqma.net
 #
 #########################################################################
 ENDHEADER
@@ -67,6 +63,8 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
+2012-04-10  Jens Brejner   Optional change baseline mastership, default is
+                           not. Suppress confirmation message (v1.0.2)
 2012-04-03  Jens Brejner   Initial version (version 1.0.1)
 
 ----------  -------------  ----------------------------------------------
