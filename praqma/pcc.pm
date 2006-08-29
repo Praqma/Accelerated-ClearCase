@@ -17,7 +17,7 @@ use lib "$_packagedir/..";
 
 my $major = 0;
 my $minor = 1;
-my $build = 4;
+my $build = 5;
 our $VERSION = &format_version_number( $major, $minor, $build );
 
 use vars qw($VERSION);
@@ -54,12 +54,17 @@ my $get_ct_exit_val = sub {
 	return ( scalar($?) / 256 );
 };
 
+my $use_scriptlog = 0;    # I can write to the a log created with scriptlog
+
 # make all your functions, whether exported or not;
 #######################################################################################
 #
 
 =head2 pcc->new( )
-Creates an object used access object methods and properties
+
+ Creates an object used access object methods and properties
+ 
+
 =cut
 
 sub new {
@@ -67,7 +72,80 @@ sub new {
 	my %params  = @_;
 	my $self    = {};
 	bless( $self, $package );
+	if ( defined( $params{logobj} ) ) {
+		$self->{logobj} = $params{logobj};
+		$use_scriptlog = 1;
+	}
 	return $self;
+}
+
+=head2 pccObject->get_replicahost (vobtag => "vobtag")
+
+Return hostname of replica (vob)
+
+=cut 
+
+sub get_replicahost ($) {
+
+	my $self  = shift;
+	my %parms = @_;
+	my $replicashortname = $self->ct( command => "describe -fmt %[replica_name]p vob:$parms{vobtag}" );
+	my $replica          = "replica:$replicashortname@" . $parms{vobtag};
+	my $replicahost      = $self->ct( command => "describe -fmt %[replica_host]p $replica" );
+	return $replicahost;
+}
+
+=head2 pccObject->IsReplicated (vobtag => "vobtag")
+
+Check if a vob is replicated.
+
+Return 0 if it not replicated
+Return 1 if it is replicated
+
+=cut 
+
+sub IsReplicated ($) {
+
+	my $self  = shift;
+	my %parms = @_;
+	my $cmd   = 'describe -fmt %[vob_replication]p vob:' . $parms{vobtag};
+	if ( grep { /unreplicated/ } $self->( command => $cmd ) ) {
+		return 0;
+	}
+	else {
+		return 1;
+	}
+}
+
+=head2 pccObject->IsInProgress (stream => "fully_qualifed_stream, operation => "op" )
+
+Check if a stream is in progress of being rebased or delivering
+
+Requires 2 named parameters:
+"stream" must be a fully qualified stream
+"operation must either rebase or deliver
+
+Return 0 if no operation is in progress
+Return details if rebase or deliver operation is active on stream
+
+=cut
+
+sub IsInProgress ($$) {
+
+	my $self      = shift;
+	my %parms     = @_;
+	my $operation = lc( $parms{operation} );
+	$self->assert_parm( lookfor => "stream",         search_in => $parms{stream} );
+	$self->assert_parm( lookfor => "rebase|deliver", search_in => $operation );
+	my $reply = $self->ct( command => "$operation -status -stream $parms{stream}" );
+	$self->{logobj}->information($reply) if ($use_scriptlog);
+	if ( grep { /^No $operation/ } $reply ) {
+		return 0;
+	}
+	else {
+		return $reply;
+	}
+
 }
 
 =head2 pccObject->get_master_replica( object => "fully_qualifed_object" )
@@ -80,16 +158,15 @@ returns 0 if that couldn't be found, and we haven't died already
 
 =cut
 
-
 sub get_master_replica ($) {
 
 	my $self  = shift;
 	my %parms = @_;
-#	$self->assert_parm( lookfor => "object", search_in => $parms{object} );
+
+	#	$self->assert_parm( lookfor => "object", search_in => $parms{object} );
 	my $reply = $self->ct( command => "describe -fmt %[master]p $parms{object}" );
 	return ($reply) ? $reply : 0;
 
-	
 }
 
 sub assert_parm {
@@ -98,13 +175,12 @@ sub assert_parm {
 	my $lookfor   = $parms{lookfor};
 	my $search_in = $parms{search_in};
 
-	unless ( $search_in =~ /$lookfor:\S+\@\S+/ ) {
+	unless ( $search_in =~ /$lookfor/ ) {
 
 		my $msg = "Incorrect parameters received, expected parameter \"$lookfor\" with a fully qualifed $lookfor name";
 
-		if ($::log) {
-			# in the hope that a log object have been created - and named accordingly
-			$::log->assertion_failed($msg);
+		if ($use_scriptlog) {
+			$self->{logobj}->assertion_failed($msg);
 		}
 		else {
 			die "$msg\n";

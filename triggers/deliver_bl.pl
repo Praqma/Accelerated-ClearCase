@@ -74,81 +74,67 @@ ENDREVISION
 ######################################## Basic trigger stuff ###############################################
 
 my %triggerconfig;
+our $log = scriptlog->new();
+$log->conditional_enable();
+$log->set_verbose();
+
+our $logfile = $log->get_logfile;
+$log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
+$log->dump_ccvars();                            # Run this statement to have the trigger dump the CLEARCASE variables
+
 our $clearcase = pcc->new();
 
 #Enable the features in trigger_helper
 our $thelp = trigger_helper->new();
 $thelp->get_config( \%triggerconfig );
-$thelp->enable_install( \%install_params );    #Pass a reference to the install-options
+$thelp->enable_install( \%install_params );     #Pass a reference to the install-options
 $thelp->require_trigger_context;
 
-# Look for semaphore, respecting a local semaphore path via env. var.
 our $semaphore_status = $thelp->enable_semaphore_backdoor();
-
-#Enable the features in scriptlog
-
-our $log = scriptlog->new();
-
-#Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
-$log->conditional_enable();
-
-#Define either environment variable CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
-$log->set_verbose();
-
-our $logfile = $log->get_logfile;
-$log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
-$log->dump_ccvars();                            # Run this statement to have the trigger dump the CLEARCASE variables
 
+exit 0 unless $clearcase->IsReplicated( $ENV{CLEARCASE_VOB_PN} );
 exit 0 if ( $ENV{CLEARCASE_POP_KIND} eq lc('deliver_start') || $ENV{CLEARCASE_POP_KIND} eq lc('rebase_start') );
 
 ########################### MAIN ###########################
 if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 
-	my @bl_list = split( /\s+/, $ENV{CLEARCASE_BASELINES} );
-	$log->assertion_failed("No baselines found") unless ( $#bl_list > -1 );
+	my (@bl_list, $int_stream);
 
-	foreach (@bl_list) {
-		$_ = "baseline:$_";
-	}
+	# Create list of baselines created
+	listbaselines();
 
-	my $dev_stream = "stream:$ENV{CLEARCASE_STREAM}";
-	$log->information("Baseline stream name is [$dev_stream]");
+	# Get name of the projects integration stream
+	$int_stream = get_integration();
 
-	my $int_stream = $clearcase->get_integration_stream( project => "project:$ENV{CLEARCASE_PROJECT}" );
-	if ($int_stream) {
-		$log->information("Integration stream is [$int_stream]");
-	}
-	else {
-		$log->assertion_failed("Required value for Integration stream (\$int_stream) is empty");
-	}
+	my $bl_stream = "stream:$ENV{CLEARCASE_STREAM}";
+	$log->information("Baseline stream name is [$bl_stream]");
 
-	if ( $int_stream eq $dev_stream ) {
-
-		# Baseline is on integration stream, so we are done.
+	# The baseline(s) are on the integration stream so we are done
+	if ( $int_stream eq $bl_stream ) {
 		$log->information("Exit early & happy, the baseline is created on integration stream");
 		exit 0;
 	}
-	
-	my $query_progress_cmd = "cleartool deliver -status -stream $ENV{CLEARCASE_STREAM}";
-	$deliver_is_in_progress = grep {!/No deliver operation in progress on stream/i} @{$clearcase->ct( command => $query_progress_cmd )};
-	
+
+	my $deliver_is_in_progress = $clearcase->IsInProgress( stream => $bl_stream, operation => "deliver" );
+
 	if ($deliver_is_in_progress) {
 		$log->information("No deliver operation is in progress from stream");
-	}else{
 	}
-	
-	unless (scalar @r) {
-		my $msg = "\nThis the Triggger $TRIGGER_NAME.\n\nDelivery is already in progress for stream $ENV{CLEARCASE_STREAM},\nso the baselines $ENV{CLEARCASE_BASELINES} can NOT be automatically  delivered. Please wait and deliver the baselines and deliver manually";
-		if (defined($ENV{CLEARCASE_CMDLINE})) {
+	else {
+	}
+
+	unless ( scalar @r ) {
+		my $msg = setwarn_msg();
+		if ( defined( $ENV{CLEARCASE_CMDLINE} ) ) {
 			$log->assertion_failed($msg);
-		} 
+		}
 		else {
 			qx(clearprompt yes_no -prompt \"$msg\"  -mask abort);
 			exit 1;
 		}
 	}
-	
+
 	my $int_master = $clearcase->get_master_replica( object => "$int_stream" );
 
 	if ($int_master) {
@@ -158,7 +144,7 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 		$log->assertion_failed("Required value for Integration stream's master replica (\$int_master) is empty");
 	}
 
-	my $dev_master = $clearcase->get_master_replica( object => $dev_stream );
+	my $dev_master = $clearcase->get_master_replica( object => $bl_stream );
 
 	if ($dev_master) {
 		$log->information("Development stream's master replica (\$dev_master) is $dev_master");
@@ -166,6 +152,7 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 	else {
 		$log->assertion_failed("Required value for Development stream's master replica (\$dev_master) is empty");
 	}
+
 
 	if ( $int_master eq $dev_master ) {
 
@@ -177,12 +164,61 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 
 		# Got work to do.
 		$log->information("Target stream mastership is not local, need to deliver baseline");
-
+		deliver();
 	}
 
-	# Check baseline(s) mastership
+	exit 0;
+
+}
+
+$log->assertion_failed( "$Scriptfile did not expect to end here at line " . __LINE__ );
+
+################################### SUBS ###################################
+
+
+sub get_integration {
+	my $reply =	$clearcase->get_integration_stream( project => "project:$ENV{CLEARCASE_PROJECT}" );
+	if ($reply) {
+		$log->information("Integration stream is [$reply]");
+	}
+	else {
+		$log->assertion_failed("Required value for Integration stream (\$reply) is empty");
+	}
+	return $reply;
+}
+
+sub listbaselines {
+	# Create list of baselines created
+	@bl_list = split( /\s+/, $ENV{CLEARCASE_BASELINES} );
+	$log->assertion_failed("No baselines found") unless ( $#bl_list > -1 );
+
+	foreach (@bl_list) {
+		$_ = "baseline:$_";
+	}
+}
+
+sub setwarn_msg {
+
+	my $warnmessage = <<ENDMESSAGE;
+This the Triggger $TRIGGER_NAME.
+
+Delivery is already in progress for stream $ENV{CLEARCASE_STREAM},
+so the baselines $ENV{CLEARCASE_BASELINES} 
+can NOT be automatically  delivered.
+Please wait for syncronization and deliver the baseline manually
+
+ENDMESSAGE
+
+	return $warnmessage;
+
+}
+
+sub deliver {
+
 	my @to_be_delivered;
 	foreach my $baseline (@bl_list) {
+
+		# Check baseline(s) mastership
 		my $bl_master = $clearcase->get_master_replica( object => $baseline );
 		if ( $bl_master eq $dev_master ) {
 			$log->information("Could change mastership of $baseline replica $int_master");
@@ -202,14 +238,11 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 
 	# Start deliver of baseline to default target.
 	push @to_be_delivered, @bl_list unless ( $#to_be_delivered > -1 );
-	my $forcedeliver = !($triggerconfig{ShowConfirmation}) ? "-force" : "";
+	my $forcedeliver = !( $triggerconfig{ShowConfirmation} ) ? "-force" : "";
 	$log->information("Value of \$forcedeliver is [$forcedeliver]");
 	my $deliver_cmd = "deliver $forcedeliver -stream $ENV{CLEARCASE_STREAM} -baseline " . join( ',', @to_be_delivered );
 	$clearcase->ct( command => $deliver_cmd );
-	exit 0;
 
 }
-
-$log->assertion_failed( "$Scriptfile did not expect to end here at line " . __LINE__ );
 
 __END__
