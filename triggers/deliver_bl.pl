@@ -28,7 +28,7 @@ our %install_params = (
 
 # File version
 our $VERSION = "1.0";
-our $BUILD   = "2";
+our $BUILD   = "3";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -63,6 +63,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
+2012-04-24  Jens Brejner   Handle deliver in progress (v1.0.3)
 2012-04-10  Jens Brejner   Optional change baseline mastership, default is
                            not. Suppress confirmation message (v1.0.2)
 2012-04-03  Jens Brejner   Initial version (version 1.0.1)
@@ -97,18 +98,18 @@ exit 0 unless $clearcase->IsReplicated( $ENV{CLEARCASE_VOB_PN} );
 exit 0 if ( $ENV{CLEARCASE_POP_KIND} eq lc('deliver_start') || $ENV{CLEARCASE_POP_KIND} eq lc('rebase_start') );
 
 ########################### MAIN ###########################
+my ( @bl_list, $bl_master, $dev_master, $int_stream, $int_master );
+
 if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
-
-	my (@bl_list, $int_stream);
-
-	# Create list of baselines created
-	listbaselines();
-
-	# Get name of the projects integration stream
-	$int_stream = get_integration();
 
 	my $bl_stream = "stream:$ENV{CLEARCASE_STREAM}";
 	$log->information("Baseline stream name is [$bl_stream]");
+
+	# Create list of baselines created
+	@bl_list = listbaselines();
+
+	# Get name of the projects integration stream
+	$int_stream = get_integration();
 
 	# The baseline(s) are on the integration stream so we are done
 	if ( $int_stream eq $bl_stream ) {
@@ -116,43 +117,15 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 		exit 0;
 	}
 
-	my $deliver_is_in_progress = $clearcase->IsInProgress( stream => $bl_stream, operation => "deliver" );
+	# Where is the integration branch mastered ?
+	$int_master = $clearcase->get_master_replica( object => "$int_stream" );
+	$log->assertion_failed("Required value for Integration stream's master replica (\$int_master) is empty") unless ($int_master);
+	$log->information("Integration stream's master replica (\$int_master) is $int_master");
 
-	if ($deliver_is_in_progress) {
-		$log->information("No deliver operation is in progress from stream");
-	}
-	else {
-	}
-
-	unless ( scalar @r ) {
-		my $msg = setwarn_msg();
-		if ( defined( $ENV{CLEARCASE_CMDLINE} ) ) {
-			$log->assertion_failed($msg);
-		}
-		else {
-			qx(clearprompt yes_no -prompt \"$msg\"  -mask abort);
-			exit 1;
-		}
-	}
-
-	my $int_master = $clearcase->get_master_replica( object => "$int_stream" );
-
-	if ($int_master) {
-		$log->information("Integration stream's master replica (\$int_master) is $int_master");
-	}
-	else {
-		$log->assertion_failed("Required value for Integration stream's master replica (\$int_master) is empty");
-	}
-
+	# Where is the development branch mastered ?
 	my $dev_master = $clearcase->get_master_replica( object => $bl_stream );
-
-	if ($dev_master) {
-		$log->information("Development stream's master replica (\$dev_master) is $dev_master");
-	}
-	else {
-		$log->assertion_failed("Required value for Development stream's master replica (\$dev_master) is empty");
-	}
-
+	$log->assertion_failed("Required value for Development stream's master replica (\$dev_master) is empty") unless ($dev_master);
+	$log->information("Development stream's master replica (\$dev_master) is $dev_master");
 
 	if ( $int_master eq $dev_master ) {
 
@@ -161,6 +134,9 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 		exit 0;
 	}
 	else {
+		my $deliver_is_in_progress = $clearcase->IsInProgress( stream => $bl_stream, operation => "deliver" );
+		warn_cant_deliver() if ($deliver_is_in_progress);
+		$log->information("No deliver operation is in progress from stream");
 
 		# Got work to do.
 		$log->information("Target stream mastership is not local, need to deliver baseline");
@@ -175,26 +151,37 @@ $log->assertion_failed( "$Scriptfile did not expect to end here at line " . __LI
 
 ################################### SUBS ###################################
 
+sub warn_cant_deliver {
 
-sub get_integration {
-	my $reply =	$clearcase->get_integration_stream( project => "project:$ENV{CLEARCASE_PROJECT}" );
-	if ($reply) {
-		$log->information("Integration stream is [$reply]");
+	# Called if deliver already in progres, then we cant deliver automatically
+	my $msg = setwarn_msg();
+	if ( defined( $ENV{CLEARCASE_CMDLINE} || defined( $ENV{ATRIA_WEB_GUI} ) ) ) {
+		$log->assertion_failed($msg);
 	}
 	else {
-		$log->assertion_failed("Required value for Integration stream (\$reply) is empty");
+		$log->warning($msg);
+		qx(clearprompt proceed -type warning -default proceed -prompt "$msg" -mask proceed);
+		exit 1;
 	}
+}
+
+sub get_integration {
+	my $reply = $clearcase->get_integration_stream( project => "project:$ENV{CLEARCASE_PROJECT}" );
+	$log->assertion_failed("Required value for Integration stream (\$reply) is empty") unless ($reply);
+	$log->information("Integration stream is [$reply]");
 	return $reply;
 }
 
 sub listbaselines {
-	# Create list of baselines created
-	@bl_list = split( /\s+/, $ENV{CLEARCASE_BASELINES} );
-	$log->assertion_failed("No baselines found") unless ( $#bl_list > -1 );
 
-	foreach (@bl_list) {
+	# Create list of baselines created
+	my @_bl_list = split( /\s+/, $ENV{CLEARCASE_BASELINES} );
+	$log->assertion_failed("No baselines found") unless ( $#_bl_list > -1 );
+
+	foreach (@_bl_list) {
 		$_ = "baseline:$_";
 	}
+	return @_bl_list;
 }
 
 sub setwarn_msg {
@@ -219,7 +206,7 @@ sub deliver {
 	foreach my $baseline (@bl_list) {
 
 		# Check baseline(s) mastership
-		my $bl_master = $clearcase->get_master_replica( object => $baseline );
+		$bl_master = $clearcase->get_master_replica( object => $baseline );
 		if ( $bl_master eq $dev_master ) {
 			$log->information("Could change mastership of $baseline replica $int_master");
 			push @to_be_delivered, $baseline;
@@ -227,6 +214,7 @@ sub deliver {
 			if ( $triggerconfig{ChgBaselineMasterShip} ) {
 
 				# Only change master ship if enabled through configuration file
+			    $log->information("Changing mastership of baselin $baseline to $int_master");				
 				my $chmaster_cmd = "chmaster -c \"Trigger $TRIGGER_NAME changed mastership for Promotion Level update\" $int_master $baseline";
 				$clearcase->ct( command => $chmaster_cmd );
 			}
