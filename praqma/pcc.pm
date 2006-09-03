@@ -87,8 +87,8 @@ Return hostname of replica (vob)
 
 sub get_replicahost ($) {
 
-	my $self  = shift;
-	my %parms = @_;
+	my $self             = shift;
+	my %parms            = @_;
 	my $replicashortname = $self->ct( command => "describe -fmt %[replica_name]p vob:$parms{vobtag}" );
 	my $replica          = "replica:$replicashortname@" . $parms{vobtag};
 	my $replicahost      = $self->ct( command => "describe -fmt %[replica_host]p $replica" );
@@ -109,7 +109,7 @@ sub IsReplicated ($) {
 	my $self  = shift;
 	my %parms = @_;
 	my $cmd   = 'describe -fmt %[vob_replication]p vob:' . $parms{vobtag};
-	if ( grep { /unreplicated/ } $self->( command => $cmd ) ) {
+	if ( grep { /unreplicated/ } $self->ct( command => $cmd ) ) {
 		return 0;
 	}
 	else {

@@ -94,15 +94,15 @@ $thelp->require_trigger_context;
 our $semaphore_status = $thelp->enable_semaphore_backdoor();
 $log->information($semaphore_status);
 
-exit 0 unless $clearcase->IsReplicated( $ENV{CLEARCASE_VOB_PN} );
+exit 0 unless $clearcase->IsReplicated( vobtag => $ENV{CLEARCASE_VOB_PN} );
 exit 0 if ( $ENV{CLEARCASE_POP_KIND} eq lc('deliver_start') || $ENV{CLEARCASE_POP_KIND} eq lc('rebase_start') );
 
 ########################### MAIN ###########################
-my ( @bl_list, $bl_master, $dev_master, $int_stream, $int_master );
+my ( $bl_stream, @bl_list, $dev_master, $int_stream, $int_master );
 
 if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 
-	my $bl_stream = "stream:$ENV{CLEARCASE_STREAM}";
+	$bl_stream = "stream:$ENV{CLEARCASE_STREAM}";
 	$log->information("Baseline stream name is [$bl_stream]");
 
 	# Create list of baselines created
@@ -123,20 +123,25 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 	$log->information("Integration stream's master replica (\$int_master) is $int_master");
 
 	# Where is the development branch mastered ?
-	my $dev_master = $clearcase->get_master_replica( object => $bl_stream );
+	$dev_master = $clearcase->get_master_replica( object => $bl_stream );
 	$log->assertion_failed("Required value for Development stream's master replica (\$dev_master) is empty") unless ($dev_master);
 	$log->information("Development stream's master replica (\$dev_master) is $dev_master");
 
-	if ( $int_master eq $dev_master ) {
+	my $deliver_is_in_progress = $clearcase->IsInProgress( stream => $bl_stream, operation => "deliver" );
+
+	if ($deliver_is_in_progress) {
+
+		# Deliver in progress, cant deliver
+		warn_cant_deliver();
+		exit 0;
+	}
+	elsif ( $int_master eq $dev_master ) {
 
 		# Master ship is same, don't do posted delivery
 		$log->information("Exit early & happy, Mastership is same");
 		exit 0;
 	}
 	else {
-		my $deliver_is_in_progress = $clearcase->IsInProgress( stream => $bl_stream, operation => "deliver" );
-		warn_cant_deliver() if ($deliver_is_in_progress);
-		$log->information("No deliver operation is in progress from stream");
 
 		# Got work to do.
 		$log->information("Target stream mastership is not local, need to deliver baseline");
@@ -155,13 +160,17 @@ sub warn_cant_deliver {
 
 	# Called if deliver already in progres, then we cant deliver automatically
 	my $msg = setwarn_msg();
-	if ( defined( $ENV{CLEARCASE_CMDLINE} || defined( $ENV{ATRIA_WEB_GUI} ) ) ) {
-		$log->assertion_failed($msg);
+	if ( defined( $ENV{CLEARCASE_CMDLINE} ) || defined( $ENV{ATRIA_WEB_GUI} ) ) {
+
+		$log->warning($msg);
+
 	}
 	else {
+
+		$log->enable(1);
+		$log->set_verbose();
 		$log->warning($msg);
-		qx(clearprompt proceed -type warning -default proceed -prompt "$msg" -mask proceed);
-		exit 1;
+		my $ret = qx(clearprompt proceed -type warning -default proceed -prompt "$msg" -mask proceed);
 	}
 }
 
@@ -187,12 +196,14 @@ sub listbaselines {
 sub setwarn_msg {
 
 	my $warnmessage = <<ENDMESSAGE;
-This the Triggger $TRIGGER_NAME.
+
+This the Trigger $TRIGGER_NAME.
 
 Delivery is already in progress for stream $ENV{CLEARCASE_STREAM},
 so the baselines $ENV{CLEARCASE_BASELINES} 
-can NOT be automatically  delivered.
-Please wait for syncronization and deliver the baseline manually
+can NOT be automatically delivered.
+
+Please wait for syncronization and deliver the baseline(s) manually.
 
 ENDMESSAGE
 
@@ -206,15 +217,15 @@ sub deliver {
 	foreach my $baseline (@bl_list) {
 
 		# Check baseline(s) mastership
-		$bl_master = $clearcase->get_master_replica( object => $baseline );
+		my $bl_master = $clearcase->get_master_replica( object => $baseline );
+		$log->information("$baseline is mastered at $bl_master");
 		if ( $bl_master eq $dev_master ) {
-			$log->information("Could change mastership of $baseline replica $int_master");
 			push @to_be_delivered, $baseline;
 
 			if ( $triggerconfig{ChgBaselineMasterShip} ) {
 
-				# Only change master ship if enabled through configuration file
-			    $log->information("Changing mastership of baselin $baseline to $int_master");				
+				# Only change mastership unless disabled through configuration file
+				$log->information("Changing mastership of baseline $baseline to $int_master");
 				my $chmaster_cmd = "chmaster -c \"Trigger $TRIGGER_NAME changed mastership for Promotion Level update\" $int_master $baseline";
 				$clearcase->ct( command => $chmaster_cmd );
 			}
@@ -227,9 +238,9 @@ sub deliver {
 	# Start deliver of baseline to default target.
 	push @to_be_delivered, @bl_list unless ( $#to_be_delivered > -1 );
 	my $forcedeliver = !( $triggerconfig{ShowConfirmation} ) ? "-force" : "";
-	$log->information("Value of \$forcedeliver is [$forcedeliver]");
-	my $deliver_cmd = "deliver $forcedeliver -stream $ENV{CLEARCASE_STREAM} -baseline " . join( ',', @to_be_delivered );
+	my $deliver_cmd = "deliver $forcedeliver -stream $bl_stream -baseline " . join( ',', @to_be_delivered );
 	$clearcase->ct( command => $deliver_cmd );
+	$log->information( "Deliver status is now:\n" . $clearcase->IsInProgress( stream => $bl_stream, operation => "deliver" ) );
 
 }
 
