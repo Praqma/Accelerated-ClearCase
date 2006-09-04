@@ -28,7 +28,7 @@ our %install_params = (
 
 # File version
 our $VERSION = "1.0";
-our $BUILD   = "1";
+our $BUILD   = "2";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -67,8 +67,9 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
+2012-03-13  Jens Brejner   Test for env. var CLEARCASE_PROMOTION_LEVEL
+                           before start processing (v1.0.2)
 2012-03-13  Jens Brejner   Initial version (version 1.0.1)
-
 ----------  -------------  ----------------------------------------------
 
 ENDREVISION
@@ -100,7 +101,7 @@ $log->information($semaphore_status);
 $log->dump_ccvars();                            # Run this statement to have the trigger dump the CLEARCASE variables
 
 ########################### MAIN ###########################
-if ( ($ENV{CLEARCASE_OP_KIND} eq 'chbl' ) && defined( $ENV{CLEARCASE_PROMOTION_LEVEL} ) ) {
+if ( ( $ENV{CLEARCASE_OP_KIND} eq 'chbl' ) && defined( $ENV{CLEARCASE_PROMOTION_LEVEL} ) ) {
 
 	my ( $plevel, $stream, $baseline, $component );
 
