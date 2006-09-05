@@ -28,7 +28,7 @@ our %install_params = (
 
 # File version
 our $VERSION = "1.0";
-our $BUILD   = "3";
+our $BUILD   = "4";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -63,6 +63,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
+2012-04-26  Jens Brejner   Add return of mastership (v1.0.4)
 2012-04-24  Jens Brejner   Handle deliver in progress (v1.0.3)
 2012-04-10  Jens Brejner   Optional change baseline mastership, default is
                            not. Suppress confirmation message (v1.0.2)
