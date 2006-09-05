@@ -20,8 +20,8 @@ use praqma::pcc;
 our $TRIGGER_NAME = "ACC_DELIVER_BASELINE";
 
 our %install_params = (
-	"name"     => $TRIGGER_NAME,                                              # The name og the trigger
-	"mktrtype" => "-ucmobject -all -postop mkbl_complete ",                   # The stripped-down mktrtype command
+	"name"     => $TRIGGER_NAME,                                                               # The name og the trigger
+	"mktrtype" => "-ucmobject -all -postop mkbl_complete,deliver_cancel,deliver_complete ",    # The stripped-down mktrtype command
 	"supports" => "ccucm_plugin_supported",                                   # csv list of generic and/or custom VOB types (case insensetive)
 	"comment"  => "Start deliver of remotely created development baselines"
 );
@@ -102,6 +102,24 @@ my ( $bl_stream, @bl_list, $dev_master, $int_stream, $int_master );
 
 if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 
+	step_one();
+
+}
+
+if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
+
+	$log->enable(1);
+	$log->set_verbose(1);
+	$log->information( "logfile is: " . $log->get_logfile . "\n" );    # Logfile is null if logging isn't enabled.
+	$log->dump_ccvars();    # Run this statement to have the trigger dump the CLEARCASE variables
+
+}
+
+$log->assertion_failed( "$Scriptfile did not expect to end here at line " . __LINE__ );
+
+################################### SUBS ###################################
+
+sub step_one {
 	$bl_stream = "stream:$ENV{CLEARCASE_STREAM}";
 	$log->information("Baseline stream name is [$bl_stream]");
 
@@ -149,12 +167,7 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 	}
 
 	exit 0;
-
 }
-
-$log->assertion_failed( "$Scriptfile did not expect to end here at line " . __LINE__ );
-
-################################### SUBS ###################################
 
 sub warn_cant_deliver {
 
