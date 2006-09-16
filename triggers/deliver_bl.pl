@@ -103,16 +103,81 @@ my ( $bl_stream, @bl_list, $dev_master, $int_stream, $int_master );
 
 if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 
-	step_one();
+	remote_site_actions();
 
 }
 
-if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
+if ( ($ENV{CLEARCASE_OP_KIND} eq 'deliver_cancel') || ($ENV{CLEARCASE_OP_KIND} eq 'deliver_complete')  )  {
+
+
+#C:\Users\night-vobadmin>cleartool deliver -complete -stream stream:moon-vobuser_Client@\Cool_PVOB
+#Integrate POSTED deliver
+#          FROM: stream "moon-vobuser_Client"
+#          TO: stream "Client_int"
+#Using target view: "night-vobadmin_Client_int".
+#
+#Baselines to be delivered:
+#        baseline:Client_4_26_2012.3895@\Cool_PVOB       component:Gui@\Cool_PVOB
+#Do you wish to continue with this deliver operation?  [no] Y
+#Are you sure you want to complete this deliver operation?  [no]
+#
+#C:\Users\night-vobadmin>cleartool deliver -complete -stream stream:moon-vobuser_Client@\Cool_PVOB
+#Integrate POSTED deliver
+#          FROM: stream "moon-vobuser_Client"
+#          TO: stream "Client_int"
+#Using target view: "night-vobadmin_Client_int".
+#
+#Baselines to be delivered:
+#        baseline:Client_4_26_2012.3895@\Cool_PVOB       component:Gui@\Cool_PVOB
+#Do you wish to continue with this deliver operation?  [no] Y
+#Are you sure you want to complete this deliver operation?  [no] Y
+#logfile is: C:\Users\NIGHT-~2\AppData\Local\Temp\2\rm_contribs.plPID12820.log
+#
+#Script 'rm_contribs.pl' looked for semaphore file at '\\moonbiter\ccutils\vmdev\triggers\../praqma\\semaphores\night-vobadmin'
+#...but there wasn't any
+#
+#Dumping 20 CLEARCASE environments variables:
+#
+#                CLEARCASE_ACTIVITY=deliver.moon-vobuser_Client.20120426.171926@\Cool_PVOB
+#                CLEARCASE_BRTYPE=Client_int
+#                CLEARCASE_CMDLINE=deliver -complete -stream stream:moon-vobuser_Client@\Cool_PVOB
+#                CLEARCASE_ELTYPE=text_file
+#                CLEARCASE_ID_STR=\main\Client_int\1
+#                CLEARCASE_MTYPE=version
+#                CLEARCASE_OP_KIND=checkin
+#                CLEARCASE_PN=M:\night-vobadmin_Client_int\Cool\Gui\New Text Document(3).txt
+#                CLEARCASE_POP_KIND=deliver_complete
+#                CLEARCASE_PPID=20996
+#                CLEARCASE_RESERVED=1
+#                CLEARCASE_TRIGGER_DEBUG=1
+#                CLEARCASE_TRIGGER_VERBOSE=1
+#                CLEARCASE_TRTYPE_KIND=post-operation
+#                CLEARCASE_USER=night-vobadmin
+#                CLEARCASE_VIEW_KIND=dynamic
+#                CLEARCASE_VIEW_TAG=night-vobadmin_Client_int
+#                CLEARCASE_VOB_PN=\Cool
+#                CLEARCASE_XN_SFX=@@
+#                CLEARCASE_XPN=M:\night-vobadmin_Client_int\Cool\Gui\New Text Document(3).txt@@\main\Client_int\1
+#Deliver has completed
+#          FROM: stream "moon-vobuser_Client"
+#          TO: stream "Client_int"
+#Using target view: "night-vobadmin_Client_int".
+#
+#C:\Users\night-vobadmin>
+#
+#
+#
+#
+#
+
+
 
 	$log->enable(1);
 	$log->set_verbose(1);
 	$log->information( "logfile is: " . $log->get_logfile . "\n" );    # Logfile is null if logging isn't enabled.
 	$log->dump_ccvars();    # Run this statement to have the trigger dump the CLEARCASE variables
+	
+	
 
 }
 
@@ -120,7 +185,13 @@ $log->assertion_failed( "$Scriptfile did not expect to end here at line " . __LI
 
 ################################### SUBS ###################################
 
-sub step_one {
+sub master_site_actions {
+	
+	
+}
+
+sub remote_site_actions {
+	
 	$bl_stream = "stream:$ENV{CLEARCASE_STREAM}";
 	$log->information("Baseline stream name is [$bl_stream]");
 
