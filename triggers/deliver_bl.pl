@@ -135,13 +135,13 @@ sub master_site_actions {
 
 	# Search baselines on stream and get their baseline mastership too
 	my @baseline_mastership = $clearcase->ct( command => 'lsbl -fmt %[master]p\t%Xn\n -stream ' . $src_stream );
-	$log->information( "Found the following baselines on stream:\n" . join( '\t\n', @baseline_mastership ) );
+	$log->information( "Found the following baselines on stream:\n" . join( "\t", @baseline_mastership ) );
 
 	# Filter the baselines based on mastership and eventually change their mastership
-	foreach my $victim ( grep { /^$int_master/ } @baseline_mastership ) {
+	foreach my $victim ( grep { /^\Q$int_master/ } @baseline_mastership ) {
 		my ( $master, $foreign_bl ) = split( /\s+/, $victim );
-		$log->information("Returning [$foreign_bl] mastership to [$dev_master]");
-		my $chmaster_cmd = "chmaster -c \"Trigger $TRIGGER_NAME returned mastership\" $dev_master $foreign_bl";
+		$log->information("Returning [$foreign_bl] mastership to [$src_master]");
+		my $chmaster_cmd = "chmaster -c \"Trigger $TRIGGER_NAME returned mastership\" $src_master $foreign_bl";
 		$clearcase->ct( command => $chmaster_cmd );
 	}
 
