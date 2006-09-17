@@ -102,78 +102,13 @@ exit 0 if ( $ENV{CLEARCASE_POP_KIND} eq lc('deliver_start') || $ENV{CLEARCASE_PO
 my ( $bl_stream, @bl_list, $dev_master, $int_stream, $int_master );
 
 if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
-
 	remote_site_actions();
-
+	exit 0;
 }
 
 if ( ( $ENV{CLEARCASE_OP_KIND} eq 'deliver_cancel' ) || ( $ENV{CLEARCASE_OP_KIND} eq 'deliver_complete' ) ) {
-
-	#C:\Users\night-vobadmin>cleartool deliver -complete -stream stream:moon-vobuser_Client@\Cool_PVOB
-	#Integrate POSTED deliver
-	#          FROM: stream "moon-vobuser_Client"
-	#          TO: stream "Client_int"
-	#Using target view: "night-vobadmin_Client_int".
-	#
-	#Baselines to be delivered:
-	#        baseline:Client_4_26_2012.3895@\Cool_PVOB       component:Gui@\Cool_PVOB
-	#Do you wish to continue with this deliver operation?  [no] Y
-	#Are you sure you want to complete this deliver operation?  [no]
-	#
-	#C:\Users\night-vobadmin>cleartool deliver -complete -stream stream:moon-vobuser_Client@\Cool_PVOB
-	#Integrate POSTED deliver
-	#          FROM: stream "moon-vobuser_Client"
-	#          TO: stream "Client_int"
-	#Using target view: "night-vobadmin_Client_int".
-	#
-	#Baselines to be delivered:
-	#        baseline:Client_4_26_2012.3895@\Cool_PVOB       component:Gui@\Cool_PVOB
-	#Do you wish to continue with this deliver operation?  [no] Y
-	#Are you sure you want to complete this deliver operation?  [no] Y
-	#logfile is: C:\Users\NIGHT-~2\AppData\Local\Temp\2\rm_contribs.plPID12820.log
-	#
-	#Script 'rm_contribs.pl' looked for semaphore file at '\\moonbiter\ccutils\vmdev\triggers\../praqma\\semaphores\night-vobadmin'
-	#...but there wasn't any
-	#
-	#Dumping 20 CLEARCASE environments variables:
-	#
-	#                CLEARCASE_ACTIVITY=deliver.moon-vobuser_Client.20120426.171926@\Cool_PVOB
-	#                CLEARCASE_BRTYPE=Client_int
-	#                CLEARCASE_CMDLINE=deliver -complete -stream stream:moon-vobuser_Client@\Cool_PVOB
-	#                CLEARCASE_ELTYPE=text_file
-	#                CLEARCASE_ID_STR=\main\Client_int\1
-	#                CLEARCASE_MTYPE=version
-	#                CLEARCASE_OP_KIND=checkin
-	#                CLEARCASE_PN=M:\night-vobadmin_Client_int\Cool\Gui\New Text Document(3).txt
-	#                CLEARCASE_POP_KIND=deliver_complete
-	#                CLEARCASE_PPID=20996
-	#                CLEARCASE_RESERVED=1
-	#                CLEARCASE_TRIGGER_DEBUG=1
-	#                CLEARCASE_TRIGGER_VERBOSE=1
-	#                CLEARCASE_TRTYPE_KIND=post-operation
-	#                CLEARCASE_USER=night-vobadmin
-	#                CLEARCASE_VIEW_KIND=dynamic
-	#                CLEARCASE_VIEW_TAG=night-vobadmin_Client_int
-	#                CLEARCASE_VOB_PN=\Cool
-	#                CLEARCASE_XN_SFX=@@
-	#                CLEARCASE_XPN=M:\night-vobadmin_Client_int\Cool\Gui\New Text Document(3).txt@@\main\Client_int\1
-	#Deliver has completed
-	#          FROM: stream "moon-vobuser_Client"
-	#          TO: stream "Client_int"
-	#Using target view: "night-vobadmin_Client_int".
-	#
-	#C:\Users\night-vobadmin>
-	#
-	#
-	#
-	#
-	#
-
-	$log->enable(1);
-	$log->set_verbose(1);
-	$log->information( "logfile is: " . $log->get_logfile . "\n" );    # Logfile is null if logging isn't enabled.
-	$log->dump_ccvars();                                               # Run this statement to have the trigger dump the CLEARCASE variables
-
+	master_site_actions();
+	exit 0;
 }
 
 $log->assertion_failed( "$Scriptfile did not expect to end here at line " . __LINE__ );
@@ -183,46 +118,29 @@ $log->assertion_failed( "$Scriptfile did not expect to end here at line " . __LI
 sub master_site_actions {
 	$log->information("Running master site actions");
 
+	my $src_stream = "stream:$ENV{CLEARCASE_SRC_STREAM}";
+	$log->information("Source stream name is [$src_stream]");
+	my $src_master = $clearcase->get_master_replica( object => "$src_stream" );
+	$log->information("Stream [$src_stream] is mastered at [$src_master]");
+
 	$int_stream = "stream:$ENV{CLEARCASE_STREAM}";
 	$log->information("Stream for $ENV{CLEARCASE_POP_KIND} opereration is [$int_stream]");
 	$int_master = $clearcase->get_master_replica( object => "$int_stream" );
 	$log->information("Stream [$int_stream] is mastered at [$int_master]");
 
-	# Get list of involved baselines
-	@bl_list = listbaselines();
-
-	# Build list of stream(s) where baseline was created
-	# There could be multiple baselines derived from $ENV{CLEARCASE_BASELINES} leading to several different streams
-	# We are not going to handle more than a single stream, so we assert there is just one
-	my ( @dev_streams, %seen );
-
-	foreach (@bl_list) {
-		my $stream = $clearcase->ct( command => 'lsbl -fmt %[bl_stream]Xp ' . $_ );
-
-		$log->information("Baseline [$_] was created in stream [$stream]");
-		if ( $seen{$stream} || !scalar(%seen) ) {
-
-			# if we get here, we have not seen it before
-			$seen{$stream}++;
-		}
-		else {
-			$log->assertion_failed( "Found more than one unique stream when investigation " . join( '\t\n', @bl_list ) );
-		}
-
+	if ( $src_master eq $int_master ) {
+		$log->information("Target and source streams has same mastership. We are done");
+		exit 0;
 	}
 
-	# As per above %seen can only have one key
-	@dev_stream = keys %seen;
-	$dev_master = $clearcase->get_master_replica( object => @dev_stream );
-
 	# Search baselines on stream and get their baseline mastership too
-	my @baseline_mastership = $clearcase->ct( command => 'lsbl -fmt %[master]p\t%Xn\n -stream ' . @dev_stream );
+	my @baseline_mastership = $clearcase->ct( command => 'lsbl -fmt %[master]p\t%Xn\n -stream ' . $src_stream );
 	$log->information( "Found the following baselines on stream:\n" . join( '\t\n', @baseline_mastership ) );
 
-	# Filter the baselines based on mastership and change their mastership
+	# Filter the baselines based on mastership and eventually change their mastership
 	foreach my $victim ( grep { /^$int_master/ } @baseline_mastership ) {
 		my ( $master, $foreign_bl ) = split( /\s+/, $victim );
-		$log->information("Returning $foreign_bl mastership to $dev_master");
+		$log->information("Returning [$foreign_bl] mastership to [$dev_master]");
 		my $chmaster_cmd = "chmaster -c \"Trigger $TRIGGER_NAME returned mastership\" $dev_master $foreign_bl";
 		$clearcase->ct( command => $chmaster_cmd );
 	}
