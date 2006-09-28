@@ -98,6 +98,21 @@ exit 0 if -l $ENV{CLEARCASE_PN};
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
 
+	# Require file element has extension if enabled from configuration file
+	if ( $trgconfig{require_extension} && $ENV{ CLEARCASE_MTYPE} =~ 'file element')  {
+
+		my $file = basename( $ENV{CLEARCASE_PN} );
+
+		# Match a dot followed by any number of non dots at the end of the line
+		if ( $file =~ /(\.[^.]+)$/ ) {
+			$log->information("File [$file}] has an extension");
+		}
+		else {
+			$log->error("\nFile [$file] has no extension, please rename so it has an extension");
+		}
+
+	}
+
 	# Check pathlength if requested
 	if ( $trgconfig{pathlength} > 0 ) {
 		my $pathlength = length( $ENV{CLEARCASE_PN} );
@@ -138,7 +153,7 @@ if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
 		# is parentdir checked-out ?
 		if ( -w $parentdir ) {
 			$log->information("[$parentdir] is checkedout");
- 
+
 			if (`cleartool diff -predecessor \"$parentdir\"`) {
 
 				# "cleartool diff" returns 0 if versions are identical

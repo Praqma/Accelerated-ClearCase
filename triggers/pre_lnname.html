@@ -83,6 +83,10 @@ disappears from ClearCase Explorer. This trigger stops filenames whith the follo
 Filename cannot start with whitespace (&quot; element&quot; is prohibited)
 Filename cannot end with whitespace (&quot;element &quot; is prohibited)
 There cannot be a whitespace just before an extension seperator (&quot;element .ext&quot; is prohibited)</p>
+<p>require_extension</p>
+<p>Require file elements to have an extension
+This is default behaviour, can be disabled in the configuration file by assigning the value 0 to
+&quot;require_extension&quot;</p>
 <p>
 </p>
 <hr />
@@ -112,16 +116,22 @@ There cannot be a whitespace just before an extension seperator (&quot;element .
 <p>In order do utilize the External configuration, the Administrator must locate the file pre_lnname.pl.ini in the same folder as the trigger script</p>
 <p><em class="file">pre_lnname.pl</em> and copy it unmodified to the subfolder ..\CustomCfg.</p>
 <p>Then open the file which looks like this:</p>
-<p># Configuration file for re_lnname.pl</p>
-<p># change the pathlength to control how long paths you want on the system</p>
-<p>our %trigger_parms = (
-# lenght of path, 0 means off, a number means max pathlength
-&quot;pathlength&quot; =&gt; 180,
-# check for whitespaces
-# 0 means off, 1 means on
-&quot;whitespacecheck&quot; =&gt; 1</p>
-<p>);</p>
-<p>__END__</p>
+<pre>
+ <span class="comment"># Configuration file for re_lnname.pl</span>
+ <span class="comment"># change the pathlength to control how long paths you want on the system</span>
+ <span class="keyword">our</span> <span class="variable">%trigger_parms</span> <span class="operator">=</span> <span class="operator">(</span>
+        <span class="comment"># lenght of path, 0 means off, a number means max pathlength</span>
+        <span class="string">"pathlength"</span> <span class="operator">=&gt;</span> <span class="number">180</span><span class="operator">,</span>
+        <span class="comment"># check for whitespaces</span>
+        <span class="comment"># 0 means off, 1 means on</span>
+        <span class="string">"whitespacecheck"</span> <span class="operator">=&gt;</span> <span class="number">1</span><span class="operator">,</span>
+        <span class="comment"># Extension on file elemenets is required</span>
+        <span class="comment"># 0 means off, 1 means on (1 is default)</span>
+        <span class="string">"require_extension"</span> <span class="operator">=&gt;</span> <span class="number">1</span>
+ <span class="operator">);</span>
+ <span class="comment">__END__
+ </span>
+</pre>
 <p>This is actually perl syntax here, so lines starting with a # sign are comments.</p>
 <p>Now if you want to allow longer filenames, change</p>
 <pre>
