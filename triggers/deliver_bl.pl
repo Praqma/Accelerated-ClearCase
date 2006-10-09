@@ -63,6 +63,9 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
+2012-05-30  Jens Brejner   Ignore latest baselines for returning 
+                           mastership, they will be changed on next 
+                           execution (v1.0.5)
 2012-04-26  Jens Brejner   Add return of mastership (v1.0.4)
 2012-04-24  Jens Brejner   Handle deliver in progress (v1.0.3)
 2012-04-10  Jens Brejner   Optional change baseline mastership, default is
