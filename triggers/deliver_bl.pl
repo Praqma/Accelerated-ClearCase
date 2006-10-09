@@ -133,6 +133,25 @@ sub master_site_actions {
 		exit 0;
 	}
 
+	my (%ignore_these,@members);
+	# Get the direct baselines involved
+	@bl_list = listbaselines();
+	
+	# 
+	foreach (@bl_list) {
+		$log->information( "Retrieving dependencies for baseline $_");
+		$ignore_these{"baseline:$_"}++;
+		# Only need the lines that looks like baseline names from the output, a baseline name contains the @ sign
+		my @members = split ( / /, grep {/\S+@\\\S+/} $clearcase->ct( command => 'lsbl -fmt %[member_of_closure]p ' . $_));
+		
+		foreach my $string (@members) {
+			chomp($string);
+			$ignore_these{"baseline:$string"}++
+		}
+ 
+	} 
+	$log->information( "Prepared to ignore these baselines:\n" . join( "\t", keys %ignore_these ) );
+	
 	# Search baselines on stream and get their baseline mastership too
 	my @baseline_mastership = $clearcase->ct( command => 'lsbl -fmt %[master]p\t%Xn\n -stream ' . $src_stream );
 	$log->information( "Found the following baselines on stream:\n" . join( "\t", @baseline_mastership ) );
@@ -140,12 +159,14 @@ sub master_site_actions {
 	# Filter the baselines based on mastership and eventually change their mastership
 	foreach my $victim ( grep { /^\Q$int_master/ } @baseline_mastership ) {
 		my ( $master, $foreign_bl ) = split( /\s+/, $victim );
+		next if exists $ignore_these{$foreign_bl};
 		$log->information("Returning [$foreign_bl] mastership to [$src_master]");
 		my $chmaster_cmd = "chmaster -c \"Trigger $TRIGGER_NAME returned mastership\" $src_master $foreign_bl";
 		$clearcase->ct( command => $chmaster_cmd );
 	}
 
 }
+
 
 sub remote_site_actions {
 	$log->information("Running remote site actions");
