@@ -9,18 +9,13 @@ BEGIN {
     $Scriptfile = basename($0);
 
 }
-use lib $Scriptdir. "/../";
+use lib $Scriptdir . "../";
 
 use praqma::scriptlog;
 use praqma::trigger_helper;
 use File::Basename;
 
 $| = 1;
-
-### Debug values
-#$ENV{CLEARCASE_VOB_PN}        = "Somesthins";
-#$ENV{CLEARCASE_TRIGGER_DEBUG} = 1;
-#$ENV{CLEARCASE_OP_KIND}       = "rmname";
 
 #Required if you call trigger_helper->enable_install
 our $TRIGGER_NAME = "ACC_BLOCK_RMNAME_IF_CO";
