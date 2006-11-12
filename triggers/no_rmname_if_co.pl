@@ -5,7 +5,7 @@ our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
     use File::Basename;
-    $Scriptdir  = dirname($0);
+    $Scriptdir  = dirname($0) . "/";
     $Scriptfile = basename($0);
 
 }
