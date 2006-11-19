@@ -42,6 +42,12 @@ our %install_params = (
 our $VERSION  = "1.0";
 our $REVISION = "33";
 
+if ( uc( $ENV{COMPUTERNAME} ) eq "JBR-CC" ) {
+
+	$ENV{CLEARCASE_TRIGGER_DEBUG}   = 1;
+	$ENV{CLEARCASE_TRIGGER_VERBOSE} = 1;
+}
+
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 my $debug_on = defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} ) ? $ENV{'CLEARCASE_TRIGGER_DEBUG'} : undef;
 
@@ -112,8 +118,8 @@ our $logfile = $log->get_logfile;
 
 # Script scope variables
 my (
-	%twincfg,    $case_sensitive, $viewkind, $pathname,     $sfx,   $pop_kind, $user,    $parent,       $element,
-	$parent_dna, $pattern,        %added,    %uncatalogued, $found, $info,     $warning, $pre_proc_bat, $post_proc_bat
+	%twincfg,    $case_sensitive, $viewkind, $pathname,     $sfx,   $pop_kind, $user,    $parent, $element,
+	$parent_dna, $pattern,        %added,    %uncatalogued, $found, $info,     $warning, %commands
 );
 
 # Read optional local configuration of trigger
@@ -126,74 +132,93 @@ $sfx            = $ENV{CLEARCASE_XN_SFX} ? $ENV{CLEARCASE_XN_SFX} : '@@';
 $user           = $ENV{CLEARCASE_USER};
 $pop_kind       = lc( $ENV{CLEARCASE_POP_KIND} );
 
-# continue only if operation type is what we are intended for..
-if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {
+# Continue only if operation type is what we are intended for..
+if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 
 	# Here starts the actual trigger code.
 	name_lookup();
 
-	# No duplicate element is found on invisible branches
-	# Allow the creation of the element.
-	exit 0 unless $found;
+	if ($found) {
 
-	build_primary_message();
-	exit 1 unless $twincfg{AutoMerge};
+		# Found evil twin, determine what to do about it
 
-	# Prepare commands to fix the situation
+		$log->enable(1);
+		$log->set_verbose(1);
 
-	# Done our best, inform and get out
+		if ( $twincfg{AutoMerge} eq 0 ) {
 
-	if ( $twincfg{AutoMerge} == 0 ) {
+			# We will do no work for user, just inform and block OP
+			build_primary_message();
 
-		# Inform only, and stop the operation
-		exit 1;
+			# Write logfile
 
-	}
-
-	if ( $twincfg{AutoMerge} == 1 ) {
-
-		# Do the required merge, but leave checked out
-		foreach (@mkmerge) {
-			print "$_\n";
-			my $retval;
-			qx($_);
-			if ($?) {
-				$log->error("The command [$_] didn't exit properly: $retval");
-				die "ERROR. Read the logfile\n";
-			}
+			$log->information("$warning\n###########################\n");
+			$log->information("$info\n###########################\n");
+			exit 1;
 
 		}
-		$log->warning(
-			"Evil twin detected. 
-We have tried to get around it, but haven't checked in the changes. 
-Please verify, and check in if you are satisfied"
-		);
-		exit 1;
 
-	}
+		# Script default is overwritten, they want us to try to fix during script execution
+		# Write batch files to fix the situation
 
-	if ( $twincfg{AutoMerge} == 2 ) {
+		%commands = build_fixcommands();
+		chdir $ENV{SYSTEMDRIVE};
 
-		# Do the required merge and check in
-		foreach ( ( @mkmerge, @mkci ) ) {
-			my $retval = qx($_);
-			if ($?) {
-				$log->error("The command [$_] didn't exit properly: $retval");
-				die "ERROR. Read the logfile\n";
-			}
+		if ( $twincfg{AutoMerge} eq 1 ) {
+
+			# Merge that name back for the user
+			runcmd( 'cmd' => $commands{PRE} );
+
+			$log->warning("Evil twin detected.\n");
+			$log->warning("We have tried to get around it, but haven't checked in the changes.\n");
+			$log->warning("Please verify, and check in if you are satisfied");
+			exit 1;
+		}
+		elsif ( $twincfg{AutoMerge} eq 2 ) {
+
+			# Do the required merge and check in
+
+			runcmd( 'cmd' => $commands{PRE} );
+			runcmd( 'cmd' => $commands{POST} );
+			$log->information("Evil twin detected. We have tried to get around it, we hope you are happy with it.");
+			exit 0;
 
 		}
-		$log->information("Evil twin detected. We have tried to get around it, we hope you are happy with it.");
+		else {
+			$log->assertion_failed("No idea why we ended here, the value of [\$twincfg{AutoMerge}] was not in range from 0 to 2");
+			exit 1;
+		}
+
+	}
+	else {
+
+		# No duplicate element is found on invisible branches
+		# Allow the creation of the element.
+		$log->information("Value of \$found is now [$found]") if ($debug_on);
+		$log->information("Found no twins")                   if ($debug_on);
 		exit 0;
-
 	}
 
 	# Prevent the OP anyway - should we ever end here
 	exit 1;
+}    # End if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" )
 
+$log->assertion_failed("Script ran out of context");
+
+############################## SUBS BELOW  ####################################
+sub runcmd {
+	my %args = (@_);
+	$log->assertion_failed("A command is required") unless exists $args{cmd};
+	my @retval = qx($args{cmd} 2>&1);
+	if ( scalar($?) / 256 ) {
+		$log->assertion_failed( "The command [$args{cmd}] exited with " . scalar($?) / 256 . " " . join( '\n', @retval ) );
+	}
+
+	return @retval;
 }
 
 sub build_fixcommands {
+# die "whoah cleartool merge -to . -delete -version \main\17"; # og så en trigger der sikrer kun 1 rmname af gangen, whammo
 
 	my ( $fixcmd, $tmpfilename, $foundpath, @head, @mkmerge, @mkci, @exit );
 
@@ -203,56 +228,55 @@ sub build_fixcommands {
 	( my $win32parent    = $parent )    =~ tr#/#\\#;
 	( my $win32foundpath = $foundpath ) =~ tr#/#\\#;
 	( my $win32element   = $element )   =~ tr#/#\\#;
-	my $cwd = `cd`;
 
 	@head = ( <<"END_OF_HEAD" =~ m/^\s*(.+)/gm );
-The proper way to correct the situation, is to re-introduce the name
-$win32element in the directory by executing the following commands in order:
-
+REM The proper way to correct the situation, is to re-introduce the name
+REM $win32element in the directory by executing the following commands in order:
 END_OF_HEAD
 
 	@mkmerge = ( <<"END_OF_MKMERGE" =~ m/^\s*(.+)/gm );
 REM BATCH START
-pushd  \"$win32parent\"
-rename \"$win32element\" $tmpfilename
+pushd  "$win32parent"
+rename "$win32element.mkelem" $tmpfilename
 cleartool co -nc .
-cleartool merge -graphical -qall -c \"Re-introducing the name $element\" -to . \"$win32foundpath\"
-cleartool co -nc \"$win32element\"
-copy /y  $tmpfilename  \"$win32element\"
-popd
+cleartool merge -graphical -qall -c "Re-introducing the name $element" -to . "$win32foundpath"
+cleartool co -nc "$win32element"
+copy /y  $tmpfilename  "$win32element"
+exit
 
 END_OF_MKMERGE
 
 	@mkci = ( <<"END_OF_MKCI" =~ m/^\s*(.+)/gm );
-pushd  \"$win32parent\"
-cleartool ci -nc \"$win32element\"
+pushd  "$win32parent"
+cleartool ci -ident -nc "$win32element"
 cleartool ci -nc .
-popd
+exit
 
 END_OF_MKCI
 
 	($logfile) && $log->information( join '\n', ( @head, @mkmerge, @mkci ) );
-	$pre_proc_bat = "$parent/pre_$tmpfilename.bat";
-	$post_proc_bat = "$parent/post_$tmpfilename.bat";
-	open( PREBAT,  "> $pre_proc_bat" )  or die "Couldn't open $pre_proc_bat for writing: $!";
-	open( POSTBAT, "> $post_proc_bat" ) or die "Couldn't open $post_proc_bat for writing: $!";
+	my %solution;
+	$solution{PRE}  = "$parent/pre_$tmpfilename.bat";
+	$solution{POST} = "$parent/post_$tmpfilename.bat";
 
-	foreach (@head)    { print PREBAT "REM $_"; }
-	foreach (@mkmerge) { print PREBAT "$_"; }
-	foreach (@mkci)    { print POSTBAT "$_"; }
+	open( PREBAT,  "> $solution{PRE}" )  or die "Couldn't open $solution{PRE} for writing: $!";
+	open( POSTBAT, "> $solution{POST}" ) or die "Couldn't open $solution{POST} for writing: $!";
 
-	close( PREBAT, POSTBAT );
+	foreach ( @head, @mkmerge ) { print PREBAT "$_\n"; }
+	foreach (@mkci) { print POSTBAT "$_\n"; }
+
+	close PREBAT;
+	close POSTBAT;
+
+	return %solution;
 
 }
 
 sub build_primary_message {
 
-	$log->enable();
-	$log->set_verbose($verbose_mode);
 	my $cmd       = "cleartool desc -fmt \%u vob:$ENV{CLEARCASE_VOB_PN}";
 	my $vob_owner = qx ($cmd);
 	if ($?) {
-		$log->enable(1);
 		$log->error("The command: '$cmd' failed\n, command output was $vob_owner\n");
 		exit 1;
 	}
@@ -271,12 +295,12 @@ ENDWARNING
 	}
 	elsif ( !$pop_kind || $pop_kind =~ /rmname|mkslink/ ) {
 
-		$info_1 = "$info The element name [$element]\n";
+		$info_1 = "The element name [$element]\n";
 
 	}
 	else {
 
-		$log->error("\$ENV{CLEARCASE_POP_KIND} value [$pop_kind] was unexpected");
+		$log->assertion_failed("\$ENV{CLEARCASE_POP_KIND} value [$pop_kind] was unexpected");
 		exit 1;
 
 	}
@@ -299,16 +323,6 @@ please contact the VOB_OWNER ($vob_owner)
 
 ENDINFO
 
-	# Write logfile
-	foreach ( split( /\n/, $warning ) ) {
-		$log->warning("$_\n");
-	}
-	$log->information("###########################\n");
-	foreach ( split( /\n/, $info ) ) {
-		$log->information("$_\n");
-	}
-	$log->information("###########################\n");
-
 }
 
 sub name_lookup {
@@ -316,6 +330,8 @@ sub name_lookup {
 	# Parse directory history for the name
 
 	my ( $possible_dupe, $dupver );
+	%added        = ();    #  table of latest version where NAME was added
+	%uncatalogued = ();    #  table of latest version where NAME was seen before uncatalogue
 
 	# change to forward slashes in path name
 	$pathname =~ tr#\\#/#;
@@ -340,8 +356,6 @@ sub name_lookup {
 		$snapview = !-e "$parent$sfx/main" && !-e "$parent/$sfx/main";
 	}
 
-	my $found = 0;
-
 	if ($case_sensitive) {
 		$pattern = "$element";
 	}
@@ -352,34 +366,17 @@ sub name_lookup {
 	# Need to escape square brackets, as this string will be used as a regexp.
 	$pattern =~ s/\[|\]/\\$&/g;
 
-	$debug_on
-	  && $log->information("The Search pattern looks like:\'$pattern\'\n");
+	#	$pattern =~ s/[\[\]\(\)]/\\$&/g;
+	$debug_on && $log->information("The Search pattern looks like:\'$pattern\'\n");
 
 	# get lines from lshist that begins with either added or uncat and ends with digit
-	my $cmd     = 'cleartool lshist -nop -min -nco -dir -fmt %Nc%Vn\n "' . $parent_dna . '" 2>&1';
-	my @history = qx($cmd);
-
-	if ($?) {    # The cleartool lshist failed
-		$log->enable(1);
-		$log->dump_ccvars;
-		$log->error("The command: '$cmd' failed\n");
-		$log->error(@history);
-		exit 1;
-	}
-	my @lines =
-	  grep { /^added.*?$element.*\\\d+$|^uncat.*?$element.*\\\d+$/i } @history;
-	chomp @lines;
-	$debug_on && do {
-		$log->information("\tThe following lines where selected from the history:\n");
-		foreach (@lines) {
-			$log->information("\t$_\n");
-		}
-	};
-
-	%added        = ();    #  table of latest version where NAME was added
-	%uncatalogued = ();    #  table of latest version where NAME was seen before uncatalogue
-
+	my $cmd = 'cleartool lshist -nop -min -nco -dir -fmt %Nc%Vn\n "' . $parent_dna . '" 2>&1';
+	my @history = runcmd( 'cmd' => $cmd );
+	$log->information( "\tHere comes the history listing:\n\t" . join( '', @history ) ) if ($debug_on);
+	my @lines = grep { /^added.*?$element.*\\\d+$|^uncat.*?$element.*\\\d+$/i } @history;
+	$log->information( "\tThe following lines where selected from the history:\n\t" . join( '', @lines ) ) if ($debug_on);
 	foreach (@lines) {
+		chomp;
 
 		# isolate elementname and branch version
 		my ( $action, $name, $junk, $branch ) = /(.*")(.*)("\.)(.*)/;
@@ -414,11 +411,19 @@ sub name_lookup {
 				$log->information("\t$_ => $uncatalogued{$_}\n");
 			}
 		}
+		else {
+			$log->information("\tNo keys in \%uncatalogued hash:\n");
+		}
 	};
 
-	my @match = grep /^$pattern$/, keys %added;
-	$found = @match ? $match[$#match] : undef;
-
+	my @match = grep { /^$pattern$/ } keys %added;
+	$log->information( "Found " . scalar(@match) . "matching keys" ) if ($debug_on);
+	$found = (@match) ? scalar(@match) : undef;
+	$log->information("Value of \$found is now [$found]") if ($debug_on);
 }
 
 __END__
+
+
+
+	

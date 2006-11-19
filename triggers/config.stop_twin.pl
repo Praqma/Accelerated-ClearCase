@@ -8,7 +8,7 @@ our %trigger_parms = (
 # 0 means off, no automatic merge, based on based on best guess
 # 1 means active. Partial merge of directory on best guess, do not check in
 # 2 means active. Full automatic.Merge directory on best guess, check in changes.
-"AutoMerge" => 1
+"AutoMerge" => 0
 );
 
 __END__
