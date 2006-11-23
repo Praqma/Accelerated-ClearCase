@@ -218,7 +218,8 @@ sub runcmd {
 }
 
 sub build_fixcommands {
-# die "whoah cleartool merge -to . -delete -version \main\17"; # og så en trigger der sikrer kun 1 rmname af gangen, whammo
+
+	# die "whoah cleartool merge -to . -delete -version \main\17"; # og så en trigger der sikrer kun 1 rmname af gangen, whammo
 
 	my ( $fixcmd, $tmpfilename, $foundpath, @head, @mkmerge, @mkci, @exit );
 
@@ -308,7 +309,12 @@ ENDWARNING
 	# check if it has been uncatalogued
 	chomp( my @lastseen = grep /$pattern$/, keys %uncatalogued );
 
-	my $info_2 = (@lastseen) ? "The name has last been seen in: \n[$uncatalogued{$element}].\n\n" : "";
+	# split branch and version
+	my ( $branch, $version ) = ( $uncatalogued{$element} =~ /(.*)(\d+)$/ );
+	$version--;    # decrement version number
+
+	#			my $info_2 = (@lastseen) ? "The name has last been seen in: \n[$uncatalogued{$element}].\n\n" : "";
+	my $info_2 = (@lastseen) ? "The name has last been seen in: \n[$branch$version].\n\n" : "";
 
 	$info = <<ENDINFO;
 $info_1 
@@ -329,7 +335,7 @@ sub name_lookup {
 
 	# Parse directory history for the name
 
-	my ( $possible_dupe, $dupver );
+	my ( $possible_dupe, $dupver, @lines );
 	%added        = ();    #  table of latest version where NAME was added
 	%uncatalogued = ();    #  table of latest version where NAME was seen before uncatalogue
 
@@ -365,46 +371,53 @@ sub name_lookup {
 
 	# Need to escape square brackets, as this string will be used as a regexp.
 	$pattern =~ s/\[|\]/\\$&/g;
-
-	#	$pattern =~ s/[\[\]\(\)]/\\$&/g;
-	$debug_on && $log->information("The Search pattern looks like:\'$pattern\'\n");
+	$log->information("The Search pattern looks like: [$pattern]") if ($debug_on);
 
 	# get lines from lshist that begins with either added or uncat and ends with digit
-	my $cmd = 'cleartool lshist -nop -min -nco -dir -fmt %Nc%Vn\n "' . $parent_dna . '" 2>&1';
+	my $cmd = 'cleartool lshist -nop -min -nco -dir -fmt %Nc%Vn\n "' . $parent_dna . '"';
+	$log->information("\t\$cmd is [$cmd]") if ($debug_on);
 	my @history = runcmd( 'cmd' => $cmd );
 	$log->information( "\tHere comes the history listing:\n\t" . join( '', @history ) ) if ($debug_on);
-	my @lines = grep { /^added.*?$element.*\\\d+$|^uncat.*?$element.*\\\d+$/i } @history;
-	$log->information( "\tThe following lines where selected from the history:\n\t" . join( '', @lines ) ) if ($debug_on);
-	foreach (@lines) {
+
+	foreach (@history) {
 		chomp;
+		$_ =~ s/^\s+//;
+
+		unless (m/$element/i) {
+
+			$log->information("Skipping line [$_]") if ($debug_on);
+			next;
+
+		}
 
 		# isolate elementname and branch version
 		my ( $action, $name, $junk, $branch ) = /(.*")(.*)("\.)(.*)/;
+		$log->information("Line [$_] was split into: \$action=[$action], \$name=[$name], \$junk=[$junk] and \$branch=[$branch]") if ($debug_on);
 
 		# Fill table of latest version where file was added
 		if (/^Added/i) {
 			$added{$name} = $branch unless $added{$name};
+			next;
 		}
 
 		# Fill table of latest version where NAME was seen before uncatalog
 		if (/^Uncat/i) {
 
-			# chop branch and version number
-			my ( $b, $v ) = ( $branch =~ /(.*)(\d+)$/ );
-			$v--;    # decrement version number
-			my $lastknown = "$b$v";
-			$uncatalogued{$name} = $lastknown unless $uncatalogued{$name};
+			# split branch and version
+			#			my ( $branch, $version ) = ( $branch =~ /(.*)(\d+)$/ );
+			#			$version--;    # decrement version number
+			#			$uncatalogued{$name} = "$branch$version" unless $uncatalogued{$name};
+			$uncatalogued{$name} = $branch unless $uncatalogued{$name};
+			next;
 		}
 	}
 
-	$debug_on && do {
+	if ($debug_on) {
 		$log->information("\tHere is the \%added hash:\n");
 		foreach ( sort keys %added ) {
 			$log->information("\t$_ => $added{$_}\n");
 		}
-	};
 
-	$debug_on && do {
 		if ( keys %uncatalogued ) {
 			$log->information("\tHere is the \%uncatalogued hash:\n");
 			foreach ( sort keys %uncatalogued ) {
@@ -414,16 +427,14 @@ sub name_lookup {
 		else {
 			$log->information("\tNo keys in \%uncatalogued hash:\n");
 		}
-	};
+	}
 
 	my @match = grep { /^$pattern$/ } keys %added;
-	$log->information( "Found " . scalar(@match) . "matching keys" ) if ($debug_on);
+	$log->information( "Found " . scalar(@match) . " matching keys" ) if ($debug_on);
 	$found = (@match) ? scalar(@match) : undef;
 	$log->information("Value of \$found is now [$found]") if ($debug_on);
 }
 
 __END__
-
-
 
 	
