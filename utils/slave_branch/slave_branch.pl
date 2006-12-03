@@ -18,209 +18,209 @@ die "$helpmsg" unless $ARGV[0] =~ /.run/i;
 my @pvobs = defined( $ARGV[1] ) ? $ARGV[1] : get_pvobs();
 
 foreach my $vobtag (@pvobs) {
-  print "Investigating projects in vob $vobtag\n\n";
-  $project_unmatched = 0;
-  $branch_unmatched  = 0;
-  my @projects  = &get_projects($vobtag);
-  my $vobexists = qx("cleartool des -s vob:$vobtag");
-  if ($?) {
-    die "$vobexists\n $helpmsg";
-  }
-  foreach my $proj (@projects) {
-    &set_streamlock($proj);
-  }
-  print "\nFixed $project_unmatched Project-Stream mismatches and $branch_unmatched Stream-Branch mismatches in $vobtag\n";
+	print "Investigating projects in vob $vobtag\n\n";
+	$project_unmatched = 0;
+	$branch_unmatched  = 0;
+	my @projects  = &get_projects($vobtag);
+	my $vobexists = qx("cleartool des -s vob:$vobtag");
+	if ($?) {
+		die "$vobexists\n $helpmsg";
+	}
+	foreach my $proj (@projects) {
+		&set_streamlock($proj);
+	}
+	print "\nFixed $project_unmatched Project-Stream mismatches and $branch_unmatched Stream-Branch mismatches in $vobtag\n";
 }
 
 ################## S U B S #############################
 
 sub set_branchlock ($) {
 
-  # read stream lock, ensure that the  branch type follows the project lock
-  my $stream = shift;
-  my @slock  = get_lock_info($stream);
-  my $brtype = get_guardbranch($stream);
+	# read stream lock, ensure that the  branch type follows the project lock
+	my $stream = shift;
+	my @slock  = get_lock_info($stream);
+	my $brtype = get_guardbranch($stream);
 
-  # We are done if there is not brtype
-  return unless ($brtype);
+	# We are done if there is not brtype
+	return unless ($brtype);
 
-  my @brtype_lockstatus = get_lock_info($brtype);
+	my @brtype_lockstatus = get_lock_info($brtype);
 
-  if ( $slock[1] ne $brtype_lockstatus[1] ) {
-    $branch_unmatched++;
-    print "\nMICMATCH $stream [" . $slock[0] . "] --> $brtype [" . $brtype_lockstatus[0] . "]\n";
+	if ( $slock[1] ne $brtype_lockstatus[1] ) {
+		$branch_unmatched++;
+		print "\nMICMATCH $stream [" . $slock[0] . "] --> $brtype [" . $brtype_lockstatus[0] . "]\n";
 
-    #case stream isn't locked
-    ( $slock[0] eq "unlocked" ) && do {
+		#case stream isn't locked
+		( $slock[0] eq "unlocked" ) && do {
 
-      print "Stream $stream is not locked, unlocking branch $brtype\n";
-      system("cleartool unlock $brtype");
-      return;
-    };
+			print "Stream $stream is not locked, unlocking branch $brtype\n";
+			system("cleartool unlock $brtype");
+			return;
+		};
 
-    #case stream is locked, some users can be excluded from lock;
-    ( $slock[0] eq "locked" ) && do {
-      print "Stream $stream is locked, locking branch $brtype\n";
+		#case stream is locked, some users can be excluded from lock;
+		( $slock[0] eq "locked" ) && do {
+			print "Stream $stream is locked, locking branch $brtype\n";
 
-      # Lock might not be for all
+			# Lock might not be for all
 
-      # Cache nuser list if exists
-      my $nuserlist = "";
-      if ( $slock[1] =~ /(.*except.*:\s+)(.*)/ ) {
-        print "[$1]\n";
-        print "[$2]\n";
+			# Cache nuser list if exists
+			my $nuserlist = "";
+			if ( $slock[1] =~ /(.*except.*:\s+)(.*)/ ) {
+				print "[$1]\n";
+				print "[$2]\n";
 
-        $nuserlist = " -nuser " . join( ',', split( / /, $2 ) );
-      }
+				$nuserlist = " -nuser " . join( ',', split( / /, $2 ) );
+			}
 
-      # Cache comment if exists
-      my $lockcomment = $slock[2] ? "-c \"$slock[2]\"" : "";
+			# Cache comment if exists
+			my $lockcomment = $slock[2] ? "-c \"$slock[2]\"" : "";
 
-      # Must unlock a locked object before modifying it
-      system("cleartool unlock $stream");
-      ( $brtype_lockstatus[0] ne "unlocked" ) && do {
-        system("cleartool unlock $brtype");
-      };
-      system("cleartool lock $lockcomment $nuserlist $brtype");
-      system("cleartool lock $lockcomment $nuserlist $stream");
-      return;
-    };
+			# Must unlock a locked object before modifying it
+			system("cleartool unlock $stream");
+			( $brtype_lockstatus[0] ne "unlocked" ) && do {
+				system("cleartool unlock $brtype");
+			};
+			system("cleartool lock $lockcomment $nuserlist $brtype");
+			system("cleartool lock $lockcomment $nuserlist $stream");
+			return;
+		};
 
-    #case stream is locked obsolete;
-    ( $slock[0] eq "obsolete" ) && do {
-      system("cleartool unlock $stream");
-      ( $brtype_lockstatus[0] eq "locked" ) && do {
-        system("cleartool unlock $brtype");
-      };
-      system("cleartool lock -obsolete $brtype");
-      system("cleartool lock -obsolete $stream");
-      return;
-    };
+		#case stream is locked obsolete;
+		( $slock[0] eq "obsolete" ) && do {
+			system("cleartool unlock $stream");
+			( $brtype_lockstatus[0] eq "locked" ) && do {
+				system("cleartool unlock $brtype");
+			};
+			system("cleartool lock -obsolete $brtype");
+			system("cleartool lock -obsolete $stream");
+			return;
+		};
 
-  }
+	}
 
 }
 
 sub get_guardbranch ($) {
 
-  # Read stream hyperlink pointing to the branch type
-  # Returns the fqn branch type if found, else 0 (zero)
-  my $stream    = shift;
-  my $retval    = 0;
-  my $direction = "->";
-  my $hltype    = "IndependentGuard";                             # UCM Keyword
-  my $ln        = qx("cleartool desc -ahlink $hltype $stream");
+	# Read stream hyperlink pointing to the branch type
+	# Returns the fqn branch type if found, else 0 (zero)
+	my $stream    = shift;
+	my $retval    = 0;
+	my $direction = "->";
+	my $hltype    = "IndependentGuard";                             # UCM Keyword
+	my $ln        = qx("cleartool desc -ahlink $hltype $stream");
 
-  if ( $ln =~ /\s*$hltype\s*$direction\s*(.*)\s*$/ ) {
-    $retval = $1;
-    chomp($retval);
+	if ( $ln =~ /\s*$hltype\s*$direction\s*(.*)\s*$/ ) {
+		$retval = $1;
+		chomp($retval);
 
-  }
-  return $retval
+	}
+	return $retval
 
 }
 
 sub set_streamlock ($) {
 
-  # read project lock, ensure that the stream follows the project lock
-  my $project    = shift;
-  my @plock      = get_lock_info($project);
-  my @streamlist = qx("cleartool lsstream -obsolete -fmt %Xn\\n -in $project");
-  chomp @streamlist;
-  print "Checking " . scalar(@streamlist) . " stream(s) in $project: ";
+	# read project lock, ensure that the stream follows the project lock
+	my $project    = shift;
+	my @plock      = get_lock_info($project);
+	my @streamlist = qx("cleartool lsstream -obsolete -fmt %Xn\\n -in $project");
+	chomp @streamlist;
+	print "Checking " . scalar(@streamlist) . " stream(s) in $project: ";
 
-  foreach my $stream (@streamlist) {
+	foreach my $stream (@streamlist) {
 
-    my $nuser = 0;
-    my @slock = get_lock_info($stream);
-    print ".";
-    if ( $plock[1] ne $slock[1] ) {
-      $project_unmatched++;
-      if ( $slock[1] =~ /(.*except.*:\s+)(.*)/ ) {
-        $nuser = 1;
-      }
-      print "\nMICMATCH $project [" . $plock[0] . "] --> $stream [" . $slock[0] . "]\n";
+		my $nuser = 0;
+		my @slock = get_lock_info($stream);
+		print ".";
+		if ( $plock[1] ne $slock[1] ) {
+			$project_unmatched++;
+			if ( $slock[1] =~ /(.*except.*:\s+)(.*)/ ) {
+				$nuser = 1;
+			}
+			print "\nMICMATCH $project [" . $plock[0] . "] --> $stream [" . $slock[0] . "]\n";
 
-      #case project isn't locked
-      ( $plock[0] eq "unlocked" ) && do {
+			#case project isn't locked
+			( $plock[0] eq "unlocked" ) && do {
 
-        print "Project is not locked";
-        if ($nuser) {
-          print ", but stream is locked with -nuser switch\n";
-        }
-        else {
-          print "\n";
-          system("cleartool unlock $stream");
-        }
-      };
+				print "Project is not locked";
+				if ($nuser) {
+					print ", but stream is locked with -nuser switch\n";
+				}
+				else {
+					print "\n";
+					system("cleartool unlock $stream");
+				}
+			};
 
-      #case project is locked, some users can be excluded from lock;
-      ( $plock[0] eq "locked" ) && do {
-        print "Stream is locked ";
+			#case project is locked, some users can be excluded from lock;
+			( $plock[0] eq "locked" ) && do {
+				print "Stream is locked ";
 
-        # Lock might not be for all
-        if ( $plock[1] =~ /(.*except.*:\s+)(.*)/ ) {
+				# Lock might not be for all
+				if ( $plock[1] =~ /(.*except.*:\s+)(.*)/ ) {
 
-          # project with stream which is is locked with -nuser, we don't touch the stream
-        }
+					# project with stream which is is locked with -nuser, we don't touch the stream
+				}
 
-        # unlock unless already locked -nuser
-        unless ($nuser) {
-          system("cleartool unlock $stream") unless ( $slock[0] eq "unlocked" );
-          system("cleartool lock $stream");
-        }
-      };
+				#  unless already locked -nuser
+				unless ($nuser) {
+					system("cleartool unlock $stream") unless ( $slock[0] eq "unlocked" );
+					system("cleartool lock $stream");
+				}
+			};
 
-      #case stream is locked obsolete;
-      ( $plock[0] eq "obsolete" ) && do {
-        system("cleartool unlock $stream") if ( $slock[0] ne "unlocked" );
-        system("cleartool lock -obsolete $stream") unless ($nuser);
+			#case stream is locked obsolete;
+			( $plock[0] eq "obsolete" ) && do {
+				system("cleartool unlock $stream") if ( $slock[0] ne "unlocked" );
+				system("cleartool lock -obsolete $stream") unless ($nuser);
 
-      };
+			};
 
-    }
-    set_branchlock($stream);
-  }
+		}
+		set_branchlock($stream);
+	}
 
-  print "\n";
+	print "\n";
 
 }
 
 sub get_projects ($) {
 
-  # find all projects, return an array of the fqn projects
-  my $vob    = shift;
-  my @retval = qx("cleartool lsproj -obsolete -fmt %Xn\\n -invob $vob");
-  chomp @retval;
-  return @retval;
+	# find all projects, return an array of the fqn projects
+	my $vob    = shift;
+	my @retval = qx("cleartool lsproj -obsolete -fmt %Xn\\n -invob $vob");
+	chomp @retval;
+	return @retval;
 
 }
 
 sub get_pvobs {
 
-  # find all pvobs, return an array of the vobtags
-  my @retval = grep { /(ucmvob)/ } qx("cleartool lsvob ");
-  foreach (@retval) {
-    s/(^..)(\S+)(\s+.*$)/$2/;
-    chomp;
-  }
-  return @retval;
+	# find all pvobs, return an array of the vobtags
+	my @retval = grep { /(ucmvob)/ } qx("cleartool lsvob ");
+	foreach (@retval) {
+		s/(^..)(\S+)(\s+.*$)/$2/;
+		chomp;
+	}
+	return @retval;
 }
 
 sub get_lock_info ($) {
 
-  # read info an object's lock (if any)
-  # return as array
+	# read info an object's lock (if any)
+	# return as array
 
-  my $object = shift;
+	my $object = shift;
 
-  # capture lock status
-  my @retval = qx("cleartool desc -fmt %[locked]p $object");
+	# capture lock status
+	my @retval = qx("cleartool desc -fmt %[locked]p $object");
 
-  # add additional info about the lock
-  push @retval, qx("cleartool lslock -fmt %Nc $object");
-  foreach (@retval) { chomp; }
-  return @retval;
+	# add additional info about the lock
+	push @retval, qx("cleartool lslock -fmt %Nc $object");
+	foreach (@retval) { chomp; }
+	return @retval;
 
 }
 

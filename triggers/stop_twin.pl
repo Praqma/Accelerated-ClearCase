@@ -109,9 +109,11 @@ our $semaphore_status = $thelp->enable_semaphore_backdoor( $ENV{'CLEARCASE_USE_L
 
 # Initiate logging.
 our $log = scriptlog->new;
-$log->conditional_enable();    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
-$log->set_verbose;             #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
-our $logfile = $log->get_logfile;
+#Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->conditional_enable();    
+#Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
+$log->set_verbose();             
+our $logfile = $log->get_logfile();
 ($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 ($logfile) && $log->information($semaphore_status);
 ($logfile) && $log->dump_ccvars;                              # Run this statement to have the trigger dump the CLEARCASE variables
@@ -157,17 +159,23 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 			exit 1;
 
 		}
+		else {
+
+			# Check if we think a possible auto merge is resonably safe
+
+		}
 
 		# Script default is overwritten, they want us to try to fix during script execution
 		# Write batch files to fix the situation
 
 		%commands = build_fixcommands();
-		chdir $ENV{SYSTEMDRIVE};
+
+		#		chdir $ENV{SYSTEMDRIVE};
 
 		if ( $twincfg{AutoMerge} eq 1 ) {
 
 			# Merge that name back for the user
-			runcmd( 'cmd' => $commands{PRE} );
+			runcmd( 'cmd' => $commands{GUIDED} );
 
 			$log->warning("Evil twin detected.\n");
 			$log->warning("We have tried to get around it, but haven't checked in the changes.\n");
@@ -178,8 +186,8 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 
 			# Do the required merge and check in
 
-			runcmd( 'cmd' => $commands{PRE} );
-			runcmd( 'cmd' => $commands{POST} );
+			runcmd( 'cmd' => $commands{GUIDED} );
+			runcmd( 'cmd' => $commands{AUTO} );
 			$log->information("Evil twin detected. We have tried to get around it, we hope you are happy with it.");
 			exit 0;
 
@@ -206,6 +214,21 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 $log->assertion_failed("Script ran out of context");
 
 ############################## SUBS BELOW  ####################################
+sub has_one_diff_only {
+
+	#	We can only attempt an automatic merge if there is one
+	#	and only one difference between old directory version and merge target
+
+	#   Cleartool diff uses the pattern below to show start of each diff, so we count them to find number of diff's
+	my $pattern = '-------------|-------------';
+
+	my $cmd = 'cleartool diff $parent FROMVERSION';
+	my $count = grep { /$pattern/ } qx($cmd);
+
+	return $count ? ( $count == 1 ) : 0;
+
+}
+
 sub runcmd {
 	my %args = (@_);
 	$log->assertion_failed("A command is required") unless exists $args{cmd};
@@ -214,8 +237,6 @@ sub runcmd {
 		$log->assertion_failed( "The command [$args{cmd}] exited with " . scalar($?) / 256 . " " . join( '\n', @retval ) );
 	}
 
-	return @retval;
-}
 
 sub build_fixcommands {
 
@@ -257,17 +278,17 @@ END_OF_MKCI
 
 	($logfile) && $log->information( join '\n', ( @head, @mkmerge, @mkci ) );
 	my %solution;
-	$solution{PRE}  = "$parent/pre_$tmpfilename.bat";
-	$solution{POST} = "$parent/post_$tmpfilename.bat";
+	$solution{GUIDED}  = "$parent/pre_$tmpfilename.bat";
+	$solution{AUTO} = "$parent/post_$tmpfilename.bat";
 
-	open( PREBAT,  "> $solution{PRE}" )  or die "Couldn't open $solution{PRE} for writing: $!";
-	open( POSTBAT, "> $solution{POST}" ) or die "Couldn't open $solution{POST} for writing: $!";
+	open( GUIDEDBAT,  "> $solution{GUIDED}" )  or die "Couldn't open $solution{GUIDED} for writing: $!";
+	open( AUTOBAT, "> $solution{AUTO}" ) or die "Couldn't open $solution{AUTO} for writing: $!";
 
-	foreach ( @head, @mkmerge ) { print PREBAT "$_\n"; }
-	foreach (@mkci) { print POSTBAT "$_\n"; }
+	foreach ( @head, @mkmerge ) { print GUIDEDBAT "$_\n"; }
+	foreach (@mkci) { print AUTOBAT "$_\n"; }
 
-	close PREBAT;
-	close POSTBAT;
+	close GUIDEDBAT;
+	close AUTOBAT;
 
 	return %solution;
 
@@ -400,7 +421,7 @@ sub name_lookup {
 			next;
 		}
 
-		# Fill table of latest version where NAME was seen before uncatalog
+		# Fill table of latest version where NAME was uncatalogued
 		if (/^Uncat/i) {
 
 			# split branch and version
