@@ -1,15 +1,6 @@
 require 5.000;
 use strict;
 
-BEGIN {
-
-	# Ensure that the view-private file will get named back on rejection.
-	END {
-		rename( "$ENV{CLEARCASE_PN}.mkelem", $ENV{CLEARCASE_PN} )
-		  if $? && !-e $ENV{CLEARCASE_PN} && -e "$ENV{CLEARCASE_PN}.mkelem";
-	}
-}
-
 #Getting the script dir
 our ( $Scriptdir, $Scriptfile );
 
@@ -25,7 +16,7 @@ BEGIN {
 }
 
 use File::Basename;
-use lib $Scriptdir. "..";
+use lib "$Scriptdir..//..";
 use praqma::scriptlog;
 use praqma::trigger_helper;
 use praqma::acc;

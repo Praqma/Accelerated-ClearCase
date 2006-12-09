@@ -175,7 +175,8 @@ sub assertion_failed($) {
 	my $self   = shift;
 	my $msg    = shift;
 	my $prefix = $self->timestamp . " [ASSERTION FAILED]:\n";
-	$LogIsOpen && print LOGFILE $prefix . $msg;
+	print LOGFILE "$prefix$msg";
+	#$LogIsOpen && print LOGFILE $prefix . $msg;
 	die $msg;
 }
 
