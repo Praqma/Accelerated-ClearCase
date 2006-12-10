@@ -172,11 +172,16 @@ sub indent_msg() {
 }
 
 sub assertion_failed($) {
-	my $self   = shift;
-	my $msg    = shift;
+	my $self = shift;
+	my $msg  = shift;
+
 	my $prefix = $self->timestamp . " [ASSERTION FAILED]:\n";
-	print LOGFILE "$prefix$msg";
-	#$LogIsOpen && print LOGFILE $prefix . $msg;
+	if ($LogIsOpen) {
+		print LOGFILE "$prefix$msg";
+	}
+	else {
+		print "$prefix$msg";
+	}
 	die $msg;
 }
 
@@ -220,9 +225,8 @@ sub openlog() {
 		$Logfile = "$ENV{TEMP}\\$main::Scriptfile" . "PID$$" . ".log";    # Create a log file
 	}
 
-	open LOGFILE, ">>$Logfile"
-	  or assertion_failed("Couldn't open \"$Logfile\"\n");
-	$LogIsOpen = 1;
+	open LOGFILE, ">>$Logfile" or assertion_failed("Couldn't open \"$Logfile\"\n");
+
 	print LOGFILE "\n#######################################################\n"
 	  . "This log is created (or appended) on "
 	  . datestamp() . " \@ "
@@ -233,7 +237,8 @@ sub openlog() {
 	  . $$ . "\n"
 	  . "Executing user:  \t"
 	  . $ENV{USERNAME} . "\n\n";
-	print STDOUT "Log of execution:\"$Logfile\"\n";
+
+	$LogIsOpen = 1;
 }
 
 sub DESTROY {

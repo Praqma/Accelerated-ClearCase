@@ -39,10 +39,6 @@ our %install_params = (
 # File version
 our $VERSION  = "1.0";
 our $REVISION = "33";
-if ( uc( $ENV{COMPUTERNAME} ) eq "JBR-CC" ) {
-	$ENV{CLEARCASE_TRIGGER_DEBUG}   = 1;
-	$ENV{CLEARCASE_TRIGGER_VERBOSE} = 1;
-}
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 my $debug_on = defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} ) ? $ENV{'CLEARCASE_TRIGGER_DEBUG'} : undef;
 
@@ -118,8 +114,8 @@ our $logfile = $log->get_logfile();
 
 # Script scope variables
 my (
-	%twincfg,    $case_sensitive, $viewkind, $pathname,     $sfx,   $pop_kind, $user,    $parent, $element,
-	$parent_dna, $pattern,        %added,    %uncatalogued, $found, $info,     $warning, 
+	%twincfg, $case_sensitive, $viewkind, $pathname, $sfx,          $pop_kind, $user, $parent,
+	$element, $parent_dna,     $pattern,  %added,    %uncatalogued, $found,    $info, $warning,
 );
 
 # Read optional local configuration of trigger
@@ -143,6 +139,14 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		# Found evil twin, determine what to do about that
 		$log->enable(1);
 		$log->set_verbose(1);
+		$logfile = $log->get_logfile();
+
+		if ( $twincfg{AutoMerge} eq 2 ) {
+
+			# check if auto merge appears to be safe
+			has_one_diff_only();
+		}
+
 		if ( $twincfg{AutoMerge} eq 0 ) {
 
 			# We will do no work for user, just inform and block OP
@@ -178,11 +182,11 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 
 		# No duplicate element is found on invisible branches
 		# Allow the creation of the element.
-		 if ($debug_on) {
-		 	$log->information("Value of \$found is now [$found]");
+		if ($debug_on) {
+			$log->information("Value of \$found is now [$found]");
 			$log->information("Found no twins");
-		 }
-		 
+		}
+
 		exit 0;
 	}
 
@@ -201,12 +205,17 @@ sub has_one_diff_only {
 
 	# check if we could do safe merge
 	my $pattern = '-------------|-------------';
-	my $version = $uncatalogued{$element} ? exists( $uncatalogued{$element} ) : $added{$element};
-	my $cmd     = "cleartool diff $parent_dna $parent_dna\\$version";
+	if ($debug_on) { $log->information("UNCAT $uncatalogued{$element}\n"); }
+	if ($debug_on) { $log->information("ADDED $added{$element}\n"); }
+	my $version = exists $uncatalogued{$element} ? $uncatalogued{$element} : $added{$element};
+	my $cmd = "cleartool diff $parent $parent_dna" . $version . ' 2>&1';
 	if ($debug_on) { $log->information("Doing diff with command [$cmd]"); }
-	my @diffreport = runcmd( 'cmd' => $cmd );
-	if ($debug_on) { $log->information( "Diff returned:\n" . @diffreport ); }
+
+	# not using runcmd() because diff exits with 1, when there are any differences
+	my @diffreport = `$cmd`;
+	if ($debug_on) { $log->information( "Diff returned:\n" . join( '', @diffreport ) ); }
 	my $count = grep { /$pattern/ } @diffreport;
+
 	if ( $count == 1 ) {
 		$log->information("Can not safely merge, reverting to assisted merge method");
 		$twincfg{AutoMerge} = 1;
@@ -219,35 +228,36 @@ sub runcmd {
 	my %args = (@_);
 	$log->assertion_failed("A command is required") unless exists $args{'cmd'};
 	my $command = $args{'cmd'} . ' 2>&1';
-	my @retval  = qx("$command");
-	if ( scalar($?) / 256 ) {
-		$log->assertion_failed( "The command [$args{'cmd'}] exited with " . scalar($?) / 256 . " :\n" . join( '\n', @retval ) );
+	$log->information("Value of ? = $?");
+	my @retval = qx($command);
+	if ($?) {
+		$log->assertion_failed( "The command [$args{'cmd'}] exited with " . scalar($?) / 256 . " :\n" . join( '', @retval ) );
 	}
 	return @retval;
 }
 
 sub build_fixcommands {
 
-
 	my ( $fixcmd, $tmpfilename, $foundpath, @mkmerge, @mkci, @exit, $win32parent, $win32foundpath, $win32element, $mergeoptions );
 
-	$tmpfilename = time();
-	$foundpath   = $parent_dna . $added{$element};
-	( $win32parent    = $parent )    =~ tr#/#\\#;
-	( $win32foundpath = $foundpath ) =~ tr#/#\\#;
-	( $win32element   = $element )   =~ tr#/#\\#;
-
 	if ( $twincfg{AutoMerge} eq 2 ) {
-		$mergeoptions = " -delete";
+		$mergeoptions = "-delete";
+		$foundpath = exists $uncatalogued{$element} ? $uncatalogued{$element} : $added{$element};
 	}
 	elsif ( $twincfg{AutoMerge} eq 1 ) {
-		$mergeoptions = " -qall -graphical";
-
+		$mergeoptions = "-graphical";
+		$foundpath    = $added{$element};
 	}
 	else {
 		$log->assertion_failed("Unknown automerge option");
 
 	}
+
+	$tmpfilename = time();
+	$foundpath   = $parent_dna . $foundpath;
+	( $win32parent    = $parent )    =~ tr#/#\\#;
+	( $win32foundpath = $foundpath ) =~ tr#/#\\#;
+	( $win32element   = $element )   =~ tr#/#\\#;
 
 	@mkmerge = ( <<"END_OF_MKMERGE" =~ m/^\s*(.+)/gm );
 REM The proper way to correct the situation, is to re-introduce the name
@@ -259,7 +269,7 @@ rename "$win32element.mkelem" $tmpfilename
 cleartool co -nc .
 cleartool merge $mergeoptions -c "Re-introducing the name $element" -to . "$win32foundpath"
 cleartool co -nc "$win32element"
-copy /y  $tmpfilename  "$win32element"
+copy /y $tmpfilename "$win32element"
 
 END_OF_MKMERGE
 
@@ -273,37 +283,39 @@ END_OF_MKCI
 	# Add checkin commands if fully automatic
 	push @mkmerge, @mkci if ( $twincfg{AutoMerge} eq 2 );
 
-	my $fixbat = "$parent/fix_evil_twin_of_" . $element . "_" . $tmpfilename . ".bat ";
-	open( AUTOBAT,   " > $fixbat " )   or die " Couldn't open $fixbat for writing : $! ";
-	foreach ( @mkmerge ) {
-		 print AUTOBAT "$_ \n "; 
+	my $fixbat = "$parent/fix_evil_twin_of_" . $element . "_" . $tmpfilename . ".bat";
+	open( AUTOBAT, " > $fixbat" ) or die "Couldn't open $fixbat for writing : $!";
+	foreach (@mkmerge) {
+		print AUTOBAT "$_ \n";
 	}
-	print AUTOBAT "exit\n ";
+	print AUTOBAT "exit\n";
 	close AUTOBAT;
 	return $fixbat;
 }
 
 sub print_no_merge_msg {
-	my $cmd       = " cleartool desc -fmt \%u vob : $ENV{CLEARCASE_VOB_PN} ";
+	my $cmd       = "cleartool desc -fmt \%u vob:$ENV{CLEARCASE_VOB_PN}";
 	my $vob_owner = qx ($cmd);
 	if ($?) {
-		$log->error(" The command : '$cmd' failed \n, command output was $vob_owner\n ");
+		$log->error("The command : '$cmd' failed \n, command output was $vob_owner\n");
 		exit 1;
 	}
 	$warning = <<ENDWARNING;
 Trigger $TRIGGER_NAME prevented operation [$pop_kind]
-because an evil twin possibility was detected for the name \n [$element]
-Please read the log file   for a possible solution.
+because an evil twin possibility was detected for the name
+[$element]
+Please read the log file $logfile
+for a possible solution.
 ENDWARNING
 	my $info_1;
-	if ( $pop_kind eq " mkelem " ) {
-		$info_1 = " The name : [$element] ";
+	if ( $pop_kind eq "mkelem" ) {
+		$info_1 = "The name : [$element]";
 	}
 	elsif ( !$pop_kind || $pop_kind =~ /rmname|mkslink/ ) {
-		$info_1 = " The element name [$element] \n ";
+		$info_1 = "The element name [$element] \n";
 	}
 	else {
-		$log->assertion_failed(" \$ENV{CLEARCASE_POP_KIND} value [$pop_kind] was unexpected ");
+		$log->assertion_failed("\$ENV{CLEARCASE_POP_KIND} value [$pop_kind] was unexpected");
 		exit 1;
 	}
 
@@ -313,9 +325,7 @@ ENDWARNING
 	# split branch and version
 	my ( $branch, $version ) = ( $uncatalogued{$element} =~ /(.*)(\d+)$/ );
 	$version--;    # decrement version number
-
-	#			my $info_2 = (@lastseen) ? " The name has last been seen in : \n [ $uncatalogued{$element} ] . \n \n " : "";
-	my $info_2 = (@lastseen) ? " The name has last been seen in : \n [ $branch$version ] . \n \n " : "";
+	my $info_2 = (@lastseen) ? "The name has last been seen in :\n[$branch$version].\n\n" : "";
 	$info = <<ENDINFO;
 $info_1 
 ALREADY exists for the directory:
@@ -330,16 +340,16 @@ please contact the VOB_OWNER ($vob_owner)
 ENDINFO
 
 	# Write logfile
-	$log->information("$warning \n    ###########################\n");
-	  $log->information("$info\n###########################\n");
+	$log->information("$warning\n###########################\n");
+	$log->information("$info\n###########################\n");
 }
 
 sub name_lookup {
 
 	# Parse directory history for the name
 	my ( $possible_dupe, $dupver, @lines );
-	%added        = ();            #  table of latest version where NAME was added
-	%uncatalogued = ();            #  table of latest version where NAME was seen before uncatalogue
+	%added        = ();    #  table of latest version where NAME was added
+	%uncatalogued = ();    #  table of latest version where NAME was seen before uncatalogue
 
 	# change to forward slashes in path name
 	$pathname =~ tr#\\#/#;
@@ -378,7 +388,10 @@ sub name_lookup {
 	my $cmd = 'cleartool lshist -nop -min -nco -dir -fmt %Nc%Vn\n "' . $parent_dna . '"';
 	$log->information("\t\$cmd is [$cmd]") if ($debug_on);
 	my @history = runcmd( 'cmd' => "$cmd" );
-	$log->information( "\tHere comes the history listing:\n\t" . join( '', @history ) ) if ($debug_on);
+	if ($debug_on) {
+		$log->information( "\tHere comes the history listing:\n\t" . join( '', @history ) );
+
+	}
 	foreach (@history) {
 		chomp;
 		$_ =~ s/^\s+//;
@@ -422,11 +435,6 @@ sub name_lookup {
 	if ($debug_on) { $log->information( "Found " . scalar(@match) . " matching keys" ); }
 	$found = (@match) ? scalar(@match) : undef;
 	if ($debug_on) { $log->information("Value of \$found is now [$found]"); }
-	if ( $twincfg{AutoMerge} eq 2 ) {
-
-		# check if auto merge appears to be safe
-		has_one_diff_only();
-	}
 }
 __END__
 
