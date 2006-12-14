@@ -344,7 +344,11 @@ sub is_pvob($) {
 	#   \PDS_PVOB            APPDKHI013:E:\ClearCaseStorage\VOBs\PDS_PVOB.vbs  (ucmvob)
 	my $vob    = shift;
 	my $retval = `cleartool lsvob $vob`;
-	if ( $retval =~ /\(.*ucmvob.*\)$/ ) {
+	$retval =~ s/\(ucmvob\)/\(ucmvob , replicated\)/;
+	
+	
+	
+	if ( $retval =~ /\(.*(ucmvob).*\)/ ) {
 		return 1;
 	}
 
@@ -366,33 +370,33 @@ sub get_vobtypes {
 
 	# Determine the generic VOB type
 
+	my $adminvob = get_adminvob($vob);
+
 	# Is it a PVOB?
-	is_pvob($vob) && do {
+	if ( is_pvob($vob) ) {
 		push @result, VOBTYPE_PVOB;
-		return @result;
-	};
+	}
 
 	# Is it an AdminVOB
-	is_adminvob($vob) && do {
+	if ( is_adminvob($vob) ) {
 		push @result, VOBTYPE_ADMINVOB;
-		return @result;
-	};
+	}
 
 	#Is it a Base ClearCase VOB (one without an AdminVOB hyperlink?
-	my $adminvob = get_adminvob($vob);
-	( $adminvob eq $vob ) && do {
-		push @result, VOBTYPE_BCC_CLIENT;    # The Vob is self-contained - it has No AdminVOB
-		return @result;
-	};
+	if ( $adminvob eq $vob ) {
+		push @result, VOBTYPE_BCC_CLIENT unless ( grep { VOBTYPE_ADMINVOB } @result );    # The Vob is self-contained - it has No AdminVOB
+	}
 
-	# Is it an UCM vob
-	( is_pvob($adminvob) ) && do {
-		push @result, VOBTYPE_UCM_CLIENT;    # The VOB has an AdminVOB hlink pointin to a PVOB
-		return @result;
-	};
+	# Is it an UCM client vob
+	if ( is_pvob($adminvob) ) {
+		push @result, VOBTYPE_UCM_CLIENT;                                                 # The VOB has an AdminVOB hlink pointin to a PVOB
+	}
 
-	# OK The is't a Base ClearCase VOB (one with a hlink to a regular AdminVOB )
-	push @result, VOBTYPE_BCC_CLIENT;        # The VOB has an AdminVOB hlink pointin to a PVOB
+	# OK The is a Base ClearCase VOB (one with a hlink to a regular AdminVOB )
+	unless ( grep { VOBTYPE_UCM_CLIENT | VOBTYPE_BCC_CLIENT } @result ) {
+		push @result, VOBTYPE_BCC_CLIENT;                                                 # The VOB has an AdminVOB hlink pointin to a PVOB
+	}
+	
 	return @result;
 }
 
