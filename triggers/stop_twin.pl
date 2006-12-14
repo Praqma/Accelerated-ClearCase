@@ -141,8 +141,9 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		$log->set_verbose(1);
 		$logfile = $log->get_logfile();
 
-		if ( $twincfg{AutoMerge} eq 2 ) {
+		$log->information("Found evil twin, value of \$twincfg{AutoMerge} is $twincfg{AutoMerge}");
 
+		if ( $twincfg{AutoMerge} eq 2 ) {
 			# check if auto merge appears to be safe
 			has_one_diff_only();
 		}
@@ -204,7 +205,7 @@ sub has_one_diff_only {
 	#   Cleartool diff uses the pattern below to show start of each diff, so we count them to find number of diff's
 
 	# check if we could do safe merge
-	my $pattern = '-------------|-------------';
+	my $pattern = '-------|-------';
 	if ($debug_on) { $log->information("UNCAT $uncatalogued{$element}\n"); }
 	if ($debug_on) { $log->information("ADDED $added{$element}\n"); }
 	my $version = exists $uncatalogued{$element} ? $uncatalogued{$element} : $added{$element};
@@ -213,23 +214,32 @@ sub has_one_diff_only {
 
 	# not using runcmd() because diff exits with 1, when there are any differences
 	my @diffreport = `$cmd`;
+
 	if ($debug_on) { $log->information( "Diff returned:\n" . join( '', @diffreport ) ); }
+
 	my $count = grep { /$pattern/ } @diffreport;
 
-	if ( $count == 1 ) {
-		$log->information("Can not safely merge, reverting to assisted merge method");
+	if ($debug_on) {
+		$log->information("Counting $count differencies in directory versions");
+	}
+	if ( $count eq 1 ) {
+		if ($debug_on) { $log->information("Automerge mode, found only one diff. Continueing..."); }
+
+	}
+	else {
+		if ($debug_on) { $log->information("Can not safely merge, reverting to assisted merge method"); }
 		$twincfg{AutoMerge} = 1;
 
 	}
 
+	$log->information("Value of \$twincfg{AutoMerge} is now $twincfg{AutoMerge}");
 }
 
 sub runcmd {
 	my %args = (@_);
 	$log->assertion_failed("A command is required") unless exists $args{'cmd'};
 	my $command = $args{'cmd'} . ' 2>&1';
-	$log->information("Value of ? = $?");
-	my @retval = qx($command);
+	my @retval  = qx($command);
 	if ($?) {
 		$log->assertion_failed( "The command [$args{'cmd'}] exited with " . scalar($?) / 256 . " :\n" . join( '', @retval ) );
 	}
@@ -238,15 +248,15 @@ sub runcmd {
 
 sub build_fixcommands {
 
-	my ( $fixcmd, $tmpfilename, $foundpath, @mkmerge, @mkci, @exit, $win32parent, $win32foundpath, $win32element, $mergeoptions );
+	my ( $fixcmd, $tmpfilename, $foundpath, @mkmerge, @mkci, $version, $win32parent, $win32foundpath, $win32element, $mergeoptions );
 
 	if ( $twincfg{AutoMerge} eq 2 ) {
 		$mergeoptions = "-delete";
-		$foundpath = exists $uncatalogued{$element} ? $uncatalogued{$element} : $added{$element};
+		$version = exists $uncatalogued{$element} ? $uncatalogued{$element} : $added{$element};
 	}
 	elsif ( $twincfg{AutoMerge} eq 1 ) {
 		$mergeoptions = "-graphical";
-		$foundpath    = $added{$element};
+		$version      = $added{$element};
 	}
 	else {
 		$log->assertion_failed("Unknown automerge option");
@@ -254,7 +264,7 @@ sub build_fixcommands {
 	}
 
 	$tmpfilename = time();
-	$foundpath   = $parent_dna . $foundpath;
+	$foundpath   = $parent_dna . $version;
 	( $win32parent    = $parent )    =~ tr#/#\\#;
 	( $win32foundpath = $foundpath ) =~ tr#/#\\#;
 	( $win32element   = $element )   =~ tr#/#\\#;
@@ -266,7 +276,7 @@ REM BATCH START
 
 pushd  "$win32parent"
 rename "$win32element.mkelem" $tmpfilename
-cleartool co -nc .
+cleartool co -c "Re-introducing the name $element from $version" .
 cleartool merge $mergeoptions -c "Re-introducing the name $element" -to . "$win32foundpath"
 cleartool co -nc "$win32element"
 copy /y $tmpfilename "$win32element"
@@ -275,8 +285,8 @@ END_OF_MKMERGE
 
 	@mkci = ( <<"END_OF_MKCI" =~ m/^\s*(.+)/gm );
 
-cleartool ci -ident -nc "$win32element"
-cleartool ci -nc .
+cleartool ci -nc -ident "$win32element"
+cleartool ci .
 
 END_OF_MKCI
 
@@ -286,7 +296,7 @@ END_OF_MKCI
 	my $fixbat = "$parent/fix_evil_twin_of_" . $element . "_" . $tmpfilename . ".bat";
 	open( AUTOBAT, " > $fixbat" ) or die "Couldn't open $fixbat for writing : $!";
 	foreach (@mkmerge) {
-		print AUTOBAT "$_ \n";
+		print AUTOBAT "$_\n";
 	}
 	print AUTOBAT "exit\n";
 	close AUTOBAT;
