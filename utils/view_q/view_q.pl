@@ -443,7 +443,7 @@ Returns:
 
 sub lsignored () {
 	my ( @result, @list );
-	push @result, "Date      Storage";
+	push @result, "Date      \tStorage\n";
 	prepare_stg_directory();
 
 	foreach my $stg ( keys %stg_directory ) {
@@ -452,17 +452,17 @@ sub lsignored () {
 
 			# file age in days
 			my $fileage = -M $ignore_file_loc;
-			my $epoch   = time() - int( 24 * 60 * 60 * $fileage );
-			my ( $day, $month, $year ) = ( localtime($epoch) )[ 3, 4, 5 ];
+			my $epochseconds   = time() - int( 24 * 60 * 60 * $fileage );
+			my ( $day, $month, $year ) = ( localtime($epochseconds) )[ 3, 4, 5 ];
 			my $date_ignored = sprintf( "%04d-%02d-%02d", $year + 1900, $month + 1, $day );
-			push @list, "$date_ignored\t$stg";
+			push @list, "$date_ignored\t$stg\n";
 
 		}
 	}
 
 	push @result, sort @list;
-
 	return @result;
+
 }
 
 sub validate_options () {
@@ -648,7 +648,7 @@ sub lsignore_mode () {
 		my @ignored = lsignored();
 		if ( scalar(@ignored) eq 1 ) { push @ignored, "No views found in state \"Ignored\"."; }
 
-		$log->information( "Ignored views by date:\n" . join( '\n', @ignored ) );
+		$log->information( "Ignored views by date:\n" . join( '', @ignored ) );
 		if ($sw_sendmail) {
 			no strict;
 			my ( %envelope, $adminmailbody, $adminsubject );
