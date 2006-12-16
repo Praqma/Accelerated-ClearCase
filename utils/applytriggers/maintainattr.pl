@@ -42,6 +42,7 @@ my @vobs = sort qx("cleartool lsvob -s  2>&1");
 chomp @vobs;
 my $replace = "";
 foreach my $vobtag (@vobs) {
+	$log->information_always("Checking vob $_");
 	$replace = "";
 	my @defaultlist  = ();
 	my @current_list = get_blacklist($vobtag);

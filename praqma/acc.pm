@@ -184,7 +184,7 @@ my $self = {};    #Reference to an anonymous hash, Will be blessed later
 
 # Module version
 $VERSION = "1.0.";
-$BUILD   = "11";
+$BUILD   = "12";
 
 my $header = <<ENDHEADER;
 #########################################################################
@@ -223,6 +223,7 @@ DATE        EDITOR  NOTE
 2010-08-06  Jens Brejner   Fixed bug in split_dir_file, could not handle path that
                            contained "\c\", as it was considered a control char.
                            Uses File::Basename instead of regex'es.
+2011-06-14  Jens Brejner   Corrected logic error in get_vobtypes (v1.0.11)
 -------------------------------------------------------------------------
 
 ENDREVISION

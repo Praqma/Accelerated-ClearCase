@@ -24,7 +24,7 @@ require Exporter;
 
 use constant MAX_SEMAPHORE_FILE_AGE_DAYS => 0.168;             # real (1 hr ~ 0.042 --> 4 hrs ~ 0.168)
 use constant SEMAPHORE_DIR               => '\\semaphores';    # Relative to the script location dir
-use constant CONFIGFILES                 => '/trcfg/';         # Custom configuration files here
+use constant CONFIGFILES                 => '/CustomCfg/';         # Custom configuration files here
 
 # File version
 $VERSION = "1.1";
