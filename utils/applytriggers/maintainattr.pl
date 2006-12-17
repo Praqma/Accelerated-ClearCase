@@ -20,7 +20,11 @@ use lib "$Scriptdir..//..";
 use praqma::scriptlog;
 use praqma::trigger_helper;
 use praqma::acc;
+
 chdir $ENV{SYSTEMDRIVE};
+
+#Enable the features in trigger_helper
+our $thelp = trigger_helper->new;
 
 # Initiate logging.
 our $log = scriptlog->new;
@@ -76,6 +80,29 @@ foreach my $vobtag (@vobs) {
 		}
 	}
 
+}
+
+sub get_triggernames {
+
+	# Open all trigger script files in the triggers directory.
+	# Each of then contains a variable called $TRIGGERNAME
+
+	my ($root, %trnames, @files);
+	# Build path to "triggers" directory from here
+	($root = $Scriptdir ) =~ s/(.*)(\/.*\/.*\/)$/$1\/triggers/;
+	opendir( DIR, $root );
+	@files = grep { /\.pl$/i } readdir(DIR);
+	closedir(DIR);
+
+	# read each script capture value of $TRIGGERNAME 
+	foreach (@files) {
+	
+		no strict;
+		our $TRIGGER_NAME;
+		do "$root/$_";
+		$trnames{$TRIGGER_NAME} = "$root/$_";
+	}
+	return %trnames;
 }
 
 sub get_blacklist {
