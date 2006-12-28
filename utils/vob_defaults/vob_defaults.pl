@@ -61,7 +61,7 @@ foreach my $vobtag (@vobs) {
 			my $cmd    = "ratlperl $path -install -vob " . $vobtag . ' 2>&1';
 			my $retval = qx($cmd);
 			if ($?) {
-				$log->error("Execution of [$cmd] failed: $retval ");
+				$log->error("Execution of [$cmd] failed: $retval");
 			}
 
 		}
@@ -76,6 +76,21 @@ foreach my $vobtag (@vobs) {
 
 ################################################ S U B S ####################################################
 
+sub check_type {
+	my %parms = @_;
+
+	my $cmd    = 'cleartool lstype attype:' . acc::ATTYPE_TRIGGER_BLACKLIST . '@' . $parms{vobtag} . ' 2>&1';
+	my $retval = qx($cmd);
+
+	# if type not found, error is returned from system
+	if ($?) {
+		my $admin = acc::get_adminvob( $parms{vobtag} );
+		$cmd    = 'cleartool mkattype -global -vtype string -nc ' . acc::ATTYPE_TRIGGER_BLACKLIST . '@' . $admin . ' 2>&1';
+		$retval = qx($cmd);
+		($?) && $log->assertion_failed("Failed creating attribute in AdminVOB $admin for the vob $parms{vobtag}");
+	}
+}
+
 sub get_missing_triggers {
 	my %parms = @_;
 
@@ -86,7 +101,9 @@ sub get_missing_triggers {
 
 	# Get supported triggers
 	foreach my $vobtype ( @{ $parms{vobtypes} } ) {
-		push @supported, @{ $trtypes{$vobtype} };
+		if ( exists $trtypes{$vobtype} ) {
+			push @supported, @{ $trtypes{$vobtype} };
+		}
 	}
 
 	# Exclude blacklisted triggers
@@ -97,8 +114,10 @@ sub get_missing_triggers {
 	# Compare wanted to actual
 	@missing = ();
 	foreach my $trigger ( keys %wanted ) {
-		push @missing, $trpaths{$trigger} unless ( grep { /$trigger/ } @installed );
-
+		unless ( grep { /$trigger/ } @installed ) {
+			push @missing, $trpaths{$trigger};
+			$log->information("\tTrigger $trigger marked for installation on $parms{vobtag}");
+		}
 	}
 	return @missing;
 
@@ -125,16 +144,21 @@ sub check_bl_attr {
 	my %parms       = @_;
 	my %entries     = ();
 	my @defaultlist = ();
-	foreach my $type ( acc::get_vobtypes( $parms{vobtag} ) ) {
+
+	# check attribute value is accessible
+	check_type( vobtag => $parms{vobtag} );
+	my @types = acc::get_vobtypes( $parms{vobtag} );
+	foreach my $type (@types) {
 
 		push @defaultlist, @{ $bl_defaults{$type} };
 
-		# update list we got from calleer
+		# update list we got from caller
 		push @{ $parms{vobtypes} }, $type;
 
 	}
 
 	foreach ( @{ $parms{current_list} }, @defaultlist ) {
+		next unless (length);
 		$entries{$_}++ unless $entries{$_};
 	}
 	my $oldvalue = join( ',', @{ $parms{current_list} } );
@@ -142,7 +166,7 @@ sub check_bl_attr {
 
 	# Update attribute value if changed
 	if ( $oldvalue ne $newvalue ) {
-		set_bllistattr( " replace " => $replace, " newvalue " => $newvalue, " vobtag " => $parms{vobtag} );
+		set_bllistattr( replace => $replace, newvalue => $newvalue, vobtag => $parms{vobtag} );
 		@{ $parms{current_list} } = split( ',', $newvalue );
 	}
 
@@ -155,7 +179,7 @@ sub get_blacklist {
 
 	my $cmd               = 'cleartool describe -fmt %SN[' . acc::ATTYPE_TRIGGER_BLACKLIST . ']a vob:' . $sw_vob . ' 2>&1';
 	my $raw_triggerblattr = qx($cmd);
-	$? && $log->assertion_failed(" Execution of : [$cmd] failed ");                                                            # assert success
+	$? && $log->assertion_failed(" Execution of : [$cmd] failed ");    # assert success
 	chomp($raw_triggerblattr);
 	if ( $raw_triggerblattr =~ s/\"//g ) {
 
@@ -196,16 +220,18 @@ sub get_triggerinfo {
 		no warnings 'once';
 		%install_params = ();
 		$TRIGGER_NAME   = "";
-		do "$root / $script ";
+		do "$root/$script";
 
 		if ( $TRIGGER_NAME ne "" ) {
-			foreach my $type ( split( ',', $install_params{" supports "} ) ) {
+			foreach my $type ( split( ',', $install_params{"supports"} ) ) {
 
 				# update hash with vobtype as key and array of triggernames as value
 				push @{ $trtypes{$type} }, $TRIGGER_NAME;
 
 				# update hash with triggername as key and path to script as value
-				$trpaths{$TRIGGER_NAME} = "$root / $script ";
+
+				( my $path = "$root/$script" ) =~ tr#/#\\#;
+				$trpaths{$TRIGGER_NAME} = $path;
 			}
 		}
 	}
@@ -219,7 +245,7 @@ sub get_triggerinfo {
 
 sub init_globals {
 
-	push @{ $bl_defaults{acc::VOBTYPE_PVOB} },       (" ACC_PRE_SETACT ");
+	push @{ $bl_defaults{acc::VOBTYPE_PVOB} },       ("ACC_PRE_SETACT");
 	push @{ $bl_defaults{acc::VOBTYPE_BCC_CLIENT} }, ("");
 	push @{ $bl_defaults{acc::VOBTYPE_UCM_CLIENT} }, ("");
 	push @{ $bl_defaults{acc::VOBTYPE_ADMINVOB} },   ("");
