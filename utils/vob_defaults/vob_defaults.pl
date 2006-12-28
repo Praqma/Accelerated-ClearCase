@@ -36,73 +36,116 @@ $log->enable(1);
 our $logfile = $log->get_logfile();
 ($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 
-my %bl_defaults = ();
-push @{ $bl_defaults{acc::VOBTYPE_PVOB} },       ("ACC_PRE_SETACT");
-push @{ $bl_defaults{acc::VOBTYPE_BCC_CLIENT} }, ("");
-push @{ $bl_defaults{acc::VOBTYPE_UCM_CLIENT} }, ("");
-push @{ $bl_defaults{acc::VOBTYPE_ADMINVOB} },   ("");
+#############################################  M A I N #####################################################
 
-my @vobs = sort qx("cleartool lsvob -s  2>&1");
-chomp @vobs;
-my $replace = "";
+my ( %bl_defaults,, @vobs, %trtypes, %trpaths, $replace );
+
+init_globals();
+
 foreach my $vobtag (@vobs) {
-	$log->information_always("Checking vob $_");
-	$replace = "";
-	my @defaultlist  = ();
-	my @current_list = get_blacklist($vobtag);
-	my @vobtypes     = acc::get_vobtypes($vobtag);
-	foreach (@vobtypes) {
+	$log->information_always("Checking vob $vobtag");
 
-		push @defaultlist, @{ $bl_defaults{$_} };    # if ( scalar( @{ $bl_defaults{$_} } ) );
+	my @thisvobstypes = ();
+
+	# Read current blacklist
+	my @blacklisted = get_blacklist($vobtag);
+
+	#  Verify or update blacklist values, the var @blacklisted will be updated
+	check_bl_attr( vobtag => $vobtag, vobtypes => \@thisvobstypes, current_list => \@blacklisted );
+
+	# Read installed triggers, install missing triggers (excluding those on blacklist)
+	my @todo = get_missing_triggers( vobtag => $vobtag, blacklist => \@blacklisted, vobtypes => \@thisvobstypes );
+
+	if ( scalar(@todo) ) {
+		foreach my $path (@todo) {
+			my $cmd    = "ratlperl $path -install -vob " . $vobtag . ' 2>&1';
+			my $retval = qx($cmd);
+			if ($?) {
+				$log->error("Execution of [$cmd] failed: $retval ");
+			}
+
+		}
 
 	}
+	else {
+		$log->information("$vobtag is up-to-date ");
 
-	my %entries = ();
-	foreach ( @current_list, @defaultlist ) {
-		$entries{$_}++ unless $entries{$_};
-	}
-	my $oldvalue = join( ',', @current_list );
-	my $newvalue = join( ',', sort keys %entries );
-
-	# Update attribute value if changed
-	if ( $oldvalue ne $newvalue ) {
-
-		# cleartool mkattr -nc ACC_TriggerBlacklist \"dims,ognoget\" vob:\jbrplay
-		my $cmd = "cleartool mkattr $replace -nc " . acc::ATTYPE_TRIGGER_BLACKLIST . ' \"' . $newvalue . '\" ' . "vob:$vobtag 2>&1";
-
-		# create or replace attribute.
-		my @retval = qx($cmd);
-		if ($?) {
-			$log->error( join( '\n', @retval ) );
-		}
-		else {
-			$log->information( join( '\n', @retval ) );
-		}
 	}
 
 }
 
-sub get_triggernames {
+################################################ S U B S ####################################################
 
-	# Open all trigger script files in the triggers directory.
-	# Each of then contains a variable called $TRIGGERNAME
+sub get_missing_triggers {
+	my %parms = @_;
 
-	my ($root, %trnames, @files);
-	# Build path to "triggers" directory from here
-	($root = $Scriptdir ) =~ s/(.*)(\/.*\/.*\/)$/$1\/triggers/;
-	opendir( DIR, $root );
-	@files = grep { /\.pl$/i } readdir(DIR);
-	closedir(DIR);
+	my ( $cmd, @installed, @supported, %wanted, @missing );
+	$cmd       = "cleartool lstype -kind trtype -s -invob $parms{vobtag} 2>&1";
+	@installed = sort qx($cmd);
+	$log->assertion_failed(" Failed to get information about installed triggers in $parms{vobtag} ") if ($?);
 
-	# read each script capture value of $TRIGGERNAME 
-	foreach (@files) {
-	
-		no strict;
-		our $TRIGGER_NAME;
-		do "$root/$_";
-		$trnames{$TRIGGER_NAME} = "$root/$_";
+	# Get supported triggers
+	foreach my $vobtype ( @{ $parms{vobtypes} } ) {
+		push @supported, @{ $trtypes{$vobtype} };
 	}
-	return %trnames;
+
+	# Exclude blacklisted triggers
+	foreach my $trigger (@supported) {
+		$wanted{$trigger}++ unless ( grep { /$trigger/ } @{ $parms{blacklist} } );
+	}
+
+	# Compare wanted to actual
+	@missing = ();
+	foreach my $trigger ( keys %wanted ) {
+		push @missing, $trpaths{$trigger} unless ( grep { /$trigger/ } @installed );
+
+	}
+	return @missing;
+
+}
+
+sub set_bllistattr {
+
+	# create or replace blacklist attribute.
+	my %parms = @_;
+	my $cmd =
+	  "cleartool mkattr $parms{replace} -nc " . acc::ATTYPE_TRIGGER_BLACKLIST . ' \"' . $parms{newvalue} . '\" ' . " vob:$parms{vobtag}" . ' 2>&1';
+	my @retval = qx($cmd);
+	if ($?) {
+		$log->error( join( '\n', @retval ) );
+	}
+	else {
+		$log->information( join( '\n', @retval ) );
+
+	}
+
+}
+
+sub check_bl_attr {
+	my %parms       = @_;
+	my %entries     = ();
+	my @defaultlist = ();
+	foreach my $type ( acc::get_vobtypes( $parms{vobtag} ) ) {
+
+		push @defaultlist, @{ $bl_defaults{$type} };
+
+		# update list we got from calleer
+		push @{ $parms{vobtypes} }, $type;
+
+	}
+
+	foreach ( @{ $parms{current_list} }, @defaultlist ) {
+		$entries{$_}++ unless $entries{$_};
+	}
+	my $oldvalue = join( ',', @{ $parms{current_list} } );
+	my $newvalue = join( ',', sort keys %entries );
+
+	# Update attribute value if changed
+	if ( $oldvalue ne $newvalue ) {
+		set_bllistattr( " replace " => $replace, " newvalue " => $newvalue, " vobtag " => $parms{vobtag} );
+		@{ $parms{current_list} } = split( ',', $newvalue );
+	}
+
 }
 
 sub get_blacklist {
@@ -110,18 +153,80 @@ sub get_blacklist {
 	# return sorted array of attribute list values
 	my $sw_vob = shift;
 
-	my $cmd               = ' cleartool describe -fmt %SN[' . acc::ATTYPE_TRIGGER_BLACKLIST . "]a vob:$sw_vob  2>&1";
+	my $cmd               = 'cleartool describe -fmt %SN[' . acc::ATTYPE_TRIGGER_BLACKLIST . ']a vob:' . $sw_vob . ' 2>&1';
 	my $raw_triggerblattr = qx($cmd);
-	$? && die "Execution of: [$cmd] failed\n";    # assert success
+	$? && $log->assertion_failed(" Execution of : [$cmd] failed ");                                                            # assert success
 	chomp($raw_triggerblattr);
 	if ( $raw_triggerblattr =~ s/\"//g ) {
 
 		# Attribute exists already, maybe even with empty value
-		$replace = "-replace";
+		$replace = " -replace ";
+
+	}
+	else {
+		$replace = "";
 	}
 
 	# $raw_triggerblattr =~ s/\"//g;    # get rid of the ' required ' quotes in CC string attributes
 	my @blacklist = sort split( ', ', $raw_triggerblattr );    # make a list;
 	return @blacklist
+
+}
+
+sub get_allvobs {
+	my @voblist = sort qx("cleartool lsvob -s 2>&1");
+	chomp @voblist;
+	return @voblist;
+}
+
+sub get_triggerinfo {
+
+	# Open all trigger script files in the triggers directory.
+	# Each of then contains a variable called $TRIGGERNAME
+
+	#	my %parms = @_;
+
+	( my $root = $Scriptdir ) =~ s/(.*)(\/.*\/.*\/)$/$1\/triggers/;
+	opendir( DIR, $root );
+	my @files = grep { /\.pl$/i } readdir(DIR);
+	closedir(DIR);
+
+	foreach my $script (@files) {
+		no strict 'vars';
+		no warnings 'once';
+		%install_params = ();
+		$TRIGGER_NAME   = "";
+		do "$root / $script ";
+
+		if ( $TRIGGER_NAME ne "" ) {
+			foreach my $type ( split( ',', $install_params{" supports "} ) ) {
+
+				# update hash with vobtype as key and array of triggernames as value
+				push @{ $trtypes{$type} }, $TRIGGER_NAME;
+
+				# update hash with triggername as key and path to script as value
+				$trpaths{$TRIGGER_NAME} = "$root / $script ";
+			}
+		}
+	}
+	foreach my $vobtype ( keys %trtypes ) {
+		my @list = sort @{ $trtypes{$vobtype} };
+		@{ $trtypes{$vobtype} } = @list;
+
+	}
+
+}
+
+sub init_globals {
+
+	push @{ $bl_defaults{acc::VOBTYPE_PVOB} },       (" ACC_PRE_SETACT ");
+	push @{ $bl_defaults{acc::VOBTYPE_BCC_CLIENT} }, ("");
+	push @{ $bl_defaults{acc::VOBTYPE_UCM_CLIENT} }, ("");
+	push @{ $bl_defaults{acc::VOBTYPE_ADMINVOB} },   ("");
+
+	@vobs = get_allvobs();
+
+	# retrieve information about available trigger scripts
+	get_triggerinfo();
 
 }
