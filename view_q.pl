@@ -2,6 +2,58 @@
 #
 require 5.001;
 use strict;
+
+=head1 NAME
+
+view_q.pl - View Quarantine Utilities
+
+=head1 SYNOPSIS
+
+A collection of features that enables quarantine, purge and recover of views based on 
+the view's 'last accesed' date. 
+
+Execute the script with -help switch to learn the syntax and usage. 
+
+=head1 DESCRIPTION
+
+Used to support ClearCase scripting in general. and Accelerated ClearCase
+in particular.
+
+A fundamental concept to understand when working with view_q.pl is "Stranded views".
+
+Stranded views are views that has a valid (and registrede) view storage, but hasn't got any
+view tag in any region.
+
+Strande views are unavialble for use, but can easily be brought back to life by using:
+
+  cleartool mktag -view ... 
+
+Clearcase has a feature called rgy_check (which is only availbale on ClearCase registry servers
+though!) Rgy_check utility can report stranded views.  
+
+  rgy_check -views
+
+Run cleartool man rgy_check to learn more.
+
+When view_q puts a view into quarantine, it removes all tags in all regions. Which puts the
+view into the state of being 'stranded', and then it stores the commands that will reverse 
+the operation (that is recover the tags in all regions where it was deleted) in a file called
+
+  .view_quarantine
+
+located in the 'admin
+  
+   
+
+
+=head1 SUPPORT
+
+Visit http://www.praqma.net to get help.
+
+=cut
+
+
+
 our ( $scriptdir, $scriptfile );
 BEGIN { if ($0 =~ /(.*[\/\\])(.*)$/){
   $scriptdir = $1; $scriptfile = $2; } else {
@@ -26,9 +78,10 @@ our $header = <<ENDHEADER;
 #     The script has several different features for taking views in and 
 #     out of quarantine.
 #     Execute with -help switch to learn more 
+#
 #     Date:       2009-03-25                                            
 #     Author:     Lars Kruse, lars.kruse\@praqma.net               
-#     Copyright:  Lars Kruse
+#     Copyright:  Praqma A/S, Denmark
 #     License:    GNU General Pulic License
 #     Support:    http://www.praqma.info
 #########################################################################
@@ -47,11 +100,11 @@ ENDREVISION
 
 my $usage = <<ENDUSAGE;
   $scriptfile -lsquarantine [-autopurge | -autorecover]
-  $scriptfile -nasince date [-autoquarantine]
+  $scriptfile -nasince YYYY-MM-DD [-autoquarantine]
   $scriptfile -quarantine stgloc
   $scriptfile -recover stgloc
   $scriptfile -purge stgloc
-  $scriptfile -touch [-region region] viewtag
+  $scriptfile -ignore [-region region] viewtag
   $scriptfile -help
 
 ENDUSAGE
@@ -63,10 +116,10 @@ my $doc = <<ENDDOC;
                         NOTE: This switch is only supporten when executed on 
                         ClearCase Registry server.        
 -autopurge              Optional switch only valid together with -lsquarantine. When 
-                        -autopurge is appied the storages found by -lsquarantine will
+                        -autopurge is applied the storages found by -lsquarantine will
                         automatically be purged (permanently deleted)                                                                                    
 -autorecover            Optional switch only valid together with -lsquarantine. When 
-                        -autorecover is appied the storages found by -lsquarantine will
+                        -autorecover is applied the storages found by -lsquarantine will
                         automatically be recovered.                                                                                    
 -nasince date           Lists views that are not accessed since date. Date must 
                         be in the format YYYY-MM-DD.
@@ -81,160 +134,217 @@ my $doc = <<ENDDOC;
 -purge stgloc           Will purge (rmview) the viewstg applied as stgloc. The 
                         format of stgloc can be the global path (as listed with lsview).
                         or the local path (as listed by rgy_check, stranded views).
--touch viewtag          Will update the 'Last accessed' date of the view applied in 
-                        viewtag to the current time.
+-[no]ignore viewtag     -ignore will make the view ignoring any attempt to put it into 
+                        quarantine until the ignore flag is removed using -noignore.
+                        -nasince will still report he correct last accessed date.
 -region region          The region switch is used to qualify the viewtag applied with
-                        -touch if necessary. if -region is omitted, the viewtag is 
+                        -[un]ignore if necessary. if -region is omitted, the viewtag is 
                         searched in the current region.                                                     
 -help                   Get help with the scritp syntax etc.
 
 ENDDOC
 
-my ($sw_lsquarantine, $sw_recover, $sw_purge, $sw_nasince, $sw_quarantine, $sw_autoquarantine,
-    $sw_autopurge, $sw_help, $sw_region, $sw_touch, $sw_autorecover);  
-my %options = ( "autoquarantine"     => \$sw_autoquarantine,             
-                "lsquarantine"       => \$sw_lsquarantine,          
-                "nasince=s"          => \$sw_nasince,          
-                "help"               => \$sw_help,
-                "quarantine=s"       => \$sw_quarantine,
-                "recover=s"          => \$sw_recover,
-                "purge=s"            => \$sw_purge,
-                "autopurge"          => \$sw_autopurge,
-                "autorecover"        => \$sw_autorecover,
-                "touch"              => \$sw_touch,
-                "region=s"           => \$sw_region);
-                
-die "$usage" unless GetOptions(%options);
-
-defined($sw_help) && do {print $header.$revision.$usage.$doc; exit 0;};   
-
 ### Global variables ###
 our %stg_directory;
 our $view_q_file=".view_quarantine";
+our $view_q_ignore_file=".view_q_ignore";
+our ($sw_lsquarantine, $sw_recover, $sw_purge, $sw_nasince, $sw_quarantine, $sw_autoquarantine,
+     $sw_autopurge, $sw_help, $sw_region, $sw_ignore, $sw_autorecover);  
 
 
-### RECOVER ###
-defined($sw_recover) && do {
-  print "recover\n";
-  (  defined($sw_lsquarantine) || defined($sw_purge) || defined($sw_nasince) ||
-     defined($sw_quarantine) || defined($sw_touch) || 
-     defined($sw_autoquarantine) || defined($sw_autopurge)  || defined($sw_region) || defined($sw_autorecover)
-  ) && do {print "Wrong syntax\n".$usage; exit 1;};
+validate_options();
+
+# Each of the following mode-subs is guaranteed to exit the entire script with 0 or 1
+
+#### SWITCH ####
+help_mode();
+recover_mode();
+lsquarantine_mode();
+purge_mode();
+nasince_mode();
+quarantine_mode();
+ignore_mode();
+#### SWITCH ####
+
+print "Wrong syntax\n".$usage; exit 1;
+#### Good bye #####
+
+=head2 validate_options( )
+
+The sub-functions reads the options and switches allied with the execution into 
+the global variabels that are defined to cache them.
+
+The funtion will kill the script execution if unknown switches are used.
+
+Parameters:
+
+  none 
+
+Returns:
+
+  nothing
   
-  recover_stg($sw_recover);
-  exit 0;
+=cut
+
+sub validate_options(){
+  my %options = ( "autoquarantine"     => \$sw_autoquarantine,             
+                  "lsquarantine"       => \$sw_lsquarantine,          
+                  "nasince=s"          => \$sw_nasince,          
+                  "help"               => \$sw_help,
+                  "quarantine=s"       => \$sw_quarantine,
+                  "recover=s"          => \$sw_recover,
+                  "purge=s"            => \$sw_purge,
+                  "autopurge"          => \$sw_autopurge,
+                  "autorecover"        => \$sw_autorecover,
+                  "ignore!"             => \$sw_ignore,
+                  "region=s"           => \$sw_region);
+                
+  die "$usage" unless GetOptions(%options);
 };
 
-### LSQUARANTINE ###
-defined($sw_lsquarantine) && do {
-  print "lsquarantine\n";
-  (  defined($sw_purge) || defined($sw_nasince) || defined($sw_quarantine) || defined($sw_touch) || 
-     defined($sw_autoquarantine) || defined($sw_region)
-  ) && do {print "Wrong syntax\n".$usage; exit 1;};
-  (  defined($sw_autorecover) && defined($sw_autopurge) ) && do {print "-autopurge and -autorecover can't be used together\n".$usage; exit 1;};
-  foreach (lsquarantined() ){
-    print $_;
-    defined($sw_autopurge) && do {
-       purge_stg($_);
-    };
+=head2 xxx_mode( )
 
-    defined($sw_autorecover) && do {
-       recover_stg($_);
-    };
+The sub-functions named xxx_mode all work as switches.
 
-  }
-  exit 0;
-};
+They all start by checking the options and switches applied with the execution to see if the have any work
+to do. if so, they take full responsibilty over the remainder of the script execution and exits the script 
+with either 1 or 0;
 
-### PURGE ###
-defined($sw_purge) && do {
-  print "purge\n";
-  (  defined($sw_nasince) || defined($sw_quarantine) || defined($sw_touch) || 
-     defined($sw_autoquarantine) || defined($sw_autopurge) || defined($sw_region)  || defined($sw_autorecover)
-  ) && do {print "Wrong syntax\n".$usage; exit 1;};
-  purge_stg($sw_purge);
-  exit 0;
-};
 
-### NASINCE ###
-defined($sw_nasince) && do {
-  print "nasince\n";
-  (  defined($sw_quarantine) || defined($sw_touch) || 
-     defined($sw_autopurge) || defined($sw_region)  || defined($sw_autorecover)
-  ) && do {print "Wrong syntax\n".$usage; exit 1;};
+Parameters:
+
+  none 
+
+Returns:
+
+  nothing
   
-  my @views;
-  die "ERROR: Wrong date format (use YYYY-DD-MM)\n" unless vwsstgs_nasince($sw_nasince,\@views);
-  foreach (sort @views) {
-    print $_;
-    defined($sw_autoquarantine) && do {
-      my ($d, $stg) = split(/\t/, $_);
-      quarantine_stg($stg); 
+exit:
+
+  Will force the entire script to exit with 0 or 1
+  
+  1  =   Wrong set of switches applied
+  0  =   Successful execution
+
+=cut
+
+
+sub help_mode(){
+  defined($sw_help) && do {print $header.$revision.$usage.$doc; exit 0;};   
+};
+
+sub recover_mode(){
+  defined($sw_recover) && do {
+    print "recover\n";
+    (  defined($sw_lsquarantine) || defined($sw_purge) || defined($sw_nasince) ||
+       defined($sw_quarantine) || defined($sw_ignore) || 
+       defined($sw_autoquarantine) || defined($sw_autopurge)  || defined($sw_region) || defined($sw_autorecover)
+    ) && do {print "Wrong syntax\n".$usage; exit 1;};
+  
+    recover_stg($sw_recover);
+    exit 0;
+  };
+}
+
+sub lsquarantine_mode(){
+  defined($sw_lsquarantine) && do {
+    print "lsquarantine\n";
+    (  defined($sw_purge) || defined($sw_nasince) || defined($sw_quarantine) || defined($sw_ignore) || 
+       defined($sw_autoquarantine) || defined($sw_region)
+    ) && do {print "Wrong syntax\n".$usage; exit 1;};
+    (  defined($sw_autorecover) && defined($sw_autopurge) ) && do {print "-autopurge and -autorecover can't be used together\n".$usage; exit 1;};
+    foreach (lsquarantined() ){
+      print $_;
+      defined($sw_autopurge) && do {
+         purge_stg($_);
+      };
+
+      defined($sw_autorecover) && do {
+         recover_stg($_);
+      };
+
+    }
+    exit 0;
+  };
+}
+
+sub purge_mode(){
+  defined($sw_purge) && do {
+    print "purge\n";
+    (  defined($sw_nasince) || defined($sw_quarantine) || defined($sw_ignore) || 
+       defined($sw_autoquarantine) || defined($sw_autopurge) || defined($sw_region)  || defined($sw_autorecover)
+    ) && do {print "Wrong syntax\n".$usage; exit 1;};
+    purge_stg($sw_purge);
+    exit 0;
+  };
+}
+
+sub nasince_mode(){
+  defined($sw_nasince) && do {
+    print "nasince\n";
+    (  defined($sw_quarantine) || defined($sw_ignore) || 
+       defined($sw_autopurge) || defined($sw_region)  || defined($sw_autorecover)
+    ) && do {print "Wrong syntax\n".$usage; exit 1;};
+  
+    my @views;
+    die "ERROR: Wrong date format (use YYYY-DD-MM)\n" unless vwsstgs_nasince($sw_nasince,\@views);
+    foreach (sort @views) {
+      print $_;
+      defined($sw_autoquarantine) && do {
+        my ($d, $stg) = split(/\t/, $_);
+        quarantine_stg($stg); 
+      };
+    }
+    exit 0;
+  };
+}
+
+sub quarantine_mode(){
+  defined($sw_quarantine) && do {
+    print "quarantine\n";
+    (  defined($sw_ignore) || defined($sw_autoquarantine) || defined($sw_autopurge) || 
+       defined($sw_region)  || defined($sw_autorecover)
+    ) && do {print "Wrong syntax\n".$usage; exit 1;};
+    quarantine_stg($sw_quarantine);
+    exit 0;
+  };
+}
+
+
+sub ignore_mode(){
+  defined($sw_ignore) && do{
+    (  defined($sw_autoquarantine) || defined($sw_autopurge)  || defined($sw_autorecover)) && do {print "Wrong syntax\n".$usage; exit 1;};
+    my $viewtag = $ARGV[0];
+    (scalar(@ARGV) ne 1 ) &&  do  {print "Wrong syntax\n".$usage; exit 1;}; # I exepct exactly one argument in -ignore mode
+    my $region_switch = (defined($sw_region))? "-region $sw_region":"";
+    $_ =  `cleartool lsview $region_switch $viewtag`;
+    $? && die "\n".$usage;
+    
+
+    /^[\s\*]*(\S*)\s*(\S*)$/; # Any number of whitespaces or * (if the view is started) followed by non-whitespace chars (the view tag) followed by some whitespaces and tne another set of non-whitespace chars (the view storage)  
+    my $stg = $2;
+    
+    #-noignore=0
+    #-ignore=1
+    
+    my $ignore_file_loc = $2."\\admin\\".$view_q_ignore_file;
+    if ($sw_ignore){
+      print "ignore\n";
+      open  VIEW_Q_IGNORE_FILE ,">$ignore_file_loc" or die "Couldn't open '$ignore_file_loc'\n";
+      print VIEW_Q_IGNORE_FILE "This view storage is ignore by $scriptfile\nDelete this file to ";
+      close VIEW_Q_IGNORE_FILE or print STDERR "Couldn't close '$ignore_file_loc'\n";
+    } 
+    else {
+      print "noignore\n";
+      unlink $ignore_file_loc;
     };
-  }
-  exit 0;
-};
-
-### QUARANTINE ###
-defined($sw_quarantine) && do {
-  print "quarantine\n";
-  (  defined($sw_touch) || defined($sw_autoquarantine) || defined($sw_autopurge) || 
-     defined($sw_region)  || defined($sw_autorecover)
-  ) && do {print "Wrong syntax\n".$usage; exit 1;};
-  quarantine_stg($sw_quarantine);
-  exit 0;
-};
-
-### TOUCH ###
-defined($sw_touch) && do{
-  print "touch\n";
-  (  defined($sw_autoquarantine) || defined($sw_autopurge)  || defined($sw_autorecover)) && do {print "Wrong syntax\n".$usage; exit 1;};
-  exit 0;
-};
-
-print "Wrong syntax\n".$usage;
-exit 1;
-
+    
+    
+    exit 0;
+  };
+}
 
 #######################################
-#######################################
-
-#my %views = get_views_across_regions();
-#while (($stg,$tags) = each(%views)){ print $stg."\n".$tags."\n"; }
-
-
-
- #quarantine_stg("\\\\cccq7\\cc_stg\\views\\CCCQ7\\student\\student_bugfix_34.vws"); 
-
-#my @list;
-#lsquarantined(\@list);
-#foreach (@list) {
-#  print $_; 
-#  recover_stg($_);
-#}
-#die;
-
-
-#quarantine_stg("\\\\cccq7\\cc_stg\\views\\CCCQ7\\student\\student_bugfix_34.vws");
-#die;
-
-
-
-
-#die;
-#die unless quarantine_stg("\\\\cccq7\\cc_stg\\views\\CCCQ7\\student\\student_bugfix_34.vws");
-#die unless recover_stg("\\\\cccq7\\cc_stg\\views\\CCCQ7\\student\\student_bugfix_34.vws");
-
-
-
-
-
-
-
-
-
-
-#############################
 
 =head2 lsquarantined( )
 
@@ -242,7 +352,7 @@ NOTE: This function will only run on ClearCase registry servers!!!
 
 This function lists all the quarantined views.
 
-The format of the listing is the local view storage.
+The format of the listing is the local view storage (as reported by lsview -age).
 
 A quarantined view is defined as a view that is reported "stranded" by rgy_check and which has
 a .view_quarantine file in the admin directory of the storage.
@@ -290,31 +400,42 @@ sub recover_stg( $ ){
   chomp($stg);
   my $view_q_file_loc = "$stg\\admin\\$view_q_file";
   return 0 unless (-e $view_q_file_loc);
-  open  VIEW_Q_FILE ,"$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
-  foreach (<VIEW_Q_FILE>){print $_; system($_);};
+  open  VIEW_Q_FILE ,">>$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
+  foreach (<VIEW_Q_FILE>){print $_; system($_);$_= ($?)?"ERROR\n":"Success\n"; print $_;};
   close VIEW_Q_FILE or print STDERR "Couldn't close '$view_q_file_loc'\n";
-  # my $cnt = unlink $view_q_file_loc; print "Deleted $cnt file(s)\n";
+  unlink $view_q_file_loc;
   return 1;
 }
 
 
 sub purge_stg($){
   my $stg = shift;
-  chomp($stg);
+  chomp($stg); # Stg can be local or global so we only use it 
   my $view_q_file_loc = "$stg\\admin\\$view_q_file";
   (-e $view_q_file_loc)  || do {
     print STDERR "ERROR: '$stg' is not a quarantined storage\n";
     return 0;
   };
   
+  my $ignore_file_loc = $stg."\\admin\\".$view_q_ignore_file;
+  (-e $ignore_file_loc)  && do {
+    print STDERR "ERROR: '$stg' ignored for quarantine\n";
+    return 0;
+  };
+
+  open  VIEW_Q_FILE ,">>$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
+  @_ = <VIEW_Q_FILE>;
+  close VIEW_Q_FILE or print STDERR "Couldn't close '$view_q_file_loc'\n";
+  $_ = @_[0]; # Cache the first entry (we really just need the global storage, so any entry will do) 
+  /\s(\S*)$/;  # The stg is the last part (whitespace separated) of the stream;
     
-  my $mktagcmd = "cleartool mktag -view -tag VIEW_Q_TEMP_TAG $stg";
+  my $mktagcmd = "cleartool mktag -view -tag VIEW_Q_TEMP_TAG $1"; 
   my $endviewcmd = "cleartool endview -server VIEW_Q_TEMP_TAG";
-  my $rmviewcmd = "cleartool rmview $stg";
+  my $rmviewcmd = "cleartool rmview $1";
   
   print "$mktagcmd\n";
   system("$mktagcmd");
-  $_ = $?/256; print "Returned:$_\n";
+  print ($_)?"ERROR\n":"Success\n";
 
   print "$endviewcmd\n";
   system("$endviewcmd");
@@ -354,6 +475,15 @@ sub quarantine_stg( $ ){
   chomp($stg);
   prepare_stg_directory();
   return 0 unless defined($stg_directory{"$stg"}); # Get out if the view storage has no entry in the directory
+
+  my $ignore_file_loc = $stg."\\admin\\".$view_q_ignore_file;
+  (-e $ignore_file_loc)  && do {
+    print STDERR "ERROR: '$stg' ignored for quarantine\n";
+    return 0;
+  };
+
+
+
   my @rmtags;
   my @mktags;
   foreach (split(/;/, $stg_directory{"$stg"})){
