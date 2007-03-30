@@ -78,7 +78,7 @@ BEGIN { if ($0 =~ /(.*[\/\\])(.*)$/){
 use Getopt::Long;
 
 # File version
-our $VERSION      = "0.1";
+our $VERSION      = "0.1.0";
 our $BUILD        = "1";
 
 my $debug = 0;
