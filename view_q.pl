@@ -16,43 +16,57 @@ Execute the script with -help switch to learn the syntax and usage.
 
 =head1 DESCRIPTION
 
-Used to support ClearCase scripting in general. and Accelerated ClearCase
-in particular.
-
 A fundamental concept to understand when working with view_q.pl is "Stranded views".
 
-Stranded views are views that has a valid (and registrede) view storage, but hasn't got any
-view tag in any region.
+Stranded views are views that have valid (and registred) view storages, but hasn't got any
+view tags in any region.
 
-Strande views are unavialble for use, but can easily be brought back to life by using:
+Strande views are unavailabel for use, but can easily be brought back to availability by using:
 
   cleartool mktag -view ... 
 
-Clearcase has a feature called rgy_check (which is only availbale on ClearCase registry servers
-though!) Rgy_check utility can report stranded views.  
+Clearcase has a feature called rgy_check (which is only available on ClearCase registry servers
+though!). Rgy_check utility can report stranded views.  
 
   rgy_check -views
 
 Run cleartool man rgy_check to learn more.
 
-When view_q puts a view into quarantine, it removes all tags in all regions. Which puts the
-view into the state of being 'stranded', and then it stores the commands that will reverse 
-the operation (that is recover the tags in all regions where it was deleted) in a file called
+When view_q.pl puts a view into quarantine, it removes all tags in all regions. This puts the
+view into the state of being 'stranded'. An important difference between 'regular" stranded 
+and views put into quarantine by view_q.pl is the file called 
 
   .view_quarantine
 
-located in the 'admin
-  
-   
+which view_q.pl created in the in the 'admin' subfolder in the view storage. This file contins the history 
+of tags in all regions from where they were deleted. and enables a complete restore of which can be done from
+any machine with ClearCase installed.
 
+View_q.pl can be run in a mode where it lists all views not accessed since a certain date. if you whish you 
+can even tell view_q.pl til automatically put these views into quarantine.
+
+View_q.pl has a differet mode which lists all views that are currently in quarantine (As you may have figured
+out this is partly determined by the fact that views are stranded, so this mode only works when executed from
+the ClearCase Registry server, which support rgy_check!)
+
+When listing the quarantined views you can either automatically purge or recover the views.
+
+Views can also be pruged or recovered individually.
+
+When view_q.pl purges a view it simply re-creates an intermediate view tag and runs a regular
+
+  cleartool remove view
+
+When a view is recovered by view_q.pl it simply restores all tags in all the regions where it was removed from.
+
+Some views aren't supposed to be deleted even when they havn't been accessed for a long time. View_q.pl can 
+be instructed to disable quarantine of these views.
 
 =head1 SUPPORT
 
 Visit http://www.praqma.net to get help.
 
 =cut
-
-
 
 our ( $scriptdir, $scriptfile );
 BEGIN { if ($0 =~ /(.*[\/\\])(.*)$/){
@@ -111,7 +125,7 @@ ENDUSAGE
 
 
 my $doc = <<ENDDOC;
-            
+             
 -lsquarantine           List views that are currently in quarantine. 
                         NOTE: This switch is only supporten when executed on 
                         ClearCase Registry server.        
@@ -144,6 +158,7 @@ my $doc = <<ENDDOC;
 
 ENDDOC
 
+
 ### Global variables ###
 our %stg_directory;
 our $view_q_file=".view_quarantine";
@@ -153,8 +168,6 @@ our ($sw_lsquarantine, $sw_recover, $sw_purge, $sw_nasince, $sw_quarantine, $sw_
 
 
 validate_options();
-
-# Each of the following mode-subs is guaranteed to exit the entire script with 0 or 1
 
 #### SWITCH ####
 help_mode();
@@ -167,11 +180,15 @@ ignore_mode();
 #### SWITCH ####
 
 print "Wrong syntax\n".$usage; exit 1;
-#### Good bye #####
+###########################################################################################
 
-=head2 validate_options( )
+=head1 Script Implementation
 
-The sub-functions reads the options and switches allied with the execution into 
+=head2 Internal subfunctions
+
+=head3 validate_options( )
+
+The sub-functions reads the options and switches applied with the execution into 
 the global variabels that are defined to cache them.
 
 The funtion will kill the script execution if unknown switches are used.
@@ -183,7 +200,7 @@ Parameters:
 Returns:
 
   nothing
-  
+
 =cut
 
 sub validate_options(){
@@ -202,7 +219,7 @@ sub validate_options(){
   die "$usage" unless GetOptions(%options);
 };
 
-=head2 xxx_mode( )
+=head3 xxx_mode( )
 
 The sub-functions named xxx_mode all work as switches.
 
@@ -221,13 +238,12 @@ Returns:
   
 exit:
 
-  Will force the entire script to exit with 0 or 1
+Will force the entire script to exit with 0 or 1
   
   1  =   Wrong set of switches applied
   0  =   Successful execution
 
 =cut
-
 
 sub help_mode(){
   defined($sw_help) && do {print $header.$revision.$usage.$doc; exit 0;};   
@@ -346,7 +362,7 @@ sub ignore_mode(){
 
 #######################################
 
-=head2 lsquarantined( )
+=head3 lsquarantined( )
 
 NOTE: This function will only run on ClearCase registry servers!!!
 
@@ -377,11 +393,11 @@ sub lsquarantined( ){
 }
 
 
-=head2 recover_stg( $stg )
+=head3 recover_stg( $stg )
 
 This function recovers a view storage.
 
-It will recreat all the tags in all regions where it was tagged at the time it was quarantiend.
+It will recreate all the tags in all regions where it was tagged at the time it was quarantined.
 
 Parameters:
 
@@ -400,13 +416,37 @@ sub recover_stg( $ ){
   chomp($stg);
   my $view_q_file_loc = "$stg\\admin\\$view_q_file";
   return 0 unless (-e $view_q_file_loc);
-  open  VIEW_Q_FILE ,">>$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
+  open  VIEW_Q_FILE ,"$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
   foreach (<VIEW_Q_FILE>){print $_; system($_);$_= ($?)?"ERROR\n":"Success\n"; print $_;};
   close VIEW_Q_FILE or print STDERR "Couldn't close '$view_q_file_loc'\n";
-  unlink $view_q_file_loc;
+ 
+  # Something is delaying the close above, the file is not ready for deletion
+  # I have to keep trying - I'll give it 40 shots and then I'll bail out
+  # ...Need to improve this bit whne i get the time!
+  $_ = 0; while ($_ < 40 && !unlink $view_q_file_loc){$_++;};
+ 
   return 1;
 }
 
+=head3 purge_stg( $stg )
+
+This function purges a view storage.
+
+It will recreate one intermediate tag to the view stg and then do a regular
+(safe) view removal.
+
+Parameters:
+
+  $stg   = The storage to purge (the global one, as reported by a lsview command, or 
+           simply the local-path as reported by rgy_check) 
+
+Returns:
+
+  1    =    Success
+  0    =    The $stg does not contain a .view_quarantine file or the $stg contains
+            a .view_q_ignore file.
+
+=cut
 
 sub purge_stg($){
   my $stg = shift;
@@ -423,7 +463,7 @@ sub purge_stg($){
     return 0;
   };
 
-  open  VIEW_Q_FILE ,">>$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
+  open  VIEW_Q_FILE ,"$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
   @_ = <VIEW_Q_FILE>;
   close VIEW_Q_FILE or print STDERR "Couldn't close '$view_q_file_loc'\n";
   $_ = @_[0]; # Cache the first entry (we really just need the global storage, so any entry will do) 
@@ -450,7 +490,7 @@ sub purge_stg($){
 
 
 
-=head2 quarantine_stg( $stg )
+=head3 quarantine_stg( $stg )
 
 This function quarantines a view storage.
 
@@ -499,12 +539,13 @@ sub quarantine_stg( $ ){
   return 1;
 }
 
-=head2 vwsstgs_nasince( $cut_date, \@result )
+=head3 vwsstgs_nasince( $cut_date, \@result )
 
 This function pushes (global) view storage locations onto the result array
 handed into the sub as a refernce if they havent been accessed since $cut_date.
 
 The format of the resulting list entries are like this:
+
   <YYYY-MM-DD> <view_stg>
 
 Where  view <YYYY-MM-DD> is the last accessed date, and <view_stg> is the global view storage location.
@@ -540,7 +581,7 @@ sub vwsstgs_nasince($$){
 }
 
 
-=head2 sub prepare_stg_directory( )
+=head3 sub prepare_stg_directory( )
 
 This function is related to the global hash: %stg_directory.
 

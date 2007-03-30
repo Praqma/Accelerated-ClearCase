@@ -1,0 +1,148 @@
+>cd /d C:\lak\bzr-repos\view_q\cccqug
+
+>pod2html view_q.pl > view_q.htm & view_q.htm
+
+>ratlperl view_q.pl
+
+>ratlperl view_q.pl -lsquarantine
+
+>ratlperl view_q.pl -nasince
+
+>ratlperl view_q.pl -nasince blaha
+nasince
+ERROR: Wrong date format (use YYYY-DD-MM)
+
+>ratlperl view_q.pl -nasince 2007-01-01
+nasince
+2006-09-11      \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_Proj_model2_int.vws
+2006-09-11      \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_fixes.vws
+2006-09-11      \\cccq7\cc_stg\views\CCCQ7\student\student_bugfix_34.vws
+
+>ratlperl view_q.pl -q
+
+>ratlperl view_q.pl -q \\cccq7\cc_stg\views\CCCQ7\student\student_bugfix_34.vws
+quarantine
+cleartool rmtag -view -region "SERVER"  "student_bugfix_34"
+
+
+>ratlperl view_q.pl -nasince 2007-01-01
+nasince
+2006-09-11      \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_Proj_model2_int.vws
+2006-09-11      \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_fixes.vws
+
+>ratlperl view_q.pl -ignore student_ATM_fixes
+ignore
+
+>explorer   \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_fixes.vws
+
+>ratlperl view_q.pl -nasince 2007-01-01 -auto
+Option auto is ambiguous (autopurge, autoquarantine, autorecover)
+  view_q.pl -lsquarantine [-autopurge | -autorecover]
+  view_q.pl -nasince YYYY-MM-DD [-autoquarantine]
+  view_q.pl -quarantine stgloc
+  view_q.pl -recover stgloc
+  view_q.pl -purge stgloc
+  view_q.pl -ignore [-region region] viewtag
+  view_q.pl -help
+
+
+>ratlperl view_q.pl -nasince 2007-01-01 -autoq
+nasince
+2006-09-11      \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_Proj_model2_int.vws
+cleartool rmtag -view -region "SERVER"  "student_ATM_Proj_model2_int"
+2006-09-11      \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_fixes.vws
+ERROR: '\\cccq7\cc_stg\views\CCCQ7\student\student_ATM_fixes.vws' ignored for quarantine
+
+>ratlperl view_q.pl -nasince 2007-01-01
+nasince
+2006-09-11      \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_fixes.vws
+
+>ratlperl view_q.pl -noignore student_ATM_fixes
+noignore
+
+>explorer   \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_fixes.vws
+
+>ratlperl view_q.pl -lsq -autore
+lsquarantine
+C:\cc_stg\views\CCCQ7\student\student_bugfix_34.vws
+C:\cc_stg\views\CCCQ7\student\student_ATM_Proj_model2_int.vws
+
+>ratlperl view_q.pl -lsq
+lsquarantine
+
+
+>ct lsregion
+SERVER
+QTEST
+
+>ct lsview -region QTEST
+
+>ct lsview -region SERVER
+
+>perl view_q.pl -q \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_fixes.vws
+quarantine
+cleartool rmtag -view -region "SERVER"  "student_ATM_fixes"
+cleartool rmtag -view -region "QTEST"  "student_ATM_fixes"
+
+>ct lsview -region QTEST
+
+>ct lsview -region SERVER
+
+
+
+
+>ratlperl view_q.pl -q  \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_fixes.vws
+quarantine
+cleartool rmtag -view -region "SERVER"  "student_ATM_fixes"
+cleartool rmtag -view -region "QTEST"  "student_ATM_fixes"
+
+>ratlperl view_q.pl -rec  \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_fixes.vws
+recover
+cleartool mktag -view -region "SERVER" -tag "student_ATM_fixes" \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_fixes.vws
+Success
+cleartool mktag -view -region "QTEST" -tag "student_ATM_fixes" \\cccq7\cc_stg\views\CCCQ7\student\student_ATM_fixes.vws
+Success
+
+>ct mkview -tag %username%_QTEST -stgloc -auto
+
+>perl view_q.pl -purge \\cccq7\cc_stg\views\CCCQ7\student\student_QTEST.vws
+purge
+ERROR: '\\cccq7\cc_stg\views\CCCQ7\student\student_QTEST.vws' is not a quarantined storage
+
+>ct rmtag -view student_QTEST
+
+>rgy_check -views
+rgy_check: Error: This view object is stranded (it has no tags
+in any region):
+        -hostname = "cccq7"
+        -local_path = "C:\cc_stg\views\CCCQ7\student\student_QTEST.vws"
+        -owner = "CCCQ7\student"
+        -view_uuid = "3db895be.6efb420e.a28b.86:8a:f4:be:57:52"
+
+rgy_check: Error: 1 total registry errors/inconsistencies detected.
+
+>perl view_q.pl -lsq
+
+>perl view_q.pl -purge \\cccq7\cc_stg\views\CCCQ7\student\student_QTEST.vws
+purge
+ERROR: '\\cccq7\cc_stg\views\CCCQ7\student\student_QTEST.vws' is not a quarantined storage
+
+>ct mktag -view -tag student_QTEST \\cccq7\cc_stg\views\CCCQ7\student\student_QTEST.vws
+
+>ratlperl  view_q.pl -q \\cccq7\cc_stg\views\CCCQ7\student\student_QTEST.vws
+quarantine
+cleartool rmtag -view -region "SERVER"  "student_QTEST"
+
+>ratlperl  view_q.pl -lsq
+lsquarantine
+C:\cc_stg\views\CCCQ7\student\student_QTEST.vws
+
+>ratlperl  view_q.pl -lsq -autop
+lsquarantine
+C:\cc_stg\views\CCCQ7\student\student_QTEST.vws
+cleartool mktag -view -tag VIEW_Q_TEMP_TAG \\cccq7\cc_stg\views\CCCQ7\student\student_QTEST.vws
+cleartool mktag -view -region "SERVER" -tag "student_QTEST" \\cccq7\cc_stg\views\CCCQ7\student\student_QTEST.v
+cleartool endview -server VIEW_Q_TEMP_TAG
+Returned:0
+cleartool rmview \\cccq7\cc_stg\views\CCCQ7\student\student_QTEST.vws
+Returned:0
