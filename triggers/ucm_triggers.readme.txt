@@ -1,0 +1,20 @@
+The triggers:
+
+ucm_block_activity.pl   
+ucm_block_devstream.pl  
+ucm_complete_delivery.pl
+ucm_check_targets.pl    
+ucm_serial_delivery.pl
+
+
+Are all originally created by David Baird and copied from:
+http://www.cmcrossroads.com/cgi-bin/cmwiki/view/CM/ClearCaseUnifiedChangeManagementTriggers
+
+We have used these triggers as inspiration at several customer, we have altered them slightly or completely but conceptually they have been doing the same thing every time.
+
+Even though we plan to alter them again in the Accelerated ClearCase project (http://launchpad.net/acc)
+We have included them here in their originally versions as a tribute to David Baird.
+
+Lars Kruse
+June 2009
+
