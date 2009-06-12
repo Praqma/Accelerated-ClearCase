@@ -1,18 +1,3 @@
-#log ---- Information about logging implementation ------
-#log | About log inclusion.
-#log | All logging comments has been prefixed with "#log" for searchability
-#log
-#log | I had some trouble finding out how to substitute "die" with $log->error. I assume that the ideal (intended) subtitution would be "assertion_failed""
-#log | but would like this confirmed before I include.
-#log | Generel subtitution procedure: 
-#log | "print" = "log->information"
-#log | "STDOUT" = "log->information" 
-#log | "print + exit >0" = "log->assertion_failed"
-#log | "ERROUT" = "log->error"
-#log | "die" = "log->assertion_failed"
-#log
-#log | THIS COMMENT IS TEMPORARY AND SHOULD BE REMOVED AFTER LOG IMPLEMENTATION HAS COMPLETED
-
 ######################## STANDARD STUFF ##############################
 #
 require 5.001;
@@ -26,49 +11,49 @@ view_q.pl - View Quarantine Utilities
 
 =head1 SYNOPSIS
 
-A collection of features that enables quarantine, purge and recover of views based on 
-the view's 'last accesed' date. 
+A collection of features that enables quarantine, purge and recover of views based on
+the view's 'last accessed' date.
 
-Execute the script with -help switch to learn the syntax and usage. 
+Execute the script with -help switch to learn the syntax and usage.
 
 =head1 DESCRIPTION
 
 A fundamental concept to understand when working with view_q.pl is "Stranded views".
 
-Stranded views are views that have valid (and registred) view storages, but hasn't got any
+Stranded views are views that have valid (and registered) view storages, but haven't got any
 view tags in any region.
 
-Strande views are unavailabel for use, but can easily be brought back to availability by using:
+Stranded views are unavailable for use, but can easily be brought back to availability by using:
 
-  cleartool mktag -view ... 
+  cleartool mktag -view ...
 
 Clearcase has a feature called rgy_check (which is only available on ClearCase registry servers
-though!). Rgy_check utility can report stranded views.  
+though!). Rgy_check utility can report stranded views.
 
   rgy_check -views
 
 Run cleartool man rgy_check to learn more.
 
 When view_q.pl puts a view into quarantine, it removes all tags in all regions. This puts the
-view into the state of being 'stranded'. An important difference between 'regular" stranded 
-and views put into quarantine by view_q.pl is the file called 
+view into the state of being 'stranded'. An important difference between 'regular" stranded
+and views put into quarantine by view_q.pl is the file called
 
   .view_quarantine
 
-which view_q.pl created in the in the 'admin' subfolder in the view storage. This file contins the history 
+which view_q.pl created in the in the 'admin' subfolder in the view storage. This file contains the history
 of tags in all regions from where they were deleted. and enables a complete restore of which can be done from
 any machine with ClearCase installed.
 
-View_q.pl can be run in a mode where it lists all views not accessed since a certain date. if you whish you 
-can even tell view_q.pl til automatically put these views into quarantine.
+View_q.pl can be run in a mode where it lists all views not accessed since a certain date. if you whish you
+can even tell view_q.pl to automatically put these views into quarantine.
 
-View_q.pl has a differet mode which lists all views that are currently in quarantine (As you may have figured
+View_q.pl has a different mode which lists all views that are currently in quarantine (As you may have figured
 out this is partly determined by the fact that views are stranded, so this mode only works when executed from
 the ClearCase Registry server, which support rgy_check!)
 
 When listing the quarantined views you can either automatically purge or recover the views.
 
-Views can also be pruged or recovered individually.
+Views can also be purged or recovered individually.
 
 When view_q.pl purges a view it simply re-creates an intermediate view tag and runs a regular
 
@@ -76,7 +61,7 @@ When view_q.pl purges a view it simply re-creates an intermediate view tag and r
 
 When a view is recovered by view_q.pl it simply restores all tags in all the regions where it was removed from.
 
-Some views aren't supposed to be deleted even when they havn't been accessed for a long time. View_q.pl can 
+Some views aren't supposed to be deleted even when they haven't been accessed for a long time. View_q.pl can
 be instructed to disable quarantine of these views.
 
 =head1 SUPPORT
@@ -104,20 +89,20 @@ our $BUILD        = "2";
 # Log and monitor default settings (overwriteable at execution)
 my $debug = 0;  # Set 1 for testing purpose
 my $verbose_mode=0;
-my $log_enabled=1; 
+my $log_enabled=1;
 # Default setting 0-0-0 (script executio9n will generate NO output or log, unless explicitly tolt to
 
 # Header and revision history
 our $header = <<ENDHEADER;
 #########################################################################
-#     $scriptfile  version $VERSION\.$BUILD                                      
+#     $scriptfile  version $VERSION\.$BUILD
 #     This script is managing views based on their last accessed dates.
-#     The script has several different features for taking views in and 
+#     The script has several different features for taking views in and
 #     out of quarantine.
-#     Execute with -help switch to learn more 
+#     Execute with -help switch to learn more
 #
-#     Date:       2009-03-25                                            
-#     Author:     Lars Kruse, lars.kruse\@praqma.net               
+#     Date:       2009-03-25
+#     Author:     Lars Kruse, lars.kruse\@praqma.net
 #     Copyright:  Praqma A/S, Denmark
 #     License:    GNU General Pulic License
 #     Support:    http://www.praqma.info
@@ -131,14 +116,14 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR  NOTE
 ----------  -------------  ----------------------------------------------
 2009-03-25  Lars Kruse     1st release prepared for RUG-DK (version 0.1.1)
-2009-05-18  Mikael Jensen  Beta for test 
-                           New: scriptlogger (logfile, verbose & debug) 
+2009-05-18  Mikael Jensen  Beta for test
+                           New: scriptlogger (logfile, verbose & debug)
                            New: Ignore split into ignore and noignore func
                            New: [no]ignore now take more params and semicolon-seperated lists
                            New: ARGV[0] is always logfile ARGV[1] fails
                            Doc: Usage, Help and POD doc updated to include new features
-                           Known error: -ignore need to be reimplemented with ARGV
-                           fixed: nasince 
+                           fixed: nasince
+
 -------------------------------------------------------------------------
 
 ENDREVISION
@@ -149,7 +134,7 @@ my $usage = <<ENDUSAGE;
   $scriptfile -quarantine stgloc
   $scriptfile -recover stgloc
   $scriptfile -purge stgloc
-  $scriptfile [-region region] -[no]ignore viewtag 
+  $scriptfile [-region region] -[no]ignore viewtag
   $scriptfile -help
   Auxiliary switches [-[no]debug | -[no]verbose | -[no]logfile [location]
 
@@ -158,47 +143,47 @@ ENDUSAGE
 
 my $doc = <<ENDDOC;
 
--help                   Get help with the script syntax etc. (you are watching it now)             
--lsquarantine           List views that are currently in quarantine. 
-                        NOTE: This switch is only supporten when executed on 
-                        ClearCase Registry server.        
--autopurge              Optional switch only valid together with -lsquarantine. 
-                        When -autopurge is applied the storages found by -lsquarantine 
-                        will automatically be purged (permanently deleted)                                                                                    
--autorecover            Optional switch only valid together with -lsquarantine. 
-                        When -autorecover is applied the storages found by -lsquarantine 
-                        will automatically be recovered.                                                                                    
--nasince date           Lists views that are not accessed since date. Date must 
+-help                   Get help with the script syntax etc. (you are watching it now)
+-lsquarantine           List views that are currently in quarantine.
+                        NOTE: This switch is only supporten when executed on
+                        ClearCase Registry server.
+-autopurge              Optional switch only valid together with -lsquarantine.
+                        When -autopurge is applied the storages found by -lsquarantine
+                        will automatically be purged (permanently deleted)
+-autorecover            Optional switch only valid together with -lsquarantine.
+                        When -autorecover is applied the storages found by -lsquarantine
+                        will automatically be recovered.
+-nasince date           Lists views that are not accessed since date. Date must
                         be in the format YYYY-MM-DD.
--autoquarantine         Optional swith only valid together with -nasince. When 
-                        -autoquarantine is applied the views found be -nasince will be 
+-autoquarantine         Optional swith only valid together with -nasince. When
+                        -autoquarantine is applied the views found be -nasince will be
                         put into quarantine.
 -quarantine stgloc      Will put the viewstg applied as stglog into quarantine. The format
                         of stgloc must be the global path (as listed with lsview).
--recover stgloc         Will recover the viewstg applied as stgloc out of quarantine. The 
-                        format of stgloc can be the global path (as listed with lsview).
-                        or the local path (as listed by rgy_check, stranded views).                        
--purge stgloc           Will purge (rmview) the viewstg applied as stgloc. The 
+-recover stgloc         Will recover the viewstg applied as stgloc out of quarantine. The
                         format of stgloc can be the global path (as listed with lsview).
                         or the local path (as listed by rgy_check, stranded views).
--[no]ignore viewtag     -ignore will make the view ignoring any attempt to put it into 
+-purge stgloc           Will purge (rmview) the viewstg applied as stgloc. The
+                        format of stgloc can be the global path (as listed with lsview).
+                        or the local path (as listed by rgy_check, stranded views).
+-[no]ignore viewtag     -ignore will make the view ignoring any attempt to put it into
                         quarantine until the ignore flag is removed using -noignore.
                         -nasince will still report he correct last accessed date.
-                        multible viewtags can be use, by adding more -ignore option 
+                        multible viewtags can be use, by adding more -ignore option
                         or seperating with ";" eg. "... -ignore tag1;tag2 -ignore tag3"
 -region region          Optional switch only valid together with -[no]ignore.
                         The region switch is used to qualify the viewtag applied with
-                        -[un]ignore if necessary. if -region is omitted, the viewtag is 
+                        -[un]ignore if necessary. if -region is omitted, the viewtag is
                         searched in the current region.
-                          
-                        --- Auxiliary switches (can be omitted or used on all functions)---   
--[no]logfile [location] Sets whether or not to create a logfile. 
+
+                        --- Auxiliary switches (can be omitted or used on all functions)---
+-[no]logfile [location] Sets whether or not to create a logfile.
                         May define the name [and location] of the logfile.
                         Default value is the temp dir (usually under users "doc&set") and "view_q.pl[PID].log"
--[no]verbose            Toggles verbose mode (log to STDOUT) 
+-[no]verbose            Toggles verbose mode (log to STDOUT)
                         Default is off (for manual execution, verbose is recommended)
--[no]debug              Toggles debug mode (additional information + force logfile + verbose)   
-                        Default is off                                                                        
+-[no]debug              Toggles debug mode (additional information + force logfile + verbose)
+                        Default is off
 
 
 ENDDOC
@@ -210,7 +195,7 @@ our $log = scriptlog->new;
 our $view_q_file=".view_quarantine";
 our $view_q_ignore_file=".view_q_ignore";
 our ($sw_lsquarantine, $sw_recover, $sw_purge, $sw_nasince, $sw_quarantine, $sw_autoquarantine,
-     $sw_autopurge, $sw_help, $sw_region, @sw_ignore, @sw_noignore, $sw_autorecover, $sw_logfile, $sw_verbose, $sw_debug);  
+     $sw_autopurge, $sw_help, $sw_region, @sw_ignore, @sw_noignore, $sw_autorecover, $sw_logfile, $sw_verbose, $sw_debug);
 
 
 validate_options();
@@ -234,14 +219,14 @@ $log->assertion_failed("Wrong syntax\n".$usage);
 
 =head3 validate_options( )
 
-The sub-functions reads the options and switches applied with the execution into 
-the global variabels that are defined to cache them.
+The sub-functions read the options and switches applied with the execution into
+the global variables that are defined to cache them.
 
-The funtion will kill the script execution if unknown switches are used.
+The function will kill the script execution if unknown switches are used.
 
 Parameters:
 
-  none 
+  none
 
 Returns:
 
@@ -250,9 +235,9 @@ Returns:
 =cut
 
 sub validate_options(){
-  my %options = ( "autoquarantine"     => \$sw_autoquarantine,             
-                  "lsquarantine"       => \$sw_lsquarantine,          
-                  "nasince=s"          => \$sw_nasince,          
+  my %options = ( "autoquarantine"     => \$sw_autoquarantine,
+                  "lsquarantine"       => \$sw_lsquarantine,
+                  "nasince=s"          => \$sw_nasince,
                   "help"               => \$sw_help,
                   "quarantine=s"       => \$sw_quarantine,
                   "recover=s"          => \$sw_recover,
@@ -265,22 +250,22 @@ sub validate_options(){
                   "logfile!"           => \$sw_logfile,
                   "debug!"  	   	   => \$sw_debug,
                   "verbose!"           => \$sw_verbose);
-                 
-                
+
+
 #  die "$usage" unless GetOptions(%options);
-  GetOptions(%options); 
+  GetOptions(%options);
 };
 
 =head3 enable_log( )
 
 
-The sub-functions overwrites the default settings for log, debug and verbose if set manually and enables the functionallity in the logger.
-Prefix option name with "no" for force disable (eg. -nodebug)
+The sub-function overwrites the default settings for log, debug and verbose if set manually and enables the functionality in the logger.
+Prefix option name with "no" for force disable (e.g. -nodebug)
 
-Debug: 
+Debug:
 - enables verbose, unless -noverbose is set in the script call.
 - enables the logfile
-- gives some extra logging information (variable values, additional information, ect) 
+- gives some extra logging information (variable values, additional information, ect.)
 
 Verbose:
 - enables log to STDOUT
@@ -290,20 +275,20 @@ Logfile:
 - sets the logfilename (and path) if specified
 - the environment variables SCRIPTLOG_ENABLED or CLEARCASE_TRIGGER_DEBUG forces the logfile to enable, not matter what
 
-Checks for ARGV arguments (unreferenced values): 
-- if log is enabled, it dies if there is more then one (expect it to be filename or relative/absolute path AND filename) 
+Checks for ARGV arguments (unreferenced values):
+- if log is enabled, it dies if there is more then one (expect it to be filename or relative/absolute path AND filename)
 - if log is disabled, it dies if there are any
 - The logger module fails, if the specified log, can't be opened/created
 
 Parameters:
 
   Non
-  Uses -verbose, -debug and -logfile 
+  Uses -verbose, -debug and -logfile
 
 Returns:
 
   nothing (unless it dies)
-  
+
 exit:
 
   Will kill the script exit 1 (die) on ARGV errors - printing the arguments
@@ -311,40 +296,40 @@ exit:
 =cut
 
 sub enable_log(){
-	
+
 	# Overwrites the default logging setting, if set manually
 	defined($sw_debug) && do {$debug=$sw_debug} && ($verbose_mode=1);
 	defined($sw_verbose) && do {$verbose_mode=$sw_verbose};
 	defined($sw_logfile) && do {$log_enabled=$sw_logfile};
-	
+
 	my $argv_values;
 	foreach (@ARGV) {
 		$argv_values = $argv_values."\"".$_."\" "; #rw2 use join
-		
+
 	}
-	
+
 	# Checks ARGV for consistency and enables the log
 	if ($log_enabled) {
 		if (scalar(@ARGV) gt 1) {
   			$log->assertion_failed("You have more then one value with no defined reference,\nonly valid option is logfile location \nRecorded values are:$argv_values")
-		} 
-		$log->set_logfile($ARGV[0]); 
-		$log->enable();		
+		}
+		$log->set_logfile($ARGV[0]);
+		$log->enable();
 	} else {
 		if (scalar(@ARGV) gt 0) {
   			$log->assertion_failed("You have value(s) with no defined reference,\nRecorded values are: $argv_values")
 		} # end if scalar(argv)
 		$log->conditional_enable();
 	} # end if logfile
-	
+
 	# Sets verbose
-	$verbose_mode 
-	  && do { 
+	$verbose_mode
+	  && do {
 	    $log->set_verbose(1);
 	    $log->information("Verbose is ON\n");
 	  };
-	 
-	# Sets debug 
+
+	# Sets debug
 	$debug
 	  && do {
 	  	$log->enable();
@@ -361,29 +346,29 @@ sub enable_log(){
 The sub-functions named xxx_mode all work as switches.
 
 They all start by checking the options and switches applied with the execution to see if the have any work
-to do. if so, they take full responsibilty over the remainder of the script execution and exits the script 
+to do. if so, they take full responsibility over the remainder of the script execution and exits the script
 with either 1 or 0;
 
 
 Parameters:
 
-  none 
+  none
 
 Returns:
 
   nothing
-  
+
 exit:
 
 Will force the entire script to exit with 0 or 1
-  
+
   1  =   Wrong set of switches applied
   0  =   Successful execution
 
 =cut
 
 sub help_mode(){
-  defined($sw_help) && do {print $header.$revision.$usage.$doc; exit 0;}; 
+  defined($sw_help) && do {print $header.$revision.$usage.$doc; exit 0;};
 };
 
 
@@ -391,11 +376,11 @@ sub recover_mode(){
   defined($sw_recover) && do {
     $log->information("recover\n");
     if (  defined($sw_lsquarantine) || defined($sw_purge) || defined($sw_nasince) ||
-       defined($sw_quarantine) || defined(@sw_ignore) || 
+       defined($sw_quarantine) || defined(@sw_ignore) ||
        defined($sw_autoquarantine) || defined($sw_autopurge)  || defined($sw_region) || defined($sw_autorecover)
     ) {
     	$log->assertion_failed("Wrong syntax\n".$usage);
-    }; 
+    };
     recover_stg($sw_recover);
     exit 0;
   };
@@ -404,9 +389,9 @@ sub recover_mode(){
 sub lsquarantine_mode(){
   defined($sw_lsquarantine) && do {
     $log->information("lsquarantine\n");
-    (  defined($sw_purge) || defined($sw_nasince) || defined($sw_quarantine) || defined(@sw_ignore) || 
+    (  defined($sw_purge) || defined($sw_nasince) || defined($sw_quarantine) || defined(@sw_ignore) ||
        defined($sw_autoquarantine) || defined($sw_region)
-    ) && do {$log->assertion_failed("Wrong syntax\n".$usage);}; 
+    ) && do {$log->assertion_failed("Wrong syntax\n".$usage);};
     (  defined($sw_autorecover) && defined($sw_autopurge) ) && do {$log->assertion_failed("-autopurge and -autorecover can't be used together\n".$usage);};
     foreach (lsquarantined() ){
       $log->information($_);
@@ -424,9 +409,9 @@ sub lsquarantine_mode(){
 sub purge_mode(){
   defined($sw_purge) && do {
     $log->information("purge\n");
-    (  defined($sw_nasince) || defined($sw_quarantine) || defined(@sw_ignore) || 
+    (  defined($sw_nasince) || defined($sw_quarantine) || defined(@sw_ignore) ||
        defined($sw_autoquarantine) || defined($sw_autopurge) || defined($sw_region)  || defined($sw_autorecover)
-    ) && do {$log->assertion_failed("Wrong syntax\n".$usage);}; 
+    ) && do {$log->assertion_failed("Wrong syntax\n".$usage);};
     purge_stg($sw_purge);
     exit 0;
   };
@@ -434,18 +419,18 @@ sub purge_mode(){
 
 sub nasince_mode(){
   defined($sw_nasince) && do {
-    $log->information("nasince\n"); 
-    (  defined($sw_quarantine) || defined(@sw_ignore) || 
+    $log->information("nasince\n");
+    (  defined($sw_quarantine) || defined(@sw_ignore) ||
        defined($sw_autopurge) || defined($sw_region)  || defined($sw_autorecover)
-    ) && do {$log->assertion_failed("Wrong syntax\n".$usage);}; 
-  
+    ) && do {$log->assertion_failed("Wrong syntax\n".$usage);};
+
     my @views;
     $log->assertion_failed("ERROR: Wrong date format (use YYYY-DD-MM)\n") unless vwsstgs_nasince($sw_nasince,\@views);
     foreach (sort @views) {
-      $log->information($_); 
+      $log->information($_);
       defined($sw_autoquarantine) && do {
         my ($d, $stg) = split(/\t/, $_);
-        quarantine_stg($stg); 
+        quarantine_stg($stg);
       };
     }
     exit 0;
@@ -454,8 +439,8 @@ sub nasince_mode(){
 
 sub quarantine_mode(){
   defined($sw_quarantine) && do {
-    $log->information("quarantine\n"); 
-    (  defined(@sw_ignore) || defined($sw_autoquarantine) || defined($sw_autopurge) || 
+    $log->information("quarantine\n");
+    (  defined(@sw_ignore) || defined($sw_autoquarantine) || defined($sw_autopurge) ||
        defined($sw_region)  || defined($sw_autorecover)
     ) && do {$log->assertion_failed("Wrong syntax\n".$usage);};
     quarantine_stg($sw_quarantine);
@@ -471,39 +456,39 @@ sub ignore_mode(){
     #rw2 cleanup project reimplement ARGV (remember logfile uses it right now)
     @sw_ignore = split(/;/,join(';',@sw_ignore));
     foreach (@sw_ignore) {
-	    my $viewtag = $_; 
+	    my $viewtag = $_;
 	    my $region_switch = (defined($sw_region))? "-region $sw_region":"";
 	    $_ =  `cleartool lsview $region_switch $viewtag`;
-	    $? && $log->assertion_failed($?.$_."\n".$usage); 
-	    /^[\s\*]*(\S*)\s*(\S*)$/; # Any number of whitespaces or * (if the view is started) followed by non-whitespace chars (the view tag) followed by some whitespaces and tne another set of non-whitespace chars (the view storage)  
+	    $? && $log->error($?.$_."\nCould not find view $viewtag to ignore\n");
+	    /^[\s\*]*(\S*)\s*(\S*)$/; # Any number of whitespaces or * (if the view is started) followed by non-whitespace chars (the view tag) followed by some whitespaces and tne another set of non-whitespace chars (the view storage)
 	    print $2; #rw2 debug??
 	    my $stg = $2;
-	
+
 	    my $ignore_file_loc = $2."\\admin\\".$view_q_ignore_file;
-	    
-	    open  VIEW_Q_IGNORE_FILE ,">$ignore_file_loc" or $log->assertion_failed("Couldn't open '$ignore_file_loc'\n"); 
+
+	    open  VIEW_Q_IGNORE_FILE ,">$ignore_file_loc" or $log->assertion_failed("Couldn't open '$ignore_file_loc'\n");
 	    print VIEW_Q_IGNORE_FILE "This view storage is ignored by $scriptfile\nDelete this file to ";
-	    close VIEW_Q_IGNORE_FILE or $log->error("Couldn't close '$ignore_file_loc'\n"); 
+	    close VIEW_Q_IGNORE_FILE or $log->error("Couldn't close '$ignore_file_loc'\n");
 	    $log->information("Viewtag '$viewtag' has been set to ignored\n");
     } # end foreach
     exit 0;
-  }; # end ignore 
+  }; # end ignore
 
   defined(@sw_noignore) && do{
     $log->information("noignore\n");
     @sw_noignore = split(/;/,join(';',@sw_noignore));
     foreach (@sw_noignore) {
-    	my $viewtag = $_; 
+    	my $viewtag = $_;
 	    my $region_switch = (defined($sw_region))? "-region $sw_region":"";
 	    $_ =  `cleartool lsview $region_switch $viewtag`;
 	    #rw2 error(view not found), not assertion
-	    $? && $log->assertion_failed("\n".$usage); 
-	    
-	    # Any number of whitespaces or * (if the view is started) followed by non-whitespace chars 
+	    $? && $log->assertion_failed("\n".$usage);
+
+	    # Any number of whitespaces or * (if the view is started) followed by non-whitespace chars
 	    # (the view tag) followed by some whitespaces and tne another set of non-whitespace chars (the view storage)
-	    /^[\s\*]*(\S*)\s*(\S*)$/;   
+	    /^[\s\*]*(\S*)\s*(\S*)$/;
 	    my $stg = $2;
-	
+
 	    my $ignore_file_loc = $2."\\admin\\".$view_q_ignore_file;
 	    unlink $ignore_file_loc;
 	    $log->information("Viewtag '$viewtag' has been unignored\n");
@@ -527,7 +512,7 @@ a .view_quarantine file in the admin directory of the storage.
 
 Parameters:
 
-  none 
+  none
 
 Returns:
 
@@ -539,7 +524,7 @@ sub lsquarantined( ){
   my @result;
   foreach (grep(/-local_path/, `rgy_check -views 2>&1`)){
     /-local_path = \"(\S*)?\"/;
-    push(@result, "$1\n") if (-e "$1\\admin\\$view_q_file"); 
+    push(@result, "$1\n") if (-e "$1\\admin\\$view_q_file");
   };
   return @result;
 }
@@ -553,13 +538,13 @@ It will recreate all the tags in all regions where it was tagged at the time it 
 
 Parameters:
 
-  $stg   = The storage to quarantine (the global one, as reported by a lsview command, or 
-           simply the local-path as reported by rgy_check) 
+  $stg   = The storage to quarantine (the global one, as reported by a lsview command, or
+           simply the local-path as reported by rgy_check)
 
 Returns:
 
   1    =    Success
-  0    =    The $stg does not conatain a .view_quarantine file in the admin directory.
+  0    =    The $stg does not contain a .view_quarantine file in the admin directory.
 
 =cut
 
@@ -569,14 +554,14 @@ sub recover_stg( $ ){
   my $view_q_file_loc = "$stg\\admin\\$view_q_file";
   return 0 unless (-e $view_q_file_loc);
   open  VIEW_Q_FILE ,"$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
-  foreach (<VIEW_Q_FILE>){$log->information($_); system($_);$_= ($?)?"ERROR\n":"Success\n"; $log->information($_);}; 
-  close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n"); 
- 
+  foreach (<VIEW_Q_FILE>){$log->information($_); system($_);$_= ($?)?"ERROR\n":"Success\n"; $log->information($_);};
+  close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
+
   # Something is delaying the close above, the file is not ready for deletion
   # I have to keep trying - I'll give it 40 shots and then I'll bail out
   # ...Need to improve this bit whne i get the time!
   $_ = 0; while ($_ < 40 && !unlink $view_q_file_loc){$_++;};
- 
+
   return 1;
 }
 
@@ -589,8 +574,8 @@ It will recreate one intermediate tag to the view stg and then do a regular
 
 Parameters:
 
-  $stg   = The storage to purge (the global one, as reported by a lsview command, or 
-           simply the local-path as reported by rgy_check) 
+  $stg   = The storage to purge (the global one, as reported by a lsview command, or
+           simply the local-path as reported by rgy_check)
 
 Returns:
 
@@ -602,29 +587,29 @@ Returns:
 
 sub purge_stg($){
   my $stg = shift;
-  chomp($stg); # Stg can be local or global so we only use it 
+  chomp($stg); # Stg can be local or global so we only use it
   my $view_q_file_loc = "$stg\\admin\\$view_q_file";
   (-e $view_q_file_loc)  || do {
-    $log->error("ERROR: '$stg' is not a quarantined storage\n"); 
+    $log->error("ERROR: '$stg' is not a quarantined storage\n");
     return 0;
   };
-  
+
   my $ignore_file_loc = $stg."\\admin\\".$view_q_ignore_file;
   (-e $ignore_file_loc)  && do {
-    $log->error("ERROR: '$stg' ignored for quarantine\n"); 
+    $log->error("ERROR: '$stg' ignored for quarantine\n");
     return 0;
   };
 
   open  VIEW_Q_FILE ,"$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
   @_ = <VIEW_Q_FILE>;
   close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
-  $_ = @_[0]; # Cache the first entry (we really just need the global storage, so any entry will do) 
+  $_ = @_[0]; # Cache the first entry (we really just need the global storage, so any entry will do)
   /\s(\S*)$/;  # The stg is the last part (whitespace separated) of the stream;
-    
-  my $mktagcmd = "cleartool mktag -view -tag VIEW_Q_TEMP_TAG $1"; 
+
+  my $mktagcmd = "cleartool mktag -view -tag VIEW_Q_TEMP_TAG $1";
   my $endviewcmd = "cleartool endview -server VIEW_Q_TEMP_TAG";
   my $rmviewcmd = "cleartool rmview $1";
-  
+
   $log->information("$mktagcmd\n");
   system("$mktagcmd");
   if ($_) {
@@ -633,7 +618,7 @@ sub purge_stg($){
   	$log->information("Make tag successful");
   }
 
-  $log->information("$endviewcmd\n"); 
+  $log->information("$endviewcmd\n");
   system("$endviewcmd");
   if ($?) {
   	$log->error("End view failed with exitcode: ".($?/256)); #/ #rw2 EPIC syntax highlight fixer
@@ -641,14 +626,14 @@ sub purge_stg($){
   	$log->information("End view successful");
   }
 
-  $log->information("$rmviewcmd\n"); 
+  $log->information("$rmviewcmd\n");
   system("$rmviewcmd");
   if ($?) {
   	$log->error("Remove view failed with exitcode: ".($?/256)); #/ #rw2 EPIC syntax highlight fixer
   } else {
   	$log->information("Remove view successful");
   }
-  
+
   return 1;
 }
 
@@ -659,17 +644,17 @@ sub purge_stg($){
 This function quarantines a view storage.
 
 It will untag tags in all regions and record the reverse commands (the corresponding
-mktag commands) in a file named .view_quarantine located in the admin directory of the 
+mktag commands) in a file named .view_quarantine located in the admin directory of the
 view storage.
 
 Parameters:
 
-  $stg   = The storage to quarantine (the global one, as reported by a lsview command) 
+  $stg   = The storage to quarantine (the global one, as reported by a lsview command)
 
 Returns:
 
   1    =    Success
-  0    =    The $stg parameter is invald - nothing to do!
+  0    =    The $stg parameter is invalid - nothing to do!
 
 =cut
 
@@ -692,18 +677,18 @@ sub quarantine_stg( $ ){
      s/-tag//;  # strip the -tag switch which isn't used in rmtag
      push(@rmtags, "cleartool rmtag -view ".$_);
   }
-  my $view_q_file_loc = $stg."\\admin\\".$view_q_file;  
-  open  VIEW_Q_FILE ,">$view_q_file_loc" or $log->assertion_failed("Couldn't open '$view_q_file_loc'\n"); 
+  my $view_q_file_loc = $stg."\\admin\\".$view_q_file;
+  open  VIEW_Q_FILE ,">$view_q_file_loc" or $log->assertion_failed("Couldn't open '$view_q_file_loc'\n");
   foreach (@mktags){print VIEW_Q_FILE $_;};
   close VIEW_Q_FILE;
-  foreach (@rmtags){$log->information($_."\n");system($_);}; 
+  foreach (@rmtags){$log->information($_."\n");system($_);};
   return 1;
 }
 
 =head3 vwsstgs_nasince( $cut_date, \@result )
 
 This function pushes (global) view storage locations onto the result array
-handed into the sub as a refernce if they havent been accessed since $cut_date.
+handed into the sub as a reference if they haven't been accessed since $cut_date.
 
 The format of the resulting list entries are like this:
 
@@ -714,7 +699,7 @@ Where  view <YYYY-MM-DD> is the last accessed date, and <view_stg> is the global
 Parameters:
 
   $cut_date      =  The date to compare against. The scalar must be in the format YYYY-DD-MM
-  \@result       =  An arrary reference passed into the sub function
+  \@result       =  An array reference passed into the sub function
 
 Returns:
 
@@ -726,7 +711,7 @@ Returns:
 sub vwsstgs_nasince($$){
   my $cut_date = shift;
   my $result = shift;
-  return 0 unless ($cut_date =~ /(\d\d\d\d-\d\d-\d\d)/);          
+  return 0 unless ($cut_date =~ /(\d\d\d\d-\d\d-\d\d)/);
   prepare_stg_directory();
   foreach my $stg (keys(%stg_directory)){
     @_ = split(/;/, $stg_directory{"$stg"}); # Turn the semi-colon seprated list of tags into an array
@@ -752,10 +737,10 @@ and view tags.
 After it has been prepared, the format of the hash entries are like this:
 
   keys                 = The global view storage location;
-  values               = A semi-colon separated list of all region/tags pairs in the 
+  values               = A semi-colon separated list of all region/tags pairs in the
                          format: -region <region> -tag <tag>
 
-This function validates that the global hash containing all views across all regions is 
+This function validates that the global hash containing all views across all regions is
 loaded and trustworthy.
 
 All operations querying the directory should call this sub function first.
@@ -776,7 +761,7 @@ sub prepare_stg_directory(){
   foreach my $region (`cleartool lsregion`){
     chomp($region);
     foreach (`cleartool lsview -region $region`){
-      /^[\s\*]*(\S*)\s*(\S*)$/; # Any number of whitespaces or * (if the view is started) followed by non-whitespace chars (the view tag) followed by some whitespaces and tne another set of non-whitespace chars (the view storage)  
+      /^[\s\*]*(\S*)\s*(\S*)$/; # Any number of whitespaces or * (if the view is started) followed by non-whitespace chars (the view tag) followed by some whitespaces and tne another set of non-whitespace chars (the view storage)
       $stg_directory{"$2"}=$stg_directory{"$2"}."-region \"$region\" -tag \"$1\";"; #build a unique list of view storages containing the tags in all regions
     }
   }
