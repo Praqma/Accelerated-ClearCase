@@ -4,14 +4,13 @@ require 5.001;
 require Exporter;
 use strict;
 
-our( $Scriptdir, $Scriptfile );
-BEGIN {
-    $Scriptdir  = ".\\";
-    $Scriptfile = $0;
-    $Scriptfile =~ /(.*\\)(.*)$/ && do { $Scriptdir = $1; $Scriptfile = $2; }
+our ( $scriptdir, $scriptfile );
+BEGIN { if ($0 =~ /(.*[\/\\])(.*)$/){
+  $scriptdir = $1; $scriptfile = $2; } else {
+  $scriptdir = "."; $scriptfile = $0; }
 }
-
-use praqbal;
+use lib "$scriptdir..";
+use praqma::praqbal;
 
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(new);
@@ -51,7 +50,7 @@ ENDREVISION
 sub new {
     my $class = shift;    #Cache the package name
     $Enabled && openlog();
-    ( $_, $Scriptfile ) = split_dir_file($0);
+    #( $_, $scriptfile ) = split_dir_file($0);
     my $self = {};
     bless( $self, $class );
     return $self;
@@ -88,7 +87,7 @@ sub conditional_enable {
     my $flag   = 0;
 
     if ($switch) { $flag = 1; }
-    if ( lc( $ENV{trace_subsys} ) =~ /$Scriptfile/ ) { $flag = 1; }
+    if ( lc( $ENV{trace_subsys} ) =~ /$scriptfile/ ) { $flag = 1; }
     if ( defined( $ENV{SCRIPTLOG_ENABLED} ) || defined( $ENV{CLEARCASE_TRIGGER_DEBUG} ) ) { $flag = 1; }
     if ($flag) { $self->enable; }
 }
@@ -191,7 +190,7 @@ sub datestamp {
 sub openlog() {
     my $self = shift;
     if ( $Logfile eq "" ) {
-        $Logfile = "$ENV{TEMP}\\" . $Scriptfile . ".PID$$.log";    # Create a log file
+        $Logfile = "$ENV{TEMP}\\" . $scriptfile . ".PID$$.log";    # Create a log file
     }
 
     open LOGFILE, ">>$Logfile" or die "Couldn't open \"$Logfile\"\n";
@@ -201,7 +200,7 @@ sub openlog() {
       . datestamp() . " \@ "
       . timestamp() . "\n"
       . "Executing script:\t"
-      . $Scriptfile . "\n"
+      . $scriptfile . "\n"
       . "Process ID (PID):\t"
       . $$ . "\n"
       . "Executing user:  \t"

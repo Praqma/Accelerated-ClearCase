@@ -78,8 +78,9 @@ BEGIN { if ($0 =~ /(.*[\/\\])(.*)$/){
 }
 #rw2 Include scriptdir support in modules
 # Use clauses
+use lib "$scriptdir..";
 use Getopt::Long;
-use scriptlog;
+use praqma::scriptlog;
 
 # File version
 #rw2 What version are we on now?
