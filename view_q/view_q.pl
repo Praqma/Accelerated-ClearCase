@@ -84,14 +84,14 @@ use praqma::scriptlog;
 
 # File version
 #rw2 What version are we on now?
-our $VERSION      = "0.2.0";
-our $BUILD        = "2";
+our $VERSION      = "0.4.0";
+our $BUILD        = "3";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug = 0;  # Set 1 for testing purpose
 my $verbose_mode=0;
 my $log_enabled=1;
-# Default setting 0-0-0 (script executio9n will generate NO output or log, unless explicitly tolt to
+# Default setting 0-0-0 (script execution will generate NO output or log, unless explicitly tolt to
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -124,6 +124,9 @@ DATE        EDITOR  NOTE
                            New: ARGV[0] is always logfile ARGV[1] fails
                            Doc: Usage, Help and POD doc updated to include new features
                            fixed: nasince
+2009-06-12                 Initial test for production release
+                           Lib added to parent folder
+                           Perl module required praqma::scriptlog 
 
 -------------------------------------------------------------------------
 
