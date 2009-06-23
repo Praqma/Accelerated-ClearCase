@@ -91,7 +91,8 @@ our $BUILD        = "3";
 my $debug = 0;  # Set 1 for testing purpose
 my $verbose_mode=0;
 my $log_enabled=1;
-# Default setting 0-0-0 (script execution will generate NO output or log, unless explicitly tolt to
+# Default setting 0-0-1 (script executio9n will generate NO output unless explicitly told to, but logs to default location [Temp dir]\view_q.pl.[PID].log
+
 
 # Header and revision history
 our $header = <<ENDHEADER;
