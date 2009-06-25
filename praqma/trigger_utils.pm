@@ -14,18 +14,10 @@ $VERSION = "3.2";
 
 use Exporter;
 @ISA = qw(Exporter);
-@EXPORT = qw(enable_install);
-@EXPORT_OK = qw(require_trigger_context);
-
-
-#@EXPORT_OK = qw(require_trigger_context enable_semaphore_backdoor enable_install
-#                 lbtype_is_frozen version_has_frozen_label frozen_label_in_version_tree
-#                 get_versiontree_below_version scalar_dump mtype2cctype
-#                );
-#@EXPORT = qw(require_trigger_context enable_semaphore_backdoor enable_install
-#                 lbtype_is_frozen version_has_frozen_label frozen_label_in_version_tree
-#                 get_versiontree_below_version scalar_dump mtype2cctype
-#                );
+@EXPORT = qw(require_trigger_context enable_semaphore_backdoor enable_install
+                 lbtype_is_frozen version_has_frozen_label frozen_label_in_version_tree
+                 get_versiontree_below_version scalar_dump mtype2cctype
+                );
 
 
 =head1 NAME
@@ -214,8 +206,8 @@ One hour is apx 0.042 days, thus 0.168 ~ 4 hrs.
 
 sub enable_semaphore_backdoor(){
   # If the semaphor file exists and it's not older than MAX_SEMAPHORE_FILE_AGE_DAYS
-  # then the trigger will exit silently
-  my ($scriptdir, $scriptfile) = split_dir_file($0);
+  # then the trigger will exit silently with 0 - allowing the event the trigger subscribed to, to carry on
+  my ($scriptdir, $scriptfile) = acc::split_dir_file($0);
 
   my $semaphore_dir=$scriptdir.SEMAPHORE_DIR;
   my $semaphore_file=$semaphore_dir."/".lc($ENV{'username'});
@@ -230,7 +222,7 @@ sub enable_semaphore_backdoor(){
 	   exit 0;
 	 }
   }
-  return 0;
+  return $semaphore_file;
 }
 
 ################################################################################
@@ -387,12 +379,12 @@ ENDUSAGE
   
   ($allowed_vob_context eq "adminvob") && do{
     die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on AdminVOBs (which $sw_vob is not)\n"
-    unless is_adminvob("vob:".$sw_vob);
+    unless acc::is_adminvob("vob:".$sw_vob);
   };
 
   ($allowed_vob_context eq "clientvob") && do{
     die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on Client VOBs (which $sw_vob is not)\n"
-    unless is_clientvob("vob:".$sw_vob);
+    unless acc::is_clientvob("vob:".$sw_vob);
   };
   
   # Check if the trigger is already set (in which case we must use the -replace switch)

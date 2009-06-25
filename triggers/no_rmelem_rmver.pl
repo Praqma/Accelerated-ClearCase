@@ -13,11 +13,11 @@ use praqma::trigger_utils;
 our $TRIGGER_NAME="NO_RMELEM_RMVER";                                             #Required if you call trigger_utils::enable_install()
 
 # TODO: Review the TRIGGER_INSTALL string.
-our $TRIGGER_INSTALL="mktrtype -type -lbtype -all -preop rmhlink vob:adminvob";   #Required if you call trigger_utils::enable_install()
+our $TRIGGER_INSTALL="mktrtype -element -all -preop rmver,rmelem vob:both";   #Required if you call trigger_utils::enable_install()
 
 # File version
 our $VERSION = "1.0"; 
-our $BUILD = "1";
+our $REVISION = "1";
 
 
 my $verbose_mode=1;
@@ -25,16 +25,17 @@ my $verbose_mode=1;
 # Header and revision history
 our $header = <<ENDHEADER;
 #########################################################################
-#     $Scriptfile  version $VERSION\.$BUILD                                      
+#     $Scriptfile  version $VERSION\.$REVISION                                      
 #     This script is intended as trigger script for the 
 #     $TRIGGER_NAME trigger.
-#     The trigger prevent rmelem and rmver operations.
+#     The trigger prevent rmelem and rmver operations - unless you
+#     are the VOB owner.
 #     This script supports self-install (execute with the -install 
 #     switch to learn more).
 #     Read the POD documentation in the script for more details
 #     Date:       2009-06-24                                            
 #     Author:     Lars Kruse, lak\@praqma.net               
-#     Copyright:  Lars Kruse
+#     Copyright:  Praqma A/S
 #     License:    GNU General Pulic License v3.0
 #     Support:    http://launchpad.net/acc
 #########################################################################
@@ -51,26 +52,34 @@ ENDREVISION
 
 trigger_utils::enable_install();
 trigger_utils::require_trigger_context();
-enable_semaphore_backdoor();
+our $semaphore_file = trigger_utils::enable_semaphore_backdoor();
 
 our $log = scriptlog->new;
 $log->conditional_enable();
 $log->set_verbose($verbose_mode);
+$log->information("logfile is: ".$log->get_logfile."\n");
+$log->information("Searching valid semaphore file at '$semaphore_file'\n\t\t...but couldn't find any!\n");
 $log->dump_ccvars;
 
-die;
+our ($domain, $vobowner) = split /\\/, `cleartool desc -fmt \"\%\[owner\]p\" vob:$ENV{CLEARCASE_VOB_PN}`;
 
-######### PREVENT REMOVAL OF Restriction hlinks from LBTYPES ##############
-#if (     ($ENV{CLEARCASE_HLTYPE} eq acc::HLTYPE_RESTRICTED) && 
-#         ($ENV{CLEARCASE_OP_KIND} eq "rmhlink") &&
-#         ($ENV{CLEARCASE_MTYPE} eq "label type")){
-#   my $msg = "The trigger $Scriptfile has refused the removal of the ".acc::HLTYPE_RESTRICTED." attribute \n".
-#             "\t\ton $ENV{CLEARCASE_MOD_TYPE}\@$ENV{CLEARCASE_VOB_PN} to proceed\n";
-#   $log->information($msg);
-#   exit 1;
-#}
+######### PREVENT REMOVAL OF version and elements ##############
+unless ( lc($vobowner) eq lc($ENV{CLEARCASE_USER}) ){
 
-exit 0;
+  #Check that the events that fired the trigger are the ones we support - some one could have installed the trigger wrong!
+  if ( ( $ENV{CLEARCASE_OP_KIND} eq "rmver") ||  ($ENV{CLEARCASE_OP_KIND} eq "rmelem") ) {
+  	my $object = ($ENV{CLEARCASE_OP_KIND} eq "rmver") 
+  	               ? "version" 
+  	               : "element";
+    my $msg = "The trigger $Scriptfile has refused the removal of the $object:\n".
+              "\t\t$ENV{CLEARCASE_XPN}\n";
+    $log->information($msg);
+    exit 1;
+  }
+  
+}
+print "OK, but exit=1\n";
+exit 1;
 
 ######################## DOCUMENTATION ##############################
 =pod

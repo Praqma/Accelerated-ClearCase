@@ -41,8 +41,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR  NOTE
 ----------  -------------  ----------------------------------------------
-2007-08-27  Lars Kruse     1st release prepared for ATP
-(version 1.0)
+2007-08-27  Lars Kruse     1st release prepared for ATP (version 1.0)
 https://svn.praqma.net/svn/acc/dock revision 76
 -------------------------------------------------------------------------
 ENDREVISION
@@ -150,11 +149,14 @@ sub dump_ccvars {
     ( $Enabled || $Verbose ) && do {
         my $self = shift;
         @_ = `set CLEARCASE`;
-        $Enabled && $self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
-        $Enabled && $self->dump_array( \@_ );
+        $self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
+        $self->dump_array( \@_ );
 
-        $Verbose && $self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
-        $Verbose && $self->dump_array( \@_ );
+        #$Enabled && $self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
+        #$Enabled && $self->dump_array( \@_ );
+
+        #$Verbose && $self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
+        #$Verbose && $self->dump_array( \@_ );
       }
 }
 

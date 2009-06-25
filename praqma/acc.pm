@@ -154,7 +154,7 @@ DATE        EDITOR  NOTE
                            stepped to version 1.0.3
 2007-21-07  Lars Kruse     Added some support for composite labels
                            and config specs. Stepped to version 1.0.4
-2008-20-06  Jens Brejner   Stepped to v.l.0.6, don't know what was changed
+2008-20-06  Jens Brejner   Stepped to v.l.0.6, don´t know what was changed
                            in v1.0.5. Added 2 constants.
 
 -------------------------------------------------------------------------
