@@ -2,7 +2,7 @@ REM Prerequisits
 @echo off
 prompt $G
 title view_q unittest
-set nasince_date=2005-01-01
+set nasince_date=2005-05-20
 set test_log=C:\mikael-view_q\acc\view_q\unit_log.txt
 set log_enable=-logfile %test_log%
 
@@ -67,6 +67,7 @@ ratlperl view_q.pl -nasince %nasince_date% %log_enable%
 ratlperl view_q.pl -n %nasince_date% %log_enable%
 ratlperl view_q.pl -na %nasince_date% %log_enable%
 ratlperl view_q.pl -lsquarantine -verbose %log_enable%
+ratlperl view_q.pl -ignore \\cccq7\cc_stg\views\CCCQ7\student\test2.vws %log_enable%
 ratlperl view_q.pl -nasince %nasince_date% -autoquarantine %log_enable%
 ratlperl view_q.pl -lsquarantine -verbose %log_enable%
 

@@ -201,6 +201,12 @@ our $view_q_file=".view_quarantine";
 our $view_q_ignore_file=".view_q_ignore";
 our ($sw_lsquarantine, $sw_recover, $sw_purge, $sw_nasince, $sw_quarantine, $sw_autoquarantine,
      $sw_autopurge, $sw_help, $sw_region, @sw_ignore, @sw_noignore, $sw_autorecover, $sw_logfile, $sw_verbose, $sw_debug);
+our $argstring;
+if (@ARGV) {
+    foreach (@ARGV) {
+        $argstring = $argstring . "$_ ";
+    }
+}
 
 
 validate_options();
@@ -344,6 +350,7 @@ sub enable_log(){
 	    $log->information("Dumping all switch variables \n autoq = '$sw_autoquarantine' \n lsq = '$sw_lsquarantine' \n nas = '$sw_nasince' \n help = '$sw_help' \n quaran = '$sw_quarantine' \n recov = '$sw_recover' \n purge = '$sw_purge' \n autop = '$sw_autopurge' \n autor = '$sw_autorecover' \n igno = '@sw_ignore' \n reg = '$sw_region' \n noigno = '@sw_noignore' \n reg = '$sw_region' \n log = '$sw_logfile'+".$log->get_logfile()." \n debug = '$sw_debug' \n ver = '$sw_verbose' \n ARGV = $argv_values \n");
 	    $log->information("ARGV value checks OK");
 	  };
+	$log->information("Called with ".$argstring."\n");
 }
 
 =head3 xxx_mode( )
