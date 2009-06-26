@@ -624,26 +624,26 @@ sub purge_stg($){
 
   $log->information("$mktagcmd\n");
   system("$mktagcmd");
-  if ($_) {
-  	$log->error("Make tag failed with: ".$_);
+  if ($?) {
+  	$log->error("Make tag failed with exitcode: ".($?/256)."\n"); #/ #rw2 EPIC syntax highlight fixer
   } else {
-  	$log->information("Make tag successful");
+  	$log->information("Make tag successful\n");
   }
 
   $log->information("$endviewcmd\n");
   system("$endviewcmd");
   if ($?) {
-  	$log->error("End view failed with exitcode: ".($?/256)); #/ #rw2 EPIC syntax highlight fixer
+  	$log->error("End view failed with exitcode: ".($?/256)."\n"); #/ #rw2 EPIC syntax highlight fixer
   } else {
-  	$log->information("End view successful");
+  	$log->information("End view successful\n");
   }
 
   $log->information("$rmviewcmd\n");
   system("$rmviewcmd");
   if ($?) {
-  	$log->error("Remove view failed with exitcode: ".($?/256)); #/ #rw2 EPIC syntax highlight fixer
+  	$log->error("Remove view failed with exitcode: ".($?/256)."\n"); #/ #rw2 EPIC syntax highlight fixer
   } else {
-  	$log->information("Remove view successful");
+  	$log->information("Remove view successful\n");
   }
 
   return 1;
