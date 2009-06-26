@@ -10,7 +10,7 @@ BEGIN { if ($0 =~ /(.*[\/\\])(.*)$/){
   $scriptdir = "."; $scriptfile = $0; }
 }
 use lib "$scriptdir..";
-use praqma::praqbal;
+#use praqma::praqbal;
 
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(new);
@@ -49,7 +49,6 @@ ENDREVISION
 sub new {
     my $class = shift;    #Cache the package name
     $Enabled && openlog();
-    #( $_, $scriptfile ) = split_dir_file($0);
     my $self = {};
     bless( $self, $class );
     return $self;
@@ -84,7 +83,6 @@ sub conditional_enable {
     my $self   = shift;
     my $switch = shift;
     my $flag   = 0;
-
     if ($switch) { $flag = 1; }
     if ( lc( $ENV{trace_subsys} ) =~ /$scriptfile/ ) { $flag = 1; }
     if ( defined( $ENV{SCRIPTLOG_ENABLED} ) || defined( $ENV{CLEARCASE_TRIGGER_DEBUG} ) ) { $flag = 1; }

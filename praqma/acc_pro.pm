@@ -1,10 +1,8 @@
-# This version is imported from the SVN acc project at https://svn.praqma.net r76
-package trigger_utils;
+package acc_pro;
 use strict;
 our ($Scriptdir, $Scriptfile);BEGIN{$Scriptdir =".\\";$Scriptfile = $0; $Scriptfile =~/(.*\\)(.*)$/ &&  do{$Scriptdir=$1;$Scriptfile=$2;}}
 use lib $Scriptdir."..";
 use praqma::acc;
-use Getopt::Long;
 require 5.001;
 
 
@@ -16,23 +14,17 @@ require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(new);
 
-
-
-use constant MAX_SEMAPHORE_FILE_AGE_DAYS        => 0.168;   # real (1 hr ~ 0.042 --> 4 hrs ~ 0.168)
-use constant SEMAPHORE_DIR                      => './semaphores';    # Relative to the script location dir
-                
-
 # File version
 our $VERSION= "0.1";
-our $BULILD = "3";
+our $BULILD = "1";
 
 our $header = <<ENDHEADER;
 #########################################################################
-#     This module contains subs that come in handy in when              #
-#     you write triggers in ClearCase                                   #
-#     Date:       2007-08-27                                            #
-#     Author:     Lars Kruse, lars.kruse\@krusecontrol.net               #
-#     Copyright:  OPEN                                                  #
+#     This module contains subs that are used to  support the      
+#     ACC process
+#     Date:       #
+#     Author:     
+#     Copyright:  GNU GPL v3.0
 #########################################################################
 ENDHEADER
 
@@ -41,13 +33,9 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE         EDITOR        NOTE
 -----------  ------------- ----------------------------------------------
-2007-AUG-27  Lars Kruse    First release of the script (version 1.0)
-2007-09-11   Lars Kruse    Added the sub enable_install()
-                           (Version 1.0.2)
-2007-09-17   Lars Kruse    Found an error in enable_semaphore_backdoor()
-                           Bumped the major release number from 1.0 to 
-                           0.1 build counter stepped one.
-                           (version 0.1.3)
+2009-06-26   Lars Kruse    Pulling stuff out of trigger_utils.pm, 
+                           that was misplaced. Had nowhere else to put it!
+                           (version 0.1.1)
 -------------------------------------------------------------------------
 ENDREVISION
 
@@ -58,149 +46,6 @@ sub new {
     bless( $self, $class );
     return $self;
 }
-
-
-
-sub require_trigger_context(){
-	defined($ENV{CLEARCASE_VOB_PN}) || die $main::header."File version: $main::VERSION\.$main::BUILD\n".$main::revision; 
-}
-##################################################################################
-
-sub enable_semaphore_backdoor(){
-  # If the semaphor file exists and it´s not older than MAX_SEMAPHORE_FILE_AGE_DAYS
-  # then the trigger will exit silently with 0 - allowing the event the trigger subscribed to, to carry on
-  my ($scriptdir, $scriptfile) = acc::split_dir_file($0);
-
-  my $semaphore_dir=$scriptdir.SEMAPHORE_DIR;
-  my $semaphore_file=$semaphore_dir."/".lc($ENV{'username'});
-  
- 
-  if (-e $semaphore_file ){
-	 print "Found semaphore file: $semaphore_file\n";
-	 if ((-M $semaphore_file) > MAX_SEMAPHORE_FILE_AGE_DAYS){
-	   print "...but it's too old to stop the trigger\n!";
-	 } else {
-	   print STDOUT "THE TRIGGER SCRIPT IS CANCELED!\nEXIT CODE:0\n";
-	   exit 0;
-	 }
-  }
-  return $semaphore_file;
-}
-
-################################################################################
-
-
-
-sub enable_install(){
-# Usage
-#########################################################################
-my $usage = <<ENDUSAGE;
-$::Scriptfile -install -vob vob_tag [-script script_pname] 
-            [-trigger trigger_name] [-preview]
-            
--install                Required to run the script in install mode
--vob vob_tag            The VOB where the trigger should be installed
--script script_pname    The fully qualified path to the script (must be a 
-                        UNC path or a drive that is mapped). 
-                        If this is omitted then script pname will be the one 
-                        used to execute it (this too must be a fully qualified 
-                        path either using UNC or a mapped drive).
-                        If the script pname does not exist the trigger installation
-                        fails.
--trigger trigger_name   The name of the trigger. This is only used if you wish to 
-                        override the triggers default name (which is already cached
-                        in the script).
--preview                Displays the cleartool command that installs the trigger, 
-                        but does not actually execute it.
-                        
-                        
-ENDUSAGE
-   
-  my ($sw_install, $sw_vob, $sw_script, $sw_trigger, $sw_preview);  
-  my %options = ( "install"    => \$sw_install,         
-                  "vob=s"      => \$sw_vob,             
-                  "script=s"   => \$sw_script,          
-                  "trigger=s"  => \$sw_trigger,         
-                  "preview"    => \$sw_preview,);
-
-
-  GetOptions(%options);
-
-  return 0 unless defined($sw_install);
-
-  #Assert $TRIGGER_NAME is defined in main package
-  die "The trigger name should have been cached in \$TRIGGER_NAME in the script\n\n" 
-  unless (defined ($::TRIGGER_NAME));
-
-  #Assert $TRIGGER_INATALL is defined in main package
-  die "The trigger install command should have been cached in \$TRIGGER_INSTALL in the script, \n\n"
-  unless defined ($::TRIGGER_INSTALL);
-  
-  #Assert -vob switch is applied
-  die "ERROR -vob is required in -install mode.\n\n$usage\n" 
-  unless defined ($sw_vob);
-  
-  #Assert VOB is available (test by querying the VOB owner)
-  my $vobowner = lc(`cleartool desc -fmt \%[owner]p vob:$sw_vob`);
-  die "ERROR $sw_vob is not accessible\n\n$usage\n"
-  unless (not $?);
-  
-  #Assert current user is the VOB owner - or we're running in -preview mode
-  my $current_user = lc($ENV{userdomain}."\\".$ENV{username});
-  die "Ooooh! You ($current_user) aren't the VOB owner ($vobowner is) ...trying to hack you way in are you!\n\n$usage\n"
-  unless (($vobowner eq $current_user) || defined($sw_preview));
-  
-  #Asset the path to the trigger script is fully qualified
-  my $trigger_pname = (defined $sw_script)? $sw_script : $::Scriptdir.$::Scriptfile;
-  die "Only fully qualified paths are allowed: '$trigger_pname' is not valid.\n\n$usage\n"
-  unless ($trigger_pname=~/^\\\\/) || ($trigger_pname=~/^[a-zA-Z]:\\/);
-  
-  #Assert the path to the trigger script is valid
-  die "The script '$trigger_pname' is not accessible\n\n$usage\n"
-  unless (-e $trigger_pname);
-  
-  #Assert the $TRIGGER_INSTALL string is compliant
-  die "ERROR The trigger install string '$::TRIGGER_INSTALL' is not compliant\n"
-  unless ( lc($::TRIGGER_INSTALL)=~/vob:(adminvob|clientvob|both)/ );
-  my $allowed_vob_context = $1;
-  
-  ($allowed_vob_context eq "adminvob") && do{
-    die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on AdminVOBs (which $sw_vob is not)\n"
-    unless acc::is_adminvob("vob:".$sw_vob);
-  };
-
-  ($allowed_vob_context eq "clientvob") && do{
-    die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on Client VOBs (which $sw_vob is not)\n"
-    unless acc::is_clientvob("vob:".$sw_vob);
-  };
-  
-  # Check if the trigger is already set (in which case we must use the -replace switch)
-  my $trigger_tag = defined($sw_trigger)? $sw_trigger : $::TRIGGER_NAME;
-  
-  my $cmd= "cleartool desc trtype:$trigger_tag\@$sw_vob 2>&1";
-  my $cmdexec = `$cmd`;
-  my $replace = ($?/256)? "" : " -replace";
-
-  #Compile the trigger installation command
-  my $trig_inst_com = "\"Created using the -install switch of the scritpfile: $::Scriptfile\"";
-  my $current_trigger_install = "cleartool ".$::TRIGGER_INSTALL;
-  my $subst_str = "-c $trig_inst_com -exec \"".acc::TRIGGER_PERL." $trigger_pname\" $trigger_tag\@$sw_vob";
-  $current_trigger_install =~ s/vob:(adminvob|clientvob|both)/$subst_str /;
-  $current_trigger_install  =~ s/mktrtype/mktrtype$replace/;
-  
-  #If all the uses wanted was a preview it's time to get out
-  defined($sw_preview) && do {
-    print "Trigger install command:\n$current_trigger_install\n";
-    exit 0;
-  };
-  
-  
-  
-  
-  #Else you do your thing
-  exit system($current_trigger_install);
-}
-
 
 sub lbtype_is_frozen($){
   my $ccobj = shift;
@@ -234,14 +79,8 @@ sub version_has_subtree_with_frozen_label($$$){
   my @vtree;
   get_versiontree_below_version($cc_pn, \@vtree) && return 1; # return an error if the sub fails;
   print "\@vtree:\n"; foreach (@vtree){print "\t$_"}
-  
-  
-  
-
   return 0;
 }
-
-
 
 sub get_versiontree_below_version($$){
   my $cc_pn = shift;                                       
@@ -285,9 +124,6 @@ sub get_versiontree_below_version($$){
   return 1;                                                # We're done, Exit as TRUE
 }
 
-
-
-
 sub frozen_label_in_version_tree(@$@){
   my $debug = 0;
   my $version_tree_ref = shift; # a reference to an array generated with cleartool lsvtree
@@ -315,7 +151,6 @@ sub frozen_label_in_version_tree(@$@){
   return 0;                                              # Exit as FALSE 
 }
 
-
 sub scalar_dump($){
    my $ref = shift;
    my ($package, $filename, $line) = caller;
@@ -327,23 +162,6 @@ sub scalar_dump($){
 
 
 
-## The CLEARCASE_MTYPE variable tells which type is involved
-## ...in clear text (%@\#$¤) we need it as a type prefix
-sub mtype2cctype($$)
-{
-  my $mtyperef = shift;
-  my $ccvarref = shift;
-  my %types = ('branch type'    => 'brtype',
-               'label type'     => 'lbtype',
-               'attribute type' => 'attype',
-               'element type'   => 'eltype',
-               'trigger type'   => 'trtype',
-               'hyperlink type' => 'hltype');
-  return 0 unless defined ($types{$$mtyperef});  # Return as FALSE if the match was unsuccesful
-  $$ccvarref = $types{$$mtyperef};
-  return 1;
-}
-
 sub DESTROY {
 }
 
@@ -351,15 +169,16 @@ __END__
 
 =head1 NAME
 
-ACC - trigger utility module
+ACC - process module
 
 =head1 SYNOPSIS
 
-package: C<trigger_utils>
+package: C<acc_pro>
 
-Module:  C<trigger_utils.pm>
+Module:  C<acc_pro.pm>
 
-
+###TODO:
+###We need to review the POD 
 
 The trigger_utils package contains various functions that will come in handy when you write ClearCase triggers.
 

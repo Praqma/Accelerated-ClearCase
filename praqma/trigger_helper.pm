@@ -1,5 +1,4 @@
-# This version is imported from the SVN acc project at https://svn.praqma.net r76
-package trigger_utils;
+package trigger_helper;
 use strict;
 our ($Scriptdir, $Scriptfile);BEGIN{$Scriptdir =".\\";$Scriptfile = $0; $Scriptfile =~/(.*\\)(.*)$/ &&  do{$Scriptdir=$1;$Scriptfile=$2;}}
 use lib $Scriptdir."..";
@@ -9,30 +8,28 @@ require 5.001;
 
 
 
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
-$VERSION = "3.2";
+use vars qw($VERSION @ISA @EXPORT @EXPORT_OK $BUILD);
 
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(new);
-
-
 
 use constant MAX_SEMAPHORE_FILE_AGE_DAYS        => 0.168;   # real (1 hr ~ 0.042 --> 4 hrs ~ 0.168)
 use constant SEMAPHORE_DIR                      => './semaphores';    # Relative to the script location dir
                 
 
 # File version
-our $VERSION= "0.1";
-our $BULILD = "3";
+our $VERSION= "1.0";
+our $BULILD = "1";
 
 our $header = <<ENDHEADER;
 #########################################################################
-#     This module contains subs that come in handy in when              #
-#     you write triggers in ClearCase                                   #
-#     Date:       2007-08-27                                            #
-#     Author:     Lars Kruse, lars.kruse\@krusecontrol.net               #
-#     Copyright:  OPEN                                                  #
+#     This module contains subs that come in handy in when              
+#     you write triggers in ClearCase        
+#     Date:       2008-06-26                 
+#     Author:     Lars Kruse, lak\@praqma.net
+#     Copyright:  Praqma A/S
+#     License:    GNU GPL v3.0
 #########################################################################
 ENDHEADER
 
@@ -41,13 +38,9 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE         EDITOR        NOTE
 -----------  ------------- ----------------------------------------------
-2007-AUG-27  Lars Kruse    First release of the script (version 1.0)
-2007-09-11   Lars Kruse    Added the sub enable_install()
-                           (Version 1.0.2)
-2007-09-17   Lars Kruse    Found an error in enable_semaphore_backdoor()
-                           Bumped the major release number from 1.0 to 
-                           0.1 build counter stepped one.
-                           (version 0.1.3)
+2009-06-26   Lars Kruse    First release of the module prepared for 
+                           Novo Nordisk A/s. It´s based on the old
+                           trigger_utils module (version 1.0.1)
 -------------------------------------------------------------------------
 ENDREVISION
 
@@ -64,7 +57,7 @@ sub new {
 sub require_trigger_context(){
 	defined($ENV{CLEARCASE_VOB_PN}) || die $main::header."File version: $main::VERSION\.$main::BUILD\n".$main::revision; 
 }
-##################################################################################
+
 
 sub enable_semaphore_backdoor(){
   # If the semaphor file exists and it´s not older than MAX_SEMAPHORE_FILE_AGE_DAYS
@@ -87,13 +80,8 @@ sub enable_semaphore_backdoor(){
   return $semaphore_file;
 }
 
-################################################################################
-
-
 
 sub enable_install(){
-# Usage
-#########################################################################
 my $usage = <<ENDUSAGE;
 $::Scriptfile -install -vob vob_tag [-script script_pname] 
             [-trigger trigger_name] [-preview]
@@ -113,7 +101,6 @@ $::Scriptfile -install -vob vob_tag [-script script_pname]
 -preview                Displays the cleartool command that installs the trigger, 
                         but does not actually execute it.
                         
-                        
 ENDUSAGE
    
   my ($sw_install, $sw_vob, $sw_script, $sw_trigger, $sw_preview);  
@@ -123,16 +110,21 @@ ENDUSAGE
                   "trigger=s"  => \$sw_trigger,         
                   "preview"    => \$sw_preview,);
 
-
   GetOptions(%options);
 
   return 0 unless defined($sw_install);
+  
+  #TODO: Refactory!: 
+  # Consider passing $TRIGGER_NAME and $TRIGGER_INSTALL in a hash directly to enable_install - inspired of hov
+  # GetOptions is implemented in Getopt::Long
+  # see https://praqma.fogbugz.com/?863
+  # lak@praqma.net 2009-06-26
 
   #Assert $TRIGGER_NAME is defined in main package
   die "The trigger name should have been cached in \$TRIGGER_NAME in the script\n\n" 
   unless (defined ($::TRIGGER_NAME));
 
-  #Assert $TRIGGER_INATALL is defined in main package
+  #Assert $TRIGGER_INSTALLis defined in main package
   die "The trigger install command should have been cached in \$TRIGGER_INSTALL in the script, \n\n"
   unless defined ($::TRIGGER_INSTALL);
   
@@ -150,7 +142,7 @@ ENDUSAGE
   die "Ooooh! You ($current_user) aren't the VOB owner ($vobowner is) ...trying to hack you way in are you!\n\n$usage\n"
   unless (($vobowner eq $current_user) || defined($sw_preview));
   
-  #Asset the path to the trigger script is fully qualified
+  #Assert path to the trigger script is fully qualified
   my $trigger_pname = (defined $sw_script)? $sw_script : $::Scriptdir.$::Scriptfile;
   die "Only fully qualified paths are allowed: '$trigger_pname' is not valid.\n\n$usage\n"
   unless ($trigger_pname=~/^\\\\/) || ($trigger_pname=~/^[a-zA-Z]:\\/);
@@ -159,6 +151,9 @@ ENDUSAGE
   die "The script '$trigger_pname' is not accessible\n\n$usage\n"
   unless (-e $trigger_pname);
   
+  #TODO:Improve
+  #see https://praqma.fogbugz.com/?863
+
   #Assert the $TRIGGER_INSTALL string is compliant
   die "ERROR The trigger install string '$::TRIGGER_INSTALL' is not compliant\n"
   unless ( lc($::TRIGGER_INSTALL)=~/vob:(adminvob|clientvob|both)/ );
@@ -193,126 +188,8 @@ ENDUSAGE
     print "Trigger install command:\n$current_trigger_install\n";
     exit 0;
   };
-  
-  
-  
-  
   #Else you do your thing
   exit system($current_trigger_install);
-}
-
-
-sub lbtype_is_frozen($){
-  my $ccobj = shift;
-  my $cmd = "cleartool desc -fmt \%[".acc::ATTYPE_FROZEN."]Na $ccobj";
-  # print "lbtype_is_frozen()\t\$cmd:\t$cmd\n";
-  my $retval = `$cmd`;
-  # print "lbtype_is_frozen()\t\$retval:\t$retval\n";
-  return ($retval ne "")? 1 :0;
-}
-
-sub version_has_frozen_label($$){
-  my $cc_pn = shift;                                       # The version to examine
-  my $return_lbtype_ref = shift;                           # The lbtype to return
-
-  my $cmd = "cleartool desc -fmt \%Nl $cc_pn";             # Get the labels of the version 
-  my @labels_on_version = split / /,`$cmd`;
-  foreach my $label (@labels_on_version){
-    if (lbtype_is_frozen("lbtype:$label\@$ENV{CLEARCASE_VOB_PN}")){
-      $$return_lbtype_ref = $label;
-      return 1;
-    }
-  }
-  return 0;
-}
-
-sub version_has_subtree_with_frozen_label($$$){
-  my $cc_pn = shift;
-  my $return_label_ref = shift;
-  my $return_ccpn_ref = shift;
-
-  my @vtree;
-  get_versiontree_below_version($cc_pn, \@vtree) && return 1; # return an error if the sub fails;
-  print "\@vtree:\n"; foreach (@vtree){print "\t$_"}
-  
-  
-  
-
-  return 0;
-}
-
-
-
-sub get_versiontree_below_version($$){
-  my $cc_pn = shift;                                       
-  my $return_array_ref = shift;
-  
-  my $cmd = "cleartool desc -fmt \%Vn $cc_pn";             # Get the version id
-  my $versionid = `$cmd`; 
-  my $escvid = quotemeta($versionid);   
-  return 0 unless ($versionid =~ /(.+?)\\(\d+)/);            # exit as FALSE if you don't have a valid version id
-  my $br = $1;                                             # ...the branch is part of the match
-  my $rev = $_= $2;                                        # ...and so it the revision number
-  my $expected_successor = "$br\\".++$_;                   # construct the id of the next successor
-  $cmd = "cleartool lsvtree -all -branch $br $cc_pn"; 
-  @$return_array_ref = `$cmd`;                             # Get the version tree - below the branch of the version 
-
-  return 0 unless not $?;                                    # Exit as FALSE if the cleartool command failed
-  my $continue =1;                                         # A flag the allows us to exit the while loop when we've shifted'ed the uninteresting versions
-  $_ = shift @$return_array_ref;                           # shift the first value
-  while ($continue && defined($_)) {                       # Continued is set to 0 when we find what we're looking for - $_ is undefined when we pop from an empty array
-    if ($_ =~ /($escvid)/){                                # Look for the (escaped) versionid
-      $continue=0;                                         # We're done shifting
-      unshift @$return_array_ref, $_;                      # We've shifted one to many - put it back!
-    } else {
-      $_ = shift @$return_array_ref;                       # Carry on!
-    }
-  }
-  scalar(@$return_array_ref) eq 1 && return 0;             # If the version tree is empty (only the $cc_pn version)- return 0;
-  return 1 unless grep $expected_successor,@$return_array_ref; # Exis as TRUE if the $expected_successor isn't in the version tree
-  # OK - So the version tree is still too big - (Found: $expected_successor)
-  my $iterator = scalar(@$return_array_ref);
-  $escvid = quotemeta($expected_successor);
-  $continue = 1;
-  $_ = pop @$return_array_ref;
-  while ($continue && defined($_)){
-    if ($_ =~ /($escvid)/){                                # Look for the (escaped) successor versionid
-      $continue=0;                                         # We're done poping
-    } else {
-      $_ = pop @$return_array_ref;                         # Carry on!
-    }
-  }
-  return 1;                                                # We're done, Exit as TRUE
-}
-
-
-
-
-sub frozen_label_in_version_tree(@$@){
-  my $debug = 0;
-  my $version_tree_ref = shift; # a reference to an array generated with cleartool lsvtree
-  my $vob              = shift; # The VOB to check lbtypes against;
-  my $return_arr_ref   = shift; # a reference to an ($lbtype, $version_pn) style array where we can put the search results
-  # print "frozen_label_in_version_tree()\n";
-  my ($lbtype, $version_pn);
-  foreach my $ln (@$version_tree_ref){
-    if ($ln =~ /(.*?)\s(\(.*\))$/){                      # Look for a string the has a paranthesis proceeded by a whitespace in the end e.g. "xxxx (xxx xxx)"
-      $version_pn = $1;                                  # The version string is the first match
-      $_ = $2;                                           # The paranthesis is the second match
-      $_ =~ s/\(|\)|\,//g;                               # Ret rid of the paranthesis and the commas (turning it into a white-space separated list of lbtypes)
-      $debug && scalar_dump(\$version_pn);
-      foreach my $lb ( split / /){
-        $lbtype = "lbtype:".$lb."\@$vob";
-        $debug && scalar_dump(\$lbtype); 
-        lbtype_is_frozen($lbtype) && do {
-           @$return_arr_ref[0] = $lbtype;
-           @$return_arr_ref[1] = $version_pn;
-           return 1;                                     # Exit as TRUE;
-        }
-      }
-    }
-  }
-  return 0;                                              # Exit as FALSE 
 }
 
 
@@ -324,8 +201,6 @@ sub scalar_dump($){
                 "   Line:             \t$line\n".
                 "   $ref: \t[".$$ref."]\n";
 }
-
-
 
 ## The CLEARCASE_MTYPE variable tells which type is involved
 ## ...in clear text (%@\#$¤) we need it as a type prefix
@@ -355,53 +230,34 @@ ACC - trigger utility module
 
 =head1 SYNOPSIS
 
-package: C<trigger_utils>
+package: C<trigger_helper>
 
-Module:  C<trigger_utils.pm>
-
-
-
+Module:  C<trigger_helper.pm>
 The trigger_utils package contains various functions that will come in handy when you write ClearCase triggers.
 
-It enables you to turn logging on and off after you have installet the triggers in the production environment, it 
-enables you to make triggers that doesn´t execute if semaphores have been set, and it makes you triggers install
+it enables you to make triggers that doesn´t execute if semaphores have been set, and it makes you triggers install
 automatically.
 
 =head1 DESCRIPTION
 
-To ease the use of the trigger_utils.pm module it´s recommended that you keep your scripts and trigger_utils.pm 
+To ease the use of the trigger_helper.pm module it´s recommended that you keep your scripts and trigger_helper.pm 
 close together and include the directory that contains the trigger_utils.pm module using a relative path.
 
 Example file structure:
 
  root
    triggers
+   praqma
    utils
-   modules
 
 In order to use a relative path, you´ll obviously need to determine the location of your running script in a pre-compiled block.
 
-You can achive that using a regulare BEGIN statement; below is an example on how you can set it up:
-
- our ($Scriptdir, $Scriptfile); 
- BEGIN
- {
-   $Scriptdir =".\\"; # Assume $0 only contain the script, not a fully qualified path. In this case the Scriptdir is set to ".\" (CD)
-   $Scriptfile = $0;  # Assume $0 only contain the script, not a fully qualified path. In this case the Scriptfile to $0  
-   $Scriptfile =~/(.*\\)(.*)$/ &&  do{$Scriptdir=$1;$Scriptfile=$2;} # If $0 contains backslashes - it's split on the last occurence
- }
- use lib $Scriptdir."/../modules"; # From here it's up to the parent (..) and then down into modules
- use acc;
-
-if you have other modules that are located in the modules folder that should also use the current directory  you simply go:
-
- ...
- use lib $Scriptdir; # Include current directory
- use trigger_utils;
+our ($Scriptdir, $Scriptfile);BEGIN{$Scriptdir =".\\";$Scriptfile = $0; $Scriptfile =~/(.*\\)(.*)$/ &&  do{$Scriptdir=$1;$Scriptfile=$2;}}
+use lib $Scriptdir."..";
+use praqma::trigger_helper;
 
 The recommended use is that you add the following to your ClearCase trigger scripts:
 
-  use trigger_utils;
   our $TRIGGER_NAME="MAINTAIN_FROZEN";                                             #Example only - your name here!
   our $TRIGGER_INSTALL="mktrtype -type -lbtype -all -preop rmattr vob:adminvob";   #Example only - your install command here!
 
@@ -412,17 +268,16 @@ of the sub function C<install_trigger( )>
 
 And hereafter, but before you actually start doing any work in you script you add the following statements;
 
-  enable_install();
-  require_trigger_context();
-  enable_semaphore_backdoor();
+  our $thelp=trigger_helper->new;
+  $thelp->enable_install;
+  $thelp->require_trigger_context;
+  $thelp->enable_semaphore_backdoor;
 
   # Your trigger functionality begins here
 
 Good luck
 
 B<NOTE:>
-
-C<trigger_utils> uses the perl module C<acc>!
 
 =head1 CONSTANTS
 
@@ -432,7 +287,6 @@ C<MAX_SEMAPHORE_FILE_AGE_DAYS>        = C<0.168>
 
 Tha value  of C<MAX_SEMAPHORE_FILE_AGE_DAYS> determins how long time a semaphore file is valid. The value is given 
 as number of days (1 hr ~ 0.042 --> 4 hrs ~ 0.168).
-
 
 C<SEMAPHORE_DIR>                      = C<'./semaphores'>
 
