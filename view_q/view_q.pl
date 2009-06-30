@@ -201,6 +201,12 @@ our $view_q_file=".view_quarantine";
 our $view_q_ignore_file=".view_q_ignore";
 our ($sw_lsquarantine, $sw_recover, $sw_purge, $sw_nasince, $sw_quarantine, $sw_autoquarantine,
      $sw_autopurge, $sw_help, $sw_region, @sw_ignore, @sw_noignore, $sw_autorecover, $sw_logfile, $sw_verbose, $sw_debug);
+our $argstring;
+if (@ARGV) {
+    foreach (@ARGV) {
+        $argstring = $argstring . "$_ ";
+    }
+}
 
 
 validate_options();
@@ -344,6 +350,7 @@ sub enable_log(){
 	    $log->information("Dumping all switch variables \n autoq = '$sw_autoquarantine' \n lsq = '$sw_lsquarantine' \n nas = '$sw_nasince' \n help = '$sw_help' \n quaran = '$sw_quarantine' \n recov = '$sw_recover' \n purge = '$sw_purge' \n autop = '$sw_autopurge' \n autor = '$sw_autorecover' \n igno = '@sw_ignore' \n reg = '$sw_region' \n noigno = '@sw_noignore' \n reg = '$sw_region' \n log = '$sw_logfile'+".$log->get_logfile()." \n debug = '$sw_debug' \n ver = '$sw_verbose' \n ARGV = $argv_values \n");
 	    $log->information("ARGV value checks OK");
 	  };
+	$log->information("Called with ".$argstring."\n");
 }
 
 =head3 xxx_mode( )
@@ -386,7 +393,12 @@ sub recover_mode(){
     ) {
     	$log->assertion_failed("Wrong syntax\n".$usage);
     };
-    recover_stg($sw_recover);
+    chomp($sw_recover);
+    if (recover_stg($sw_recover)) {
+    	$log->information("View \"$sw_recover\" was recovered succesfully\n");
+    } else {
+    	$log->error("View \"$sw_recover\" was NOT recovered\n");
+    }
     exit 0;
   };
 }
@@ -404,7 +416,11 @@ sub lsquarantine_mode(){
          purge_stg($_);
       };
       defined($sw_autorecover) && do {
-         recover_stg($_);
+        if (recover_stg($_)) {
+          $log->information("View was recovered succesfully\n");
+        } else {
+          $log->error("View was NOT recovered\n");
+        }
       };
     }
     exit 0;
@@ -435,7 +451,11 @@ sub nasince_mode(){
       $log->information($_);
       defined($sw_autoquarantine) && do {
         my ($d, $stg) = split(/\t/, $_);
-        quarantine_stg($stg);
+        if (quarantine_stg($stg)) {
+          $log->information("View was quarantined succesfully\n");
+        } else {
+          $log->error("View was NOT quarantined\n");
+        }
       };
     }
     exit 0;
@@ -448,7 +468,11 @@ sub quarantine_mode(){
     (  defined(@sw_ignore) || defined($sw_autoquarantine) || defined($sw_autopurge) ||
        defined($sw_region)  || defined($sw_autorecover)
     ) && do {$log->assertion_failed("Wrong syntax\n".$usage);};
-    quarantine_stg($sw_quarantine);
+    if (quarantine_stg($sw_quarantine)) {
+      $log->information("View \"$sw_quarantine\" was quarantined succesfully\n");
+    } else {
+      $log->error("View \"$sw_quarantine\" was NOT quarantined\n");
+    }
     exit 0;
   };
 }
@@ -604,7 +628,7 @@ sub purge_stg($){
     $log->error("ERROR: '$stg' ignored for quarantine\n");
     return 0;
   };
-
+ 
   open  VIEW_Q_FILE ,"$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
   @_ = <VIEW_Q_FILE>;
   close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
@@ -615,28 +639,36 @@ sub purge_stg($){
   my $endviewcmd = "cleartool endview -server VIEW_Q_TEMP_TAG";
   my $rmviewcmd = "cleartool rmview $1";
 
+   
   $log->information("$mktagcmd\n");
   system("$mktagcmd");
-  if ($_) {
-  	$log->error("Make tag failed with: ".$_);
+  if ($?) {
+  	$log->error("Make tag failed with exitcode: ".($?/256)."\n"); #/ #rw2 EPIC syntax highlight fixer
   } else {
-  	$log->information("Make tag successful");
+  	$log->information("Make tag successful\n");
   }
 
   $log->information("$endviewcmd\n");
   system("$endviewcmd");
   if ($?) {
-  	$log->error("End view failed with exitcode: ".($?/256)); #/ #rw2 EPIC syntax highlight fixer
+  	$log->error("End view failed with exitcode: ".($?/256)."\n"); #/ #rw2 EPIC syntax highlight fixer
   } else {
-  	$log->information("End view successful");
+  	$log->information("End view successful\n");
   }
 
   $log->information("$rmviewcmd\n");
   system("$rmviewcmd");
   if ($?) {
-  	$log->error("Remove view failed with exitcode: ".($?/256)); #/ #rw2 EPIC syntax highlight fixer
+  	$log->error("Remove view failed with exitcode: ".($?/256)."\n"); #/ #rw2 EPIC syntax highlight fixer
+  	$log->information("Search for temptag VIEW_Q_TEMP_TAG returns "  . `cleartool lsview -s VIEW_Q_TEMP_TAG` . "\n");
+    if ($?) {
+        $log->information("VIEW_Q_TEMP_TAG was not found, continuing\n");
+    } else {
+        $log->error("VIEW_Q_TEMP_TAG found, removing it now\n");
+        `cleartool rmtag -view VIEW_Q_TEMP_TAG`;
+    }
   } else {
-  	$log->information("Remove view successful");
+  	$log->information("Remove view successful\n");
   }
 
   return 1;
@@ -675,6 +707,18 @@ sub quarantine_stg( $ ){
     $log->error($stg." ignored for quarantine\n");
     return 0;
   };
+  # Only permit dynamic views
+  @_ = split(/;/, $stg_directory{"$stg"}); # Turn the semi-colon seprated list of tags into an array
+  $_ = $_[0];                      # Get a region/tag pair (anyone will do, so we just grab the first)
+  s/-tag//;                        # strip the -tag switch, it's not used in lsview
+
+  if (grep {/^Properties+.*dynamic/} `cleartool lsview -pro -full $_`) {
+    $log->information("View \"$stg\" is a dynamic view\n");
+  } else {
+    $log->error("The view \"$stg\" is a snapshot view.\nSnapshotviews are currently not supported by view_q.pl\n");
+    return 0;
+  }
+  
   my @rmtags;
   my @mktags;
   foreach (split(/;/, $stg_directory{"$stg"})){
