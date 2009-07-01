@@ -1,5 +1,5 @@
 ######################## STANDARD STUFF ##############################
-#
+
 require 5.001;
 use strict;
 
@@ -127,7 +127,7 @@ DATE        EDITOR  NOTE
                            fixed: nasince
 2009-06-12                 Initial test for production release
                            Lib added to parent folder
-                           Perl module required praqma::scriptlog 
+                           Perl module required praqma::scriptlog
 
 -------------------------------------------------------------------------
 
@@ -628,7 +628,7 @@ sub purge_stg($){
     $log->error("ERROR: '$stg' ignored for quarantine\n");
     return 0;
   };
- 
+
   open  VIEW_Q_FILE ,"$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
   @_ = <VIEW_Q_FILE>;
   close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
@@ -639,7 +639,7 @@ sub purge_stg($){
   my $endviewcmd = "cleartool endview -server VIEW_Q_TEMP_TAG";
   my $rmviewcmd = "cleartool rmview $1";
 
-   
+
   $log->information("$mktagcmd\n");
   system("$mktagcmd");
   if ($?) {
@@ -718,7 +718,7 @@ sub quarantine_stg( $ ){
     $log->error("The view \"$stg\" is a snapshot view.\nSnapshotviews are currently not supported by view_q.pl\n");
     return 0;
   }
-  
+
   my @rmtags;
   my @mktags;
   foreach (split(/;/, $stg_directory{"$stg"})){
