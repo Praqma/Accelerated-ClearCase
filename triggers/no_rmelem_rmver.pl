@@ -92,6 +92,8 @@ __END__
 
 =head1 NAME
 
+no_rmelem_rmver - ClearCase trigger
+
 Script:        F<no_rmelem_rmver.pl>
 
 Trigger name:  C<NO_RMELEM_RMVER>

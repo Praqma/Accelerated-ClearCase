@@ -214,14 +214,16 @@ __END__
 
 =head1 NAME
 
+Scriptlog - logging module for ClearCase scripts
+
  Package: scriptlog
  Class:   scriptlog
  Module:  scriptlog.pm
 
+=head1 SYNOPSIS
+
 Used to ease the logging of perl scripts.
 ...With some sugar added to those who writes ClearCase triggers
-
-=head1 SYNOPSIS
 
 =head2 Setters
 
