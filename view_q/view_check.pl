@@ -158,16 +158,13 @@ The sub-function overwrites the default settings for log, debug and verbose if s
 
 debug:
 - enables verbose, unless -noverbose is set in the script call.
-- enables the logfile
-- gives some extra logging information (variable values, additional information, ect.)
+- can be extended to give additional information during execution (not implemented)
 
 verbose:
 - enables log to STDOUT
 
-logfile [filename]:
-- enables the logfile (default on)
+logfile "filename":
 - sets the logfilename (and path) if specified (default name [scriptdir]\view_check.log)
-- the environment variables SCRIPTLOG_ENABLED or CLEARCASE_TRIGGER_DEBUG forces the logfile to enable, not matter what
 
 Checks for ARGV arguments (unreferenced values):
 - if log is enabled, it dies if there is more then one (expect it to be filename or relative/absolute path AND filename)
@@ -177,7 +174,7 @@ Checks for ARGV arguments (unreferenced values):
 Parameters:
 
   Non
-  Uses -verbose, -debug and -logfile
+  Uses -verbose, -debug and -logfile "filename"
 
 Returns:
 
@@ -218,11 +215,37 @@ exit:
 }
 
 sub help_mode(){
+=head3 help_mode( )
+
+Prints the help and exits
+
+Returns:
+
+  Header, revision and extended usage information
+
+Exit:
+
+  Always
+
+=cut
   defined($sw_help) && do {print $header.$revision.$usage.$doc; exit 0;};
 };
 
 
 sub getlastexecution(){
+=head3 getlastexecution( )
+
+  Opens the previous logfil (if it exsists) and gets the last datetime-stamp in CC format or an error msg.
+
+Returns:
+
+  Last logentry in CC datetime format or textstring explaining it was not found (saved in global variable)
+  
+Exit:
+
+  Dies if logfile can't be opened
+
+=cut
     open PREV_LOG_FILE ,"$log_file"  or die "Couldn't open '$log_file'\n";
     my @previouslog = reverse <PREV_LOG_FILE>;
     foreach (@previouslog) {
@@ -238,6 +261,21 @@ sub getlastexecution(){
 }	
 
 sub get_the_log(){
+=head3 get_the_log( )
+
+  Executes "cleartool getlog" based on returns from getlastexecution().
+  If getlog is set, it only gets since \$getlastexecution. 
+  If gotlog is not set, it gets the entire log
+
+Returns:
+
+  Array of views found in the getlog execution (saved in global variable)
+  
+Exit:
+
+  No
+
+=cut
 	if ($gotlog) {
 		@fulllog = `cleartool getlog -host %COMPUTERNAME% -since $prev_exe_datetime view`;
 	} else {
@@ -250,22 +288,65 @@ sub get_the_log(){
 }
 
 sub touch_views() {
+=head3 touch_views( )
+
+  Touches (updates last access datetime-stamp) all views found in get_the_log()
+  Incomplete, need to include support for views in other regions
+
+Returns:
+
+  Nothing
+  
+Exit:
+
+  No (but last sub)
+
+=cut
 	foreach (@views) {
 		/(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\+\d\d) (.*)/;
-		my $viewtag = `cleartool lsview -short -storage $2`;
-		my $viewloc = $2;
-		my $viewdate = $1;
-		$viewtag =~ s/\s+$//;
+        my $viewdate = $1;
+        my $viewloc = $2;
+        my $viewnotstanded;
+        # Insert region validation here
+        my $error;
+        $log->information("processing $viewloc from $viewdate\n");
+		my $viewtag = `cleartool lsview -short -storage $2 2>&1`;
 	    if ($?) {
-	      $log->error("Could not find view at $2\n"); 
+	      if ($viewtag =~ /Unable to open file/) {
+	      	$log->error("Could not find location $viewloc\n");
+	      } else {
+	      	if ($viewtag =~ /No view tags found/) {
+	      		$log->warning("viewtag not found\n");
+	      		foreach my $region (`cleartool lsregion`){
+				  chomp($region);
+				  `cleartool lsview -region $region -storage $viewloc 2>&1`;
+			      if ($?) {
+			      	$log->information("View was not found in $region\n");
+			      } else {
+			      	$log->information("View is in $region\n");
+			      	$viewnotstanded = 1;
+			      	last; #breaks foreach
+			      } #end if/else (view found in region)
+				} #end foreach
+				if ($viewnotstanded) {
+					$log->information("View is not stranded\n");
+					# insert mktag, setcs and rmtag
+				} else {
+					$log->warning("View is stranded (quarantined?) skipping\n");
+				} #end if/else (viewnot stranded)
+	      	} else {
+	      		$log-error("Unhandled error found:\n$viewtag "); 
+	      	}#end if/else (viewtag not found)
+	      } #end if/else (location found)
 	    } else {
+           $viewtag =~ s/\s+$//;
 	       # insert age validation here
 	       `cleartool setcs -tag $viewtag -current`;
 	        if ($?) {
 	          $log->error("Touch view failed on $viewtag\n"); 
 	        } else {
 	           $log->information("View $viewloc\'s last access have been updated from $viewdate\n");
-	        }
-	    }
-	}
-}
+	        } #end if/else (error setcs)
+	    } #end if/else (viewtag found)
+    } #end foreach
+} #end sub
