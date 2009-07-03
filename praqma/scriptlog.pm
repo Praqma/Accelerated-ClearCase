@@ -4,16 +4,15 @@ require 5.001;
 require Exporter;
 use strict;
 
-our ( $scriptdir, $scriptfile );
-BEGIN { if ($0 =~ /(.*[\/\\])(.*)$/){
-  $scriptdir = $1; $scriptfile = $2; } else {
-  $scriptdir = "."; $scriptfile = $0; }
+our ($scriptdir, $scriptfile);
+BEGIN{
+	$scriptdir =".\\";$scriptfile = $0;                                # Assume the module is called from 'current directory' (no leading path - $0 is the file)
+	$scriptfile =~/(.*\\)(.*)$/ &&  do{$scriptdir=$1;$scriptfile=$2;}  # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
 use lib "$scriptdir..";
-#use praqma::praqbal;
 
 our @ISA    = qw(Exporter);
-our @EXPORT = qw(new);
+our @EXPORT = qw(new);  #Export only the constructor
 
 my $Info_count = 0;     #Increased by one every time an information is issued
 my $Warn_count = 0;     #Increased by one every time a warning is issued
@@ -25,14 +24,14 @@ my $LogIsOpen  = 0;     #Flag indicating wether the log is succesfully open or n
 
 # Module version
 our $VERSION = "1.0";
-our $BUILD   = "3";
+our $BUILD   = "4";
 our $header  = <<ENDHEADER;
 #########################################################################
 #     This module contains a class which enables easy script logging
-#     Date:       2007-08-27
-#     Author:     Lars Kruse, lars.kruse\@krusecontrol.net
-#     Copyright:  OPEN, Wolfware Disclosure Agreement
-#                 http://www.wolfware.dk/pack/wda.asp
+#     Date:       2009-07-02
+#     Author:     Lars Kruse, lak\@praqma.net
+#     Copyright:  GNU GLP v3.0
+#     Support:    http://launchpad.net/acc
 ##########################################################################
 ENDHEADER
 
@@ -41,8 +40,9 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR  NOTE
 ----------  -------------  ----------------------------------------------
-2007-08-27  Lars Kruse     1st release prepared for ATP (version 1.0)
-https://svn.praqma.net/svn/acc/dock revision 76
+2007-08-27  Lars Kruse     1st release prepared for Novo (version 1.0)
+                           https://svn.praqma.net/svn/acc/dock revision 76
+2009-07-02  Lars Kruse     Prepared for Novo Nordisk (version 1.0.4)                           
 -------------------------------------------------------------------------
 ENDREVISION
 
@@ -64,12 +64,12 @@ sub get_accumulated_errorlevel { return ($Err_count) ? 2 : ($Warn_count) ? 1 : 0
 
 sub set_verbose() {
     my $self = shift;
-    $Verbose = shift;
+    $Verbose = shift; # boolean
 }
 
 sub set_logfile() {
     my $self = shift;
-    $Logfile = shift;
+    $Logfile = shift; # valid path+file
 }
 
 ####### Methods #############
@@ -193,23 +193,17 @@ sub openlog() {
         $Logfile = "$ENV{TEMP}\\" . $scriptfile . ".PID$$.log";    # Create a log file
     }
 
-    open LOGFILE, ">>$Logfile" or die "Couldn't open \"$Logfile\"\n";
+    open LOGFILE, ">>$Logfile" or assertion_failed("Couldn't open \"$Logfile\"\n");
     $LogIsOpen = 1;
     print LOGFILE "\n#######################################################\n"
-      . "This log is created (or appended) on "
-      . datestamp() . " \@ "
-      . timestamp() . "\n"
-      . "Executing script:\t"
-      . $scriptfile . "\n"
-      . "Process ID (PID):\t"
-      . $$ . "\n"
-      . "Executing user:  \t"
-      . $ENV{USERNAME} . "\n\n";
+      . "This log is created (or appended) on ".datestamp()." \@ ".timestamp()."\n"
+      . "Executing script:\t".     $scriptfile . "\n"
+      . "Process ID (PID):\t".     $$ . "\n"
+      . "Executing user:  \t".     $ENV{USERNAME} . "\n\n";
     print STDOUT "Log of execution:\"$Logfile\"\n";
 }
 
 sub DESTROY {
-
     close LOGFILE;
 }
 
@@ -220,14 +214,16 @@ __END__
 
 =head1 NAME
 
+Scriptlog - logging module for ClearCase scripts
+
  Package: scriptlog
  Class:   scriptlog
  Module:  scriptlog.pm
 
+=head1 SYNOPSIS
+
 Used to ease the logging of perl scripts.
 ...With some sugar added to those who writes ClearCase triggers
-
-=head1 SYNOPSIS
 
 =head2 Setters
 
@@ -370,17 +366,21 @@ written to STDOUT (informations) or STDERR (warnings, errors and assertion_fails
 
 =head1 AUTHOR
 
-Lars Kruse, E<lt>lars.kruse@krusecontrol.netE<gt>.
+Lars Kruse, E<lt>lak@praqma.netE<gt>.
 
 =head1 BUGS
 
-Probably some - this is an early release ;-)
+No known bugs.
+
+=head1 SUPPORT
+
+See the website for the Accelerated ClearCase project at http://launchpad.net/acc
+
+=for html <a href="http://launchpad.net/acc">Accelerated ClearCase</a>
 
 =head1 COPYRIGHT
 
-This program is distributed under the Wolfware Disclosure Agreement.
-
-=for html <a href="http://www.wolfware.dk/pack/wda.asp">Wolfware Disclosure Agreement</a>
+This program is distributed under the GNU GPL v3.0 license
 
 =cut
 

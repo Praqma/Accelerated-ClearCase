@@ -1,12 +1,15 @@
+require 5.001;
 package trigger_helper;
 use strict;
-our ($Scriptdir, $Scriptfile);BEGIN{$Scriptdir =".\\";$Scriptfile = $0; $Scriptfile =~/(.*\\)(.*)$/ &&  do{$Scriptdir=$1;$Scriptfile=$2;}}
-use lib $Scriptdir."..";
+our ($scriptdir, $scriptfile);
+BEGIN{
+	$scriptdir =".\\";$scriptfile = $0;                                # Assume the module is called from 'current directory' (no leading path - $0 is the file)
+	$scriptfile =~/(.*\\)(.*)$/ &&  do{$scriptdir=$1;$scriptfile=$2;}  # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+}
+use lib "$scriptdir..";
+
 use praqma::acc;
 use Getopt::Long;
-require 5.001;
-
-
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK $BUILD);
 
@@ -19,14 +22,14 @@ use constant SEMAPHORE_DIR                      => './semaphores';    # Relative
                 
 
 # File version
-our $VERSION= "1.0";
-our $BULILD = "1";
+$VERSION= "1.0";
+$BUILD = "1";
 
 our $header = <<ENDHEADER;
 #########################################################################
 #     This module contains subs that come in handy in when              
 #     you write triggers in ClearCase        
-#     Date:       2008-06-26                 
+#     Date:       2009-06-26                 
 #     Author:     Lars Kruse, lak\@praqma.net
 #     Copyright:  Praqma A/S
 #     License:    GNU GPL v3.0
@@ -73,9 +76,17 @@ sub enable_semaphore_backdoor(){
 	 if ((-M $semaphore_file) > MAX_SEMAPHORE_FILE_AGE_DAYS){
 	   print "...but it's too old to stop the trigger\n!";
 	 } else {
-	   print STDOUT "THE TRIGGER SCRIPT IS CANCELED!\nEXIT CODE:0\n";
-	   exit 0;
-	 }
+	 	 my ($mainpath, $mainscript) = acc::split_dir_file($main::0);
+	 	 open(SEMAPHORE, $semaphore_file) || print "Failed to open the semaphore file for read\n" && return;
+     my @sempahore = grep(/^\s*$mainscript\s*$/i,<SEMAPHORE>);
+	 	 close(SEMAPHORE);
+	 	 
+	 	 if (scalar @sempahore) {
+  	 	 print "Found the script '$mainscript' listed in the semphore file\nThe trigger script is canceled by semaphore!\n";
+	   	 exit 0;
+	   }
+	 	 print "But it doesn't mention '$mainscript'.\nTrigger is allowed to continue\n";
+    }
   }
   return $semaphore_file;
 }
@@ -99,7 +110,8 @@ $::Scriptfile -install -vob vob_tag [-script script_pname]
                         override the triggers default name (which is already cached
                         in the script).
 -preview                Displays the cleartool command that installs the trigger, 
-                        but does not actually execute it.
+                        but does not actually execute it. This switch allows you to 
+                        run the script even if you are not the VOB owner
                         
 ENDUSAGE
    
@@ -115,7 +127,7 @@ ENDUSAGE
   return 0 unless defined($sw_install);
   
   #TODO: Refactory!: 
-  # Consider passing $TRIGGER_NAME and $TRIGGER_INSTALL in a hash directly to enable_install - inspired of hov
+  # Consider passing $TRIGGER_NAME and $TRIGGER_INSTALL in a hash directly to enable_install - inspired of how
   # GetOptions is implemented in Getopt::Long
   # see https://praqma.fogbugz.com/?863
   # lak@praqma.net 2009-06-26

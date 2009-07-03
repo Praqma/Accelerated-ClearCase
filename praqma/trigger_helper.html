@@ -1,0 +1,211 @@
+<HTML>
+<HEAD>
+<TITLE>ACC - trigger utility module</TITLE>
+<LINK REV="made" HREF="mailto:">
+</HEAD>
+
+<BODY>
+
+<A NAME="__index__"></A>
+<!-- INDEX BEGIN -->
+
+<UL>
+
+	<LI><A HREF="#name">NAME</A></LI>
+	<LI><A HREF="#synopsis">SYNOPSIS</A></LI>
+	<LI><A HREF="#description">DESCRIPTION</A></LI>
+	<LI><A HREF="#constants">CONSTANTS</A></LI>
+	<LI><A HREF="#functions">FUNCTIONS</A></LI>
+	<UL>
+
+		<LI><A HREF="#require_trigger_context( )">require_trigger_context( )</A></LI>
+		<LI><A HREF="#sub enable_semaphore_backdoor( )">sub enable_semaphore_backdoor( )</A></LI>
+		<LI><A HREF="#sub enable_install( )">sub enable_install( )</A></LI>
+		<LI><A HREF="#get_versiontree_below_version( $cc_pn, \@result_array )">get_versiontree_below_version( $cc_pn, \@result_array )</A></LI>
+	</UL>
+
+	<LI><A HREF="#author">AUTHOR</A></LI>
+	<LI><A HREF="#bugs">BUGS</A></LI>
+	<LI><A HREF="#copyright">COPYRIGHT</A></LI>
+</UL>
+<!-- INDEX END -->
+
+<HR>
+<P>
+<H1><A NAME="name">NAME</A></H1>
+<P>ACC - trigger utility module</P>
+<P>
+<HR>
+<H1><A NAME="synopsis">SYNOPSIS</A></H1>
+<P>package: <CODE>trigger_helper</CODE></P>
+<P>Module:  <CODE>trigger_helper.pm</CODE>
+The trigger_utils package contains various functions that will come in handy when you write ClearCase triggers.</P>
+<P>it enables you to make triggers that doesn´t execute if semaphores have been set, and it makes you triggers install
+automatically.</P>
+<P>
+<HR>
+<H1><A NAME="description">DESCRIPTION</A></H1>
+<P>To ease the use of the trigger_helper.pm module it´s recommended that you keep your scripts and trigger_helper.pm 
+close together and include the directory that contains the trigger_utils.pm module using a relative path.</P>
+<P>Example file structure:</P>
+<PRE>
+ root
+   triggers
+   praqma
+   utils</PRE>
+<P>In order to use a relative path, you´ll obviously need to determine the location of your running script in a pre-compiled block.</P>
+<P>our ($Scriptdir, $Scriptfile);BEGIN{$Scriptdir =``.\\'';$Scriptfile = $0; $Scriptfile =~/(.*\\)(.*)$/ &amp;&amp;  do{$Scriptdir=$1;$Scriptfile=$2;}}
+use lib $Scriptdir.``..'';
+use praqma::trigger_helper;</P>
+<P>The recommended use is that you add the following to your ClearCase trigger scripts:</P>
+<PRE>
+  our $TRIGGER_NAME=&quot;MAINTAIN_FROZEN&quot;;                                             #Example only - your name here!
+  our $TRIGGER_INSTALL=&quot;mktrtype -type -lbtype -all -preop rmattr vob:adminvob&quot;;   #Example only - your install command here!</PRE>
+<P><STRONG>NOTE:</STRONG></P>
+<P>The use of the variables <CODE>$TRIGGER_NAME</CODE> and <CODE>$TRIGGER_INSTALL</CODE> er described in more detail in the documentation 
+of the sub function <CODE>install_trigger( )</CODE></P>
+<P>And hereafter, but before you actually start doing any work in you script you add the following statements;</P>
+<PRE>
+  our $thelp=trigger_helper-&gt;new;
+  $thelp-&gt;enable_install;
+  $thelp-&gt;require_trigger_context;
+  $thelp-&gt;enable_semaphore_backdoor;</PRE>
+<PRE>
+  # Your trigger functionality begins here</PRE>
+<P>Good luck</P>
+<P><STRONG>NOTE:</STRONG></P>
+<P>
+<HR>
+<H1><A NAME="constants">CONSTANTS</A></H1>
+<P>The module defines the following constants which you might consider to give different values:</P>
+<P><CODE>MAX_SEMAPHORE_FILE_AGE_DAYS</CODE>        = <CODE>0.168</CODE></P>
+<P>Tha value  of <CODE>MAX_SEMAPHORE_FILE_AGE_DAYS</CODE> determins how long time a semaphore file is valid. The value is given 
+as number of days (1 hr ~ 0.042 --&gt; 4 hrs ~ 0.168).</P>
+<P><CODE>SEMAPHORE_DIR</CODE>                      = <CODE>'./semaphores'</CODE></P>
+<P>The value of <CODE>SEMAPHORE_DIR</CODE> is the relative to the script location directory where the semaphore file will be 
+searched for.</P>
+<P>
+<HR>
+<H1><A NAME="functions">FUNCTIONS</A></H1>
+<P>The following functions are defined in the module. they migh not all be exported. Have a look in the 
+module script so find out which ones that are.</P>
+<P>
+<H2><A NAME="require_trigger_context( )">require_trigger_context( )</A></H2>
+<P>Looks for the CLEARCASE_VOB_PN variable which is always (but only) instantiatied if the scritp is 
+executed from at trigger context.</P>
+<P>Returns:
+   void</P>
+<P>The method doesn´t return anything but it simply dies if not in a trigger context. The sub function 
+assumes that the caller ($main) has defined the following fore variabels:</P>
+<PRE>
+  $header
+  $revision
+  $VERSION
+  $BUILD</PRE>
+<P>
+<H2><A NAME="sub enable_semaphore_backdoor( )">sub enable_semaphore_backdoor( )</A></H2>
+<P>Checks for the existence a semaphore file and if it exist the trigger execution is canceled</P>
+<P>The semaphore file shall be in a folder called './semaphores' which is a relative path to the executing script.</P>
+<P>The semaphore file itself is a file with the same name as the executing user (no file extension)</P>
+<P>Sample:</P>
+<PRE>
+  \\server\triggers
+      script.pl
+      \semaphores
+          ycd
+          vobadm</PRE>
+<P>Will cause that the script.pl trigger doesn´t fire when ClearCase events are created by the users
+ycd and vobadm</P>
+<P>The location of the <CODE>semaphores</CODE> directory can tweak by setting the constant <CODE>trigger_utils::SEMAPHORE_DIR</CODE>.</P>
+<P>The semaphore files are ignored (doesn´t stop the trigger) if they are more then 4 hrs old.</P>
+<P>This setting can be tweaked by setting the constant <CODE>trigger_utils::MAX_SEMAPHORE_FILE_AGE_DAYS</CODE>.</P>
+<P>One hour is apx 0.042 days, thus 0.168 ~ 4 hrs.</P>
+<P>
+<H2><A NAME="sub enable_install( )">sub enable_install( )</A></H2>
+<P>Supports help installing the trigger using the following syntax:</P>
+<PRE>
+  Scriptfile -install -vob vob_tag [-script script_pname] 
+              [-trigger trigger_name] [-preview]</PRE>
+<PRE>
+  -install                Required to run the script in install mode
+  -vob vob_tag            The VOB where the trigger should be installed
+  -script script_pname    The fully qualified path to the script (must be a 
+                          UNC path or a drive that is mapped). 
+                          If this is omitted then script pname will be the one 
+                          used to execute it (this too must be a fully qualified 
+                          path either using UNC or a mapped drive).
+                          If the script pname does not exist the trigger installation
+                          fails.
+  -trigger trigger_name   The name of the trigger. This is only used if you wish to 
+                          override the triggers default name (which is already cached
+                          in the script).
+  -preview                Displays the cleartool command that installs the trigger, 
+                          but does not actually execute it.</PRE>
+<P>Prequsites are that the script file defines the following two variables (using our):</P>
+<PRE>
+  our $TRIGGER_NAME
+  our $TRIGGER_INSTALL</PRE>
+<P>The $TRIGGER_NAME shall contain the default name of the trigger</P>
+<P>The $TRIGGER_INSTALL shall contain a formalized version of the mktrtype command using the 
+following approach:</P>
+<UL>
+<LI>
+Use the syntax for mktrtype
+<P></P>
+<LI>
+Don't apply the -exec (or -execwin or -execunix for that matter)
+<P></P>
+<LI>
+Don't apply the trigger name
+<P></P>
+<LI>
+At the end of the string apply one of the following three keywords:
+<PRE>
+  vob:adminvob
+  vob:clientvob
+  vob:both</PRE>
+<P>To indicate wether the trigger can be installed only on AdminVOBs, only on Client VOBs or on both types</P>
+<P></P></UL>
+<P>Heres and example:</P>
+<PRE>
+  our $TRIGGER_NAME=&quot;MAINTAIN_FROZEN&quot;;
+  our $TRIGGER_INSTALL=&quot;mktrtype -type -lbtype -all -preop rmattr vob:adminvob&quot;;</PRE>
+<P>Executing the script like this:</P>
+<PRE>
+  ratlperl \\server\triggers\maintainfrozen.pl -install -vob \Adm</PRE>
+<P>Will install like this:</P>
+<PRE>
+  cleartool cleartool mktrtype -type -lbtype -all -preop rmattr -exec &quot;ratlperl \\server\triggers\maintainfrozen.pl&quot; MAINTAIN_FROZEN@\Adm</PRE>
+<P>...but only if you are the vob owner and the \Adm vob is an AdminVOB.</P>
+<P>The install utility will examine if the trigger is already installed, and put a <CODE>-replace</CODE> switch inthere i necessary.</P>
+<P>
+<H2><A NAME="get_versiontree_below_version( $cc_pn, \@result_array )">get_versiontree_below_version( $cc_pn, \@result_array )</A></H2>
+<P>This function returns a version tree below a certain version. The point is that
+A version tree is normally retrived for an element, not a particular version of 
+an element. The function retrives the version tree of the element and starts 
+shifting the version in the list until it finds the $cc_pn version - and then returns 
+the rest.</P>
+<P>Parameters:</P>
+<PRE>
+ $cc_pn                = The version to use as off-set standard version extended syntax:
+                         element-pname@@branch-id
+ $result_array         = The result</PRE>
+<P>Returns:
+  1 = Success
+  0 = Some error occured - content of @result_array is not to be trusted.</P>
+<P>
+<HR>
+<H1><A NAME="author">AUTHOR</A></H1>
+<P>Lars Kruse, &lt;<A HREF="mailto:lak@praqma.net">lak@praqma.net</A>&gt;.</P>
+<P>
+<HR>
+<H1><A NAME="bugs">BUGS</A></H1>
+<P>See the Accelerated ClearCase project on Launchpad.net</P>
+<a href="http://launchpad.net/acc">Accelerated ClearCase</a><P>
+<HR>
+<H1><A NAME="copyright">COPYRIGHT</A></H1>
+<P>This program is distributed under GNU GPL v3.0</P>
+
+</BODY>
+
+</HTML>
