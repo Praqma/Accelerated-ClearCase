@@ -60,7 +60,8 @@ $log->set_verbose($verbose_mode);
 our $logfile=$log->get_logfile;
 ($logfile) && $log->information("logfile is: $logfile\n");
 $log->information("Searching valid semaphore file at '$semaphore_file'\n\t\t...but couldn't find any!\n");
-$log->dump_ccvars;
+
+#$log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
 
 # Cache the vobowner
 our ($domain, $vobowner) = split /\\/, `cleartool desc -fmt \"\%\[owner\]p\" vob:$ENV{CLEARCASE_VOB_PN}`;
@@ -75,15 +76,13 @@ unless ( lc($vobowner) eq lc($ENV{CLEARCASE_USER}) ){ # Do nothing if user is th
     my $msg = "The trigger $Scriptfile has refused the removal of the $object:\n".
               "\t\t$ENV{CLEARCASE_XPN}\n";
     $log->information($msg);
-    
-    #If were executed from the GUI then show a dialog!
     exit 1;
   }
   $log->warning("This script is triggered by an event which it was not originally designed to handle\t\tMaybe it's not installed correct?");
 }
 
 
-#exit 0; #Comment out this statement when debugging, and let the next take over
+exit 0; #Comment out this statement when debugging, and let the next take over
 print "OK, since you are the vobwoner!, but exit=1 in debug mode to prevent destruction of element/version during test\n"; exit 1;
 __END__
 

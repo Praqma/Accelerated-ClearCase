@@ -76,9 +76,17 @@ sub enable_semaphore_backdoor(){
 	 if ((-M $semaphore_file) > MAX_SEMAPHORE_FILE_AGE_DAYS){
 	   print "...but it's too old to stop the trigger\n!";
 	 } else {
-	   print STDOUT "THE TRIGGER SCRIPT IS CANCELED!\nEXIT CODE:0\n";
-	   exit 0;
-	 }
+	 	 my ($mainpath, $mainscript) = acc::split_dir_file($main::0);
+	 	 open(SEMAPHORE, $semaphore_file) || print "Failed to open the semaphore file for read\n" && return;
+     my @sempahore = grep(/^\s*$mainscript\s*$/i,<SEMAPHORE>);
+	 	 close(SEMAPHORE);
+	 	 
+	 	 if (scalar @sempahore) {
+  	 	 print "Found the script '$mainscript' listed in the semphore file\nThe trigger script is canceled by semaphore!\n";
+	   	 exit 0;
+	   }
+	 	 print "But it doesn't mention '$mainscript'.\nTrigger is allowed to continue\n";
+    }
   }
   return $semaphore_file;
 }
