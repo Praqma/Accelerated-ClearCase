@@ -306,31 +306,65 @@ Exit:
 		/(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\+\d\d) (.*)/;
         my $viewdate = $1;
         my $viewloc = $2;
-        my $viewnotstanded;
+        my $viewUNC;
+        my $viewnotstranded;
         # Insert region validation here
         my $error;
-        $log->information("processing $viewloc from $viewdate\n");
+        $debug && $log->information("processing $viewloc from $viewdate\n");
 		my $viewtag = `cleartool lsview -short -storage $2 2>&1`;
 	    if ($?) {
 	      if ($viewtag =~ /Unable to open file/) {
-	      	$log->error("Could not find location $viewloc\n");
+	      	$log->error("Could not find location $viewloc (deleted?)\n");
 	      } else {
 	      	if ($viewtag =~ /No view tags found/) {
-	      		$log->warning("viewtag not found\n");
+	      		$debug && $log->warning("viewtag not found\n");
 	      		foreach my $region (`cleartool lsregion`){
 				  chomp($region);
-				  `cleartool lsview -region $region -storage $viewloc 2>&1`;
+				  $viewUNC = `cleartool lsview -region $region -storage $viewloc 2>&1`;
 			      if ($?) {
-			      	$log->information("View was not found in $region\n");
+			      	$debug && $log->information("View was not found in $region\n");
 			      } else {
 			      	$log->information("View is in $region\n");
-			      	$viewnotstanded = 1;
+                    $viewUNC =~ /(\\\\.*)/;
+                    $viewUNC = $1;
+                    $debug && $log->information($viewUNC."\n");
+			      	$viewnotstranded = 1;
 			      	last; #breaks foreach
 			      } #end if/else (view found in region)
 				} #end foreach
-				if ($viewnotstanded) {
-					$log->information("View is not stranded\n");
+				if ($viewnotstranded) {
+					$debug && $log->information("View is not stranded - processing\n");
 					# insert mktag, setcs and rmtag
+					my $mktagcmd = "cleartool mktag -view -tag VIEW_CHECK_TEMP_TAG $viewUNC";
+					my $setcscmd = "cleartool setcs -tag VIEW_CHECK_TEMP_TAG -current";
+					my $rmtagcmd = "cleartool rmtag -view VIEW_CHECK_TEMP_TAG";
+					
+					$debug && $log->information("$mktagcmd\n");
+					system("$mktagcmd");
+					if ($?) {
+					  $log->error("Make tag failed with exitcode: ".($?/256)."\n"); #/ #EPIC syntax highlight fixer
+                      next; #Continues on next view
+					} else {
+					  $debug && $log->information("Make tag successful\n");
+					}
+					$debug && $log->information("$setcscmd\n");
+					system("$setcscmd");
+					if ($?) {
+					  $log->error("setcs failed with exitcode: ".($?/256)."\n"); #/ #EPIC syntax highlight fixer
+                      next; #Continues on next view
+					} else {
+					  $log->information("setcs successful for $viewUNC\n");
+					}
+					$debug && $log->information("$rmtagcmd\n");
+                    system("$rmtagcmd");
+                    if ($?) {
+                      $log->error("rmtag failed with exitcode: ".($?/256)."\n"); #/ #EPIC syntax highlight fixer
+                      next; #Continues on next view
+                    } else {
+                      $debug && $log->information("rmtag successful\n");
+                    }
+					log->information("View $viewloc\'s last access have been updated from $viewdate\n");					
+					
 				} else {
 					$log->warning("View is stranded (quarantined?) skipping\n");
 				} #end if/else (viewnot stranded)
