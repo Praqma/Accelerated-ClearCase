@@ -1,12 +1,15 @@
+require 5.001;
 package trigger_helper;
 use strict;
-our ($Scriptdir, $Scriptfile);BEGIN{$Scriptdir =".\\";$Scriptfile = $0; $Scriptfile =~/(.*\\)(.*)$/ &&  do{$Scriptdir=$1;$Scriptfile=$2;}}
-use lib $Scriptdir."..";
+our ($scriptdir, $scriptfile);
+BEGIN{
+	$scriptdir =".\\";$scriptfile = $0;                                # Assume the module is called from 'current directory' (no leading path - $0 is the file)
+	$scriptfile =~/(.*\\)(.*)$/ &&  do{$scriptdir=$1;$scriptfile=$2;}  # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+}
+use lib "$scriptdir..";
+
 use praqma::acc;
 use Getopt::Long;
-require 5.001;
-
-
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK $BUILD);
 
@@ -19,14 +22,14 @@ use constant SEMAPHORE_DIR                      => './semaphores';    # Relative
                 
 
 # File version
-our $VERSION= "1.0";
-our $BULILD = "1";
+$VERSION= "1.0";
+$BUILD = "1";
 
 our $header = <<ENDHEADER;
 #########################################################################
 #     This module contains subs that come in handy in when              
 #     you write triggers in ClearCase        
-#     Date:       2008-06-26                 
+#     Date:       2009-06-26                 
 #     Author:     Lars Kruse, lak\@praqma.net
 #     Copyright:  Praqma A/S
 #     License:    GNU GPL v3.0
@@ -99,7 +102,8 @@ $::Scriptfile -install -vob vob_tag [-script script_pname]
                         override the triggers default name (which is already cached
                         in the script).
 -preview                Displays the cleartool command that installs the trigger, 
-                        but does not actually execute it.
+                        but does not actually execute it. This switch allows you to 
+                        run the script even if you are not the VOB owner
                         
 ENDUSAGE
    
@@ -115,7 +119,7 @@ ENDUSAGE
   return 0 unless defined($sw_install);
   
   #TODO: Refactory!: 
-  # Consider passing $TRIGGER_NAME and $TRIGGER_INSTALL in a hash directly to enable_install - inspired of hov
+  # Consider passing $TRIGGER_NAME and $TRIGGER_INSTALL in a hash directly to enable_install - inspired of how
   # GetOptions is implemented in Getopt::Long
   # see https://praqma.fogbugz.com/?863
   # lak@praqma.net 2009-06-26

@@ -255,10 +255,9 @@ Returns:
 
 =cut
 
-
   my $vob = shift;
-  my @adminvobs = get_hlinks( $vob, "->", "AdminVOB");
-  return scalar @adminvobs;
+  my @adminvobs = get_hlinks( $vob, "<-", "AdminVOB"); # It this VOB pointet to by any AdminVOB hyoperlinks
+  return (scalar @adminvobs)?0:1;
 }
 
 ###############################################################
