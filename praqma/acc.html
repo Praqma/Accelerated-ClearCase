@@ -1,0 +1,449 @@
+<HTML>
+<HEAD>
+<TITLE>ACC - Accelerated ClearCase, library functions</TITLE>
+<LINK REV="made" HREF="mailto:">
+</HEAD>
+
+<BODY>
+
+<A NAME="__index__"></A>
+<!-- INDEX BEGIN -->
+
+<UL>
+
+	<LI><A HREF="#name">NAME</A></LI>
+	<LI><A HREF="#synopsis">SYNOPSIS</A></LI>
+	<LI><A HREF="#description">DESCRIPTION</A></LI>
+	<LI><A HREF="#constants">CONSTANTS</A></LI>
+	<UL>
+
+		<LI><A HREF="#clearcase types">ClearCase Types</A></LI>
+		<LI><A HREF="#keywords">Keywords</A></LI>
+		<LI><A HREF="#conventions and regular expressions">Conventions and regular expressions</A></LI>
+		<LI><A HREF="#environment variables">Environment Variables</A></LI>
+	</UL>
+
+	<LI><A HREF="#functions">FUNCTIONS</A></LI>
+	<UL>
+
+		<LI><A HREF="#get_adminvob( $vob )">get_adminvob( $vob )</A></LI>
+		<LI><A HREF="#is_adminvob( $vob )">is_adminvob( $vob )</A></LI>
+		<LI><A HREF="#is_clientvob( $vob )">is_clientvob( $vob )</A></LI>
+		<LI><A HREF="#get_restriction( $qualified_lbtype, $resultref )">get_restriction( $qualified_lbtype, $resultref )</A></LI>
+		<LI><A HREF="#split_dir_file( $path )">split_dir_file( $path )</A></LI>
+		<LI><A HREF="#get_hlinks( $obj, $direction, $hltype )">get_hlinks( $obj, $direction, $hltype )</A></LI>
+		<LI><A HREF="#is_frozen( \$fqlbtype)">is_frozen(  \$fqlbtype)</A></LI>
+		<LI><A HREF="#get_from_hlinks( $typeref, $hltyperef, $returnarrref )">get_from_hlinks(  $typeref, $hltyperef, $returnarrref )</A></LI>
+		<LI><A HREF="#get_to_hlinks( $typeref, $hltyperef, $returnarrref )">get_to_hlinks(  $typeref, $hltyperef, $returnarrref )</A></LI>
+		<LI><A HREF="#mkrestriction( $lbtyperef, $brtyperef, $vobref )">mkrestriction(  $lbtyperef, $brtyperef, $vobref )</A></LI>
+		<LI><A HREF="#scalar_dump( \$scalar )">scalar_dump(  \$scalar  )</A></LI>
+		<LI><A HREF="#objexist( \$obj )">objexist(  \$obj  )</A></LI>
+		<LI><A HREF="#mkhlink_unique( \$fromobj, \$toobj, \$hltype )">mkhlink_unique(  \$fromobj, \$toobj, \$hltype )</A></LI>
+		<LI><A HREF="#mkattr_unique( \$attype, \$obj )">mkattr_unique(  \$attype, \$obj )</A></LI>
+		<LI><A HREF="#rmhlink_all( $fromobjref, $toobjref, $hltyperef )">rmhlink_all(  $fromobjref, $toobjref, $hltyperef )</A></LI>
+		<LI><A HREF="#list_published( $vobref, $long )">list_published(  $vobref, $long )</A></LI>
+		<LI><A HREF="#get_acc_meta_data_vobs( \@returnlist )">get_acc_meta_data_vobs( \@returnlist )</A></LI>
+		<LI><A HREF="#get_published( $vobref, $long, $returnarrayref )">get_published(  $vobref, $long, $returnarrayref  )</A></LI>
+		<LI><A HREF="#get_composite( $lbtype, $level, $resultref )">get_composite( $lbtype, $level, $resultref )</A></LI>
+		<LI><A HREF="#validate_lbtype( $lbtype, $retvalref )">validate_lbtype( $lbtype, $retvalref )</A></LI>
+		<LI><A HREF="#freeze( $lbtyperef )">freeze( $lbtyperef )</A></LI>
+		<LI><A HREF="#labels_to_cs( $labelcsv, $branch, $csref )">labels_to_cs( $labelcsv, $branch, $csref )</A></LI>
+		<LI><A HREF="#lbtype_to_csrule( $lbref, $retref )">lbtype_to_csrule( $lbref, $retref )</A></LI>
+		<LI><A HREF="#set_default_acc_meta( \$vob,\$region )">set_default_acc_meta( \$vob,\$region )</A></LI>
+		<LI><A HREF="#get_default_acc_meta( \$result )">get_default_acc_meta( \$result )</A></LI>
+		<LI><A HREF="#validate_global_invob( $vobref, $typeref, $kindref, $paramsref )">validate_global_invob( $vobref, $typeref, $kindref, $paramsref )</A></LI>
+	</UL>
+
+</UL>
+<!-- INDEX END -->
+
+<HR>
+<P>
+<H1><A NAME="name">NAME</A></H1>
+<P>ACC - Accelerated ClearCase, library functions</P>
+<P>
+<HR>
+<H1><A NAME="synopsis">SYNOPSIS</A></H1>
+<P>To ease the deployment of the acc.pm module it's recommended that you keep your scripts and acc.pm 
+close together and include the directory that contains the acc.pm module using a relative path.</P>
+<P>Example file structure:</P>
+<PRE>
+ acc
+   triggers
+   utils
+   modules</PRE>
+<P>In order to use a relative path, you'll obviously need to determine the location of your running script in a pre-compiled block.</P>
+<P>You can achive that using a regulare BEGIN statement; below is an example on how you can set it up:</P>
+<PRE>
+ our ($Scriptdir, $Scriptfile); 
+ BEGIN
+ {
+   $Scriptdir =&quot;.\\&quot;; # Assume $0 only contain the script, not a fully qualified path. In this case the Scriptdir is set to &quot;.\&quot; (CD)
+   $Scriptfile = $0;  # Assume $0 only contain the script, not a fully qualified path. In this case the Scriptfile to $0  
+   $Scriptfile =~/(.*\\)(.*)$/ &amp;&amp;  do{$Scriptdir=$1;$Scriptfile=$2;} # If $0 contains backslashes - it's split on the last occurence
+ }
+ use lib $Scriptdir.&quot;/../modules&quot;; # From here it's up to the parent (..) and then down into modules
+ use acc;</PRE>
+<P>if you have other modules that are located in the modules folder that should also use the current directory  you simply go:</P>
+<PRE>
+ ...
+ use lib $Scriptdir; # Include current directory
+ use acc;</PRE>
+<P>
+<HR>
+<H1><A NAME="description">DESCRIPTION</A></H1>
+<P>Used to support ClearCase scripting in general. and Accelerated ClearCase
+in particular.</P>
+<P>
+<HR>
+<H1><A NAME="constants">CONSTANTS</A></H1>
+<P>
+<H2><A NAME="clearcase types">ClearCase Types</A></H2>
+<P>These types are expected to exist as global types in the ACC Meta Data VOBs (AdminVOBs)</P>
+<PRE>
+  ATTYPE_FROZEN               = 'Frozen'                      ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;\&quot; 
+  ATTYPE_PROMOTION_LEVEL      = 'PromotionLevel'              ;     # -c &quot;ACC meta type&quot; -vtype string -enum \&quot;released\&quot;,\&quot;tested\&quot;,\&quot;built\&quot;,\&quot;integrated\&quot;
+  ATTYPE_KEYWORDS             = 'Keywords'                    ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;\&quot; 
+  ATTYPE_LBTYPE_TEMPLATE      = 'LbtypeTemplate'              ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;[A-Z][A-Z0-9_-\.]{3,30}\&quot; 
+  ATTYPE_BRTYPE_TEMPLATE      = 'BrtypeTemplate'              ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;[a-z][a-z0-9_]{3,30}\&quot;
+  ATTYPE_ATTYPE_TEMPLATE      = 'AttypeTemplate'              ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;[a-zA-Z][a-zA-Z0-9]{3,30}\&quot; 
+  ATTYPE_HLTYPE_TEMPLATE      = 'HltypeTemplate'              ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;[a-zA-Z][a-zA-Z0-9]{3,30}\&quot; 
+  ATTYPE_ACCMETADATA          = 'AccMetaData'                 ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;\&quot;
+  HLTYPE_PUBLISHED            = 'Published'                   ;     # -c &quot;ACC meta type&quot;
+  HLTYPE_COMPOSITE            = 'CompositeLbtype'             ;     # -c &quot;ACC meta type&quot;
+  HLTYPE_RESTRICTED           = 'Restricted'                  ;     # -c &quot;ACC meta type&quot;
+  LBTYPE_INITIAL              = 'INITIAL'                     ;     # -c &quot;ACC meta type&quot;</PRE>
+<P>
+<H2><A NAME="keywords">Keywords</A></H2>
+<P>These constants defines keywords refered to in the code</P>
+<PRE>
+ TRIGGER_PERL                = 'ratlperl'                    # -c &quot;perl interpreter for triggers scripts&quot;
+ GLOBAL_SCOPE                = 'global'                      # -c &quot;Keyword&quot;</PRE>
+<P>
+<H2><A NAME="conventions and regular expressions">Conventions and regular expressions</A></H2>
+<P>These regular expressions define different conventions.</P>
+<PRE>
+ LOCAL_TYPE_PREFIX           = '^[Ll][Oo][Cc][Aa][Ll]_'      # -c &quot;RegExp which defines local types prefix (local types must have this prefix)&quot; 
+ REGEXP_METADATADEFAULT      = '&lt;:AccMetaDataDefault::\\(/s*):&gt;'  # -c &quot;RegExp which determins the AccMetaDateDefault VOB within a region&quot; 
+ ACC_TEMP_LBTYPE_NAME        = '^_\._\d+_\._\d+$'                   # -c &quot;RegExp defining temp lbtype name while applying Restricted labels with the applyrestricted.pl utility script.&quot;</PRE>
+<P>
+<H2><A NAME="environment variables">Environment Variables</A></H2>
+<P>These constants defines environment variables which code may be looking for to override default settings.</P>
+<PRE>
+ CLEARCASE_FORCE_RESTRICTION = 'CLEARCASE_FORCE_RESTRICTION' # -c &quot;Environment Variable, when set restrictions can be forced&quot;
+ CLEARCASE_ADMINVOB          = 'CLEARCASE_ADMINVOB'          # -c &quot;Environment Variable, when set it overrides the default ACC meta Data VOB - obsoletede - use CLEARCASE_ACCMETADATAVOB&quot;
+ CLEARCASE_ACCMETADATAVOBVOB = 'CLEARCASE_ACCMETADATAVOB'    # -c &quot;Environment Variable, when set it overrides the default ACC meta Data VOB&quot;</PRE>
+<P>
+<HR>
+<H1><A NAME="functions">FUNCTIONS</A></H1>
+<P>The following functions are defined in the acc.pm module but not necessarily exported.
+Look in the acc.pm file to seee what is actually exported.</P>
+<P>
+<H2><A NAME="get_adminvob( $vob )">get_adminvob( $vob )</A></H2>
+<P>Takes a vobtag and returns the top-level AdminVOB in the chain of AdminVOB hyperlinks.</P>
+<P>Parameters:</P>
+<PRE>
+ $vob              = The VOB to check.</PRE>
+<P>Returns:</P>
+<PRE>
+ The top most AdminVOB in the chain of AdminVOB hyperlinks. if the VOB has no AdminVOB hyperlinks it returns $vob (self).</PRE>
+<P>
+<H2><A NAME="is_adminvob( $vob )">is_adminvob( $vob )</A></H2>
+<P>Takes a vobtag and determins if it is an AdminVOB to other client VOBs.</P>
+<P>Parameters:</P>
+<PRE>
+ $vob              = The VOB to check.</PRE>
+<P>Returns:</P>
+<PRE>
+ 1..n = TRUE: The number of client VOBs that uses this VOB as ADMINVOB.
+ 0    = FALSE - This VOB has no AdminVOB role.</PRE>
+<P>
+<H2><A NAME="is_clientvob( $vob )">is_clientvob( $vob )</A></H2>
+<P>Takes a vobtag and determins if it is a clinet VOB to some AdminVOB.</P>
+<P>Parameters:</P>
+<PRE>
+ $vob              = The VOB to check.</PRE>
+<P>Returns:</P>
+<PRE>
+ 1..n = TRUE: The number of AdminVOB hyperlinks pointing FROM this VOB towards another VOB.
+ 0    = FALSE - This VOB has no AdminVOB hyperlkinks.</PRE>
+<P>
+<H2><A NAME="get_restriction( $qualified_lbtype, $resultref )">get_restriction( $qualified_lbtype, $resultref )</A></H2>
+<P>Takes a fully qualified lbtype and retrives the brtype it's restricted to.</P>
+<P>Parameters:</P>
+<PRE>
+ $qualified_brtype = The label type to check in the format lbtype:name@\AdminVOB.
+ $resultref        = A reference to the scalar the will contain the name of the 
+                     branch type which the labe type is restricted to, will contain an
+                     empty string &quot;&quot; if it's not restricted.</PRE>
+<P>Returns:</P>
+<PRE>
+ 1 = Suceedes
+ 0 = Some error occured, the value of $resultref is not valid.</PRE>
+<P>
+<H2><A NAME="split_dir_file( $path )">split_dir_file( $path )</A></H2>
+<P>Splits a path in two: the directory part and the file name part</P>
+<P>Parameters:</P>
+<PRE>
+ $path = The path to split.</PRE>
+<P>Returns:</P>
+<PRE>
+ ($dir, $file) A two-item array.</PRE>
+<P>
+<H2><A NAME="get_hlinks( $obj, $direction, $hltype )">get_hlinks( $obj, $direction, $hltype )</A></H2>
+<P>retrieves the hyperlinks of a certain type from og to an object.</P>
+<P>Parameters:</P>
+<PRE>
+ $obj       =  The fully qualified object in the format type:name@\vob.
+ $direction =  The direction to look for legal values are &quot;-&gt;&quot; and &quot;&lt;-&quot;
+ $hltype    =  The hyperlink to look for</PRE>
+<P>Returns:</P>
+<PRE>
+ @objects   =  An array containing the objects pointed to or from by the specifiec hyperlinks.</PRE>
+<P>
+<H2><A NAME="is_frozen( \$fqlbtype)">is_frozen(  \$fqlbtype)</A></H2>
+<P>Check a label type to see if it's 
+already frozen.</P>
+<P>Parameters:</P>
+<PRE>
+ $fqlbtype       =  The fully qualified lbtype in the format fully qualifed (lbtype:btyptype@vob).
+</PRE>
+<PRE>
+
+Returns:</PRE>
+<PRE>
+ 1     =  The type is frozen.
+ 0     =  The type isn't frozen (or some error occured)</PRE>
+<P>
+<H2><A NAME="get_from_hlinks( $typeref, $hltyperef, $returnarrref )">get_from_hlinks(  $typeref, $hltyperef, $returnarrref )</A></H2>
+<P>Retrieves the objects pointet to by hyperlinks of a certain type pointing from an object.</P>
+<P>Parameters:</P>
+<PRE>
+ $typeref        =  A reference to the The fully qualified object in the format type:name@\vob.
+ $hltyperef      =  A reference to the hltype to search for.
+ $returnarrayref =  A reference to an arry where the objects pointed to will be placed</PRE>
+<P>Returns:</P>
+<PRE>
+ -1    =  An error occured - the content of the returnarray is not valid
+ 0...n =  The number of objects pointed to</PRE>
+<P>
+<H2><A NAME="get_to_hlinks( $typeref, $hltyperef, $returnarrref )">get_to_hlinks(  $typeref, $hltyperef, $returnarrref )</A></H2>
+<P>Retrieves the objects pointet from by hyperlinks of a certain type pointing to an object.</P>
+<P>Parameters:</P>
+<PRE>
+ $typeref        =  A reference to the The fully qualified object in the format type:name@\vob.
+ $hltyperef      =  A reference to the hltype to search for.
+ $returnarrayref =  A reference to an arry where the objects pointed from will be placed</PRE>
+<P>Returns:</P>
+<PRE>
+ -1    =  An error occured - the content of the returnarray is not valid
+ 0...n =  The number of objects pointed from</PRE>
+<P>
+<H2><A NAME="mkrestriction( $lbtyperef, $brtyperef, $vobref )">mkrestriction(  $lbtyperef, $brtyperef, $vobref )</A></H2>
+<P>Makes a a lbtype restricted to a branchtype. Meaning that the label only cna be applied to versions that resides on that 
+particulare branch type.</P>
+<P>Parameters:</P>
+<PRE>
+ $lbtyperef      =  A reference to the lbtype (only it's name - not fully qualified).
+ $brtyperef      =  A reference to the brtype (only it's name - not fully qualified).
+ $returnarrayref =  A reference to the VOB (an ACC meta data VOB)</PRE>
+<P>Returns:</P>
+<PRE>
+ 1     =  Restriction is either created or existed already
+ 0     =  ERROR the restriction couldn't be created.</PRE>
+<P>
+<H2><A NAME="scalar_dump( \$scalar )">scalar_dump(  \$scalar  )</A></H2>
+<P>Prints debug information about a scalar. (scalar name, package, linie number and value).</P>
+<P>Parameters:</P>
+<PRE>
+ $scalar      =  The scalar to dump.</PRE>
+<P>Returns:</P>
+<PRE>
+ void</PRE>
+<P>
+<H2><A NAME="objexist( \$obj )">objexist(  \$obj  )</A></H2>
+<P>Prints debug information about a scalar. (scalar name, package, linie number and value).</P>
+<P>Parameters:</P>
+<PRE>
+ $obj      =  object to test existence for.</PRE>
+<P>Returns:</P>
+<PRE>
+ 1         =  Object exist;
+ 0         =  Object doesn't exist</PRE>
+<P>
+<H2><A NAME="mkhlink_unique( \$fromobj, \$toobj, \$hltype )">mkhlink_unique(  \$fromobj, \$toobj, \$hltype )</A></H2>
+<P>creates a hyperlink if it doesn't  already exist. Will not create it if it's already there.</P>
+<P>Parameters:</P>
+<PRE>
+ $fromobj     = The fully qualified name of the from object (type:name@vob).
+ $toobj       = The fully qualified name of the to object (type:name@vob).
+ $hltype      = The name of the hlink type to create.</PRE>
+<P>Returns:</P>
+<PRE>
+ 1     =  Succes - created the hyperlink  or validated that it already existed.
+ 0     =  ERROR - hyperlink doesn't exist and couldn't be created.</PRE>
+<P>
+<H2><A NAME="mkattr_unique( \$attype, \$obj )">mkattr_unique(  \$attype, \$obj )</A></H2>
+<P>creates an attribute using the attypes default value it doesn't  already exist. Will not create it if it's already there.</P>
+<P>Parameters:</P>
+<PRE>
+ $attype      = The name of the attribute type to create.
+ $obj         = The fully qualified name of the object to which the attribute shall be attached.</PRE>
+<P>Returns:</P>
+<PRE>
+ 1     =  Succes - created the attribute or validated that it already existed.
+ 0     =  ERROR - attribute doesn't exist and couldn't be created.</PRE>
+<P>
+<H2><A NAME="rmhlink_all( $fromobjref, $toobjref, $hltyperef )">rmhlink_all(  $fromobjref, $toobjref, $hltyperef )</A></H2>
+<P>Will remove all hyperlink of the specifiec hltype pointing from one object to another.</P>
+<P>Parameters:</P>
+<PRE>
+ $fromobjref     = The fully qualified name of the from object (type:name@vob).
+ $toobjref       = The fully qualified name of the to object (type:name@vob).
+ $hltyperef      = The name of the hlink type to remove.</PRE>
+<P>Returns:</P>
+<PRE>
+ 1     =  Succes - removed all hyperlinks or validated that no one existed.
+ 0     =  ERROR -  Couldn't remove all hyperlinks.</PRE>
+<P>
+<H2><A NAME="list_published( $vobref, $long )">list_published(  $vobref, $long )</A></H2>
+<P>Will print all published labels from a VOB in short or long format.</P>
+<P>Parameters:</P>
+<PRE>
+ $vobref         = The VOB (ACC Meta data) to retrive published labels from.
+ $long           = Boolean, true indicates long format, false means short.</PRE>
+<P>Returns:</P>
+<PRE>
+ 0     =  Succes - removed all hyperlinks or validated that no one existed.
+ 1     =  ERROR -  Couldn't remove all hyperlinks.</PRE>
+<P>
+<H2><A NAME="get_acc_meta_data_vobs( \@returnlist )">get_acc_meta_data_vobs( \@returnlist )</A></H2>
+<P>Will return all ACC Meta Data VOBs that are tagged up in the region where it's executed.</P>
+<P>Parameters:</P>
+<PRE>
+ @returnlist     = The result.</PRE>
+<P>Returns:</P>
+<PRE>
+ 1     =  Succes the value of @returnlist is valid;
+ 0     =  ERROR -  Some error occured don't trust content of @returnlist.</PRE>
+<P>
+<H2><A NAME="get_published( $vobref, $long, $returnarrayref )">get_published(  $vobref, $long, $returnarrayref  )</A></H2>
+<P>Will return an array with all published labels from a VOB in short or long format.</P>
+<P>Parameters:</P>
+<PRE>
+ $vobref         = The VOB (ACC Meta data) to retrive published labels from.
+ $long           = Boolean, true indicates long format, false means short.
+ $returnarrayref = A reference to the array that will store the result.</PRE>
+<P>Returns:</P>
+<PRE>
+ 0     =  Succes - removed all hyperlinks or validated that no one existed.
+ 1     =  ERROR -  Couldn't remove all hyperlinks.</PRE>
+<P>
+<H2><A NAME="get_composite( $lbtype, $level, $resultref )">get_composite( $lbtype, $level, $resultref )</A></H2>
+<P>Returns the composite structure of a lbtype into an array. The functino calls itself recursively.</P>
+<P>Parameters:</P>
+<PRE>
+  $lbtype        = The label to construct
+  $level         = The indent level to construct (stepped on for each recursive call)
+  $resultref     = A reference to the array that will hold the result</PRE>
+<P>Returns:</P>
+<PRE>
+ void  =  Noting, empty, not used!</PRE>
+<P>
+<H2><A NAME="validate_lbtype( $lbtype, $retvalref )">validate_lbtype( $lbtype, $retvalref )</A></H2>
+<P>Validates the lbtype as a global type in the adminvob, will return the 
+fully qualified name to the global type.</P>
+<P>Parameters:</P>
+<PRE>
+ $lbtype         = The type to validate.
+ $retvalref      = A reference to the scalar that will contain the result.</PRE>
+<P>Returns:</P>
+<PRE>
+ 1     =  Succes - validated that the type is global.
+ 0     =  ERROR -  Type doesn't exist or isn't global.</PRE>
+<P>
+<H2><A NAME="freeze( $lbtyperef )">freeze( $lbtyperef )</A></H2>
+<P>Takes a reference to a fully qualified label type and applies the
+Frozen attribute to it.</P>
+<P>Parameters:</P>
+<PRE>
+ $lbtyperef     =  A FQ lbtype.</PRE>
+<P>Returns:</P>
+<PRE>
+ 1 =  Success
+ 0 =  Some error occured.</PRE>
+<P>
+<H2><A NAME="labels_to_cs( $labelcsv, $branch, $csref )">labels_to_cs( $labelcsv, $branch, $csref )</A></H2>
+<P>Takes a comma separated list of label types, and potentially a working branch 
+and returns a valid config spec. if the working branch is specified as an empty 
+string, the config spec will be read only.</P>
+<P>Note that that this method doesn't the $branch, you should do that before you 
+call the function.</P>
+<P>Parameters:</P>
+<PRE>
+ $labelscsv     =  A prioritzed comma separated list of label 
+                   types to adress in the config spec.
+ $branch        =  The branch to use as work branch, if this parameter
+                   is an empty string (&quot;&quot; as opposed to not defined) then 
+                   the generated config spec will be read-only
+ $csref         =  Outparameter, A reference to the scalar that 
+                   will contain the config spec.</PRE>
+<P>Returns:</P>
+<PRE>
+ 1 =  Success
+ 0 =  Some error occured, the content of $csref is not valid.</PRE>
+<P>
+<H2><A NAME="lbtype_to_csrule( $lbref, $retref )">lbtype_to_csrule( $lbref, $retref )</A></H2>
+<P>Converts a label name into the corresponding Config Spec rule. (in the format ``element * &lt;lbtype&gt;'')</P>
+<P>Parameters:</P>
+<PRE>
+ $qualified_brtype = The label type to convert.
+ $$retref          = A reference to the scalar the will contain the name of the 
+                     config spec rule.</PRE>
+<P>Returns:</P>
+<PRE>
+ 1 = Suceedes
+ 0 = Some error occured, the value of $retref is not valid.</PRE>
+<P>
+<H2><A NAME="set_default_acc_meta( \$vob,\$region )">set_default_acc_meta( \$vob,\$region )</A></H2>
+<P>Assigns the role ``default Acc Meta VOB'' to a VOB within an existing region.
+if another VOB already has that role it will be revoked from the current VOB and assigned to the new one.</P>
+<P>Parameters:</P>
+<PRE>
+ $vob        =  A vob tag.
+ $region     =  A region tag</PRE>
+<P>Returns:</P>
+<PRE>
+ 1 =  Success - default meta data VOB role assigend
+ 0 =  Some error occured.</PRE>
+<P>
+<H2><A NAME="get_default_acc_meta( \$result )">get_default_acc_meta( \$result )</A></H2>
+<P>Returns the ``default Acc Meta VOB'' within the context from where
+it's executed.</P>
+<P>Parameters:</P>
+<PRE>
+  $result</PRE>
+<P>Returns:</P>
+<PRE>
+ 1 =  Success - default meta data VOB is stored in $result
+ 0 =  There is no default meta data VOB defined.</PRE>
+<P>
+<H2><A NAME="validate_global_invob( $vobref, $typeref, $kindref, $paramsref )">validate_global_invob( $vobref, $typeref, $kindref, $paramsref )</A></H2>
+<P>validates that a certain type exist as global in a VOB (ACC meta VOB). if it doesn't it will be created as a global type.
+if the type exist but is not global it will be replaced</P>
+<P>Parameters:</P>
+<PRE>
+ $vobref     =  A vob tag.
+ $typeref    =  The type to validate/create.
+ $kindref    =  The kind of the type, must be one of &quot;lbtype&quot;, &quot;attype&quot;, &quot;hltype&quot;
+ $paramsref  =  The additional parameters that will be passed to the mkxxtype command if any.</PRE>
+<P>Returns:</P>
+<PRE>
+ 3 =  Success - type existed as local - changed to global
+ 2 =  Success - Type existed as global - type is validated
+ 1 =  Success - type is created as global
+ 0 =  Some error occured.</PRE>
+
+</BODY>
+
+</HTML>

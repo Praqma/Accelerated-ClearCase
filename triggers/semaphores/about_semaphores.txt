@@ -1,0 +1,10 @@
+Semaphores are used by the enable_semaphores method in the perl module praqma::trigger_helper.
+It enables triggers to exit silently and let the ClearCase event processed - as if the trigger hadn't been executed at all.
+To create a valid semaphore file for a trigger script the following conditions will have to be met.
+
+* The semaphore file must be named after the user account - no file extension (e.g lsku, g91551, ycd) 
+* The semaphore file must be located in a subfolder of the actual trigger loctaion named "semaphores" (defined by a constant in the module)
+* The semaphore file must have been created (not accessed, or updated, but CREATED) within the last 4 hours (defined by a constant in the module)
+* The semaphore file must contain a line stating the name of the perl script it is supposed to detronize (eg. no_rmelem_rmver.pl), the same semaphore file can list many scritps
+
+
