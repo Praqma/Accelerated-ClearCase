@@ -1,6 +1,9 @@
 require 5.000;
 use strict;
 
+#REV lak: I've never seen a BEGIN END constuction used like this before. The $? is refering to "the result of he last system call"
+#         What is "the last system call" when using this construction?
+#         In plain: It cryptic what's going on here ;-)
 BEGIN {
 
     # Ensure that the view-private file will get named back on rejection.
@@ -31,12 +34,16 @@ use praqma::trigger_helper;
 #Required if you call trigger_helper->enable_install
 our $TRIGGER_NAME = "STOP_TWIN";
 
+# REV lak: The trygger isn't needed on AdminVOBs, what about using:
+# our $TRIGGER_INSTALL = "mktrtype -preop lnname -element -all vob:client";
+
 # vob: is on of clientvob | adminvob | both
 our $TRIGGER_INSTALL = "mktrtype -preop lnname -element -all vob:both";
 
 # File version
 our $VERSION  = "1.0";
 our $REVISION = "20";
+# REV lak: I didn't step the revision to 21 (I only added comments, so basically the script is still the same.
 
 my $verbose_mode = 1;
 
@@ -108,6 +115,9 @@ my $viewkind = $ENV{CLEARCASE_VIEW_KIND};
 my $pathname = $ENV{CLEARCASE_XPN};
 my $sfx      = $ENV{'CLEARCASE_XN_SFX'} ? $ENV{'CLEARCASE_XN_SFX'} : '@@';
 
+# REV lak: regexp matches windowsssssssssssssssssssssssssssssssssssssssss ;-) try using:
+# if ( $ENV{'OS'} =~ /[Ww]indows/ ) {
+
 if ( $ENV{'OS'} =~ /[Ww]indows*/ ) {
 
     # Convert any "X:\view_tag\vob_tag\.\*" to "X:\view_tag\vob_tag\*"
@@ -150,13 +160,27 @@ else {
 # get lines from lshist that begins with non-whitespace and ends with digit
 my @lines =
   grep { /^\S.*\\\d+$/ } qx(cleartool lshist -nop -min -nco -dir -fmt "%Nc%Vn\\n" "$parent_dna");
+  
+#REV lak: It seems like you are only interested in lines starting with Added og Uncat. 
+#         It also seems the he new-line you are adding to output is used for nothing except chomping it again a few lines later
+#         And even later your run another grep to see if the element is part of the Add/Uncat action)
+#         So why no go:
+#
+# my @lines =
+#   grep { /^Added.*?$element.*\\\d+$|^Uncat.*?$element.*\\\d+$/ } qx(cleartool lshist -nop -min -nco -dir -fmt "%Nc%Vn" "$parent_dna");
+#
+# HEY!!! I didn't actually test the reg-exp above ...might need adjustment, but point is it's possible to grep ONLY what actually interesting in one go!
 
+
+# REV lak: If you @lines only hold what is truely interesting you don't need the two hashes
 my %added        = ();    #  table of latest version where NAME was added
 my %uncatalogued = ();    #  table of latest version where NAME was seen before uncatalog
 
 foreach (@lines) {
 
+# REV lak: You could save yourself this reg exp match (see prev REV comment)
     next unless /^Added|^Uncat/i;
+
 
     # isolate elementname and branch version
     my ( $action, $name, $junk, $branch ) = /(.*")(.*)("\.)(.*)/;
@@ -177,6 +201,9 @@ foreach (@lines) {
     }
 }
 
+#  REV lak: You put the newline there in your -fmt switch to lshistory a few lines up
+#           If you drop it, you won't need a chomp in the next line.
+#           in fact you can drop the entire grep and check directly on @lines
 chomp( my @match = grep /$pattern$/, keys %added );
 if (@match) {
     $dupver = $match[$#match];
@@ -184,6 +211,13 @@ if (@match) {
     $found = $dupver;
 
 }
+
+# REV lak:
+# I realize the if you implement the the 'improvement' I argued for then the code will be much harder to read, review and maintain
+# BUT you save a lot a pattern matching and that is known to be fairly expensive.
+# Performance ought to improve - which is our main goal ...everything else being equal ;-)
+#
+# All in all it looks neat - well done ...I have no more comments below this point
 
 # No duplicate element is found on invisible branches
 # Allow the creation of the element.
