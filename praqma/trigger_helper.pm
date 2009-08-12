@@ -22,11 +22,11 @@ require Exporter;
 @EXPORT = qw(new);
 
 use constant MAX_SEMAPHORE_FILE_AGE_DAYS => 0.168;             # real (1 hr ~ 0.042 --> 4 hrs ~ 0.168)
-use constant SEMAPHORE_DIR               => './semaphores';    # Relative to the script location dir
+use constant SEMAPHORE_DIR               => '\\semaphores';    # Relative to the script location dir
 
 # File version
 $VERSION = "1.0";
-$BUILD   = "1";
+$BUILD   = "2";
 
 our $header = <<ENDHEADER;
 #########################################################################
@@ -47,6 +47,8 @@ DATE         EDITOR        NOTE
 2009-06-26   Lars Kruse    First release of the module prepared for
                            Novo Nordisk A/s. It´s based on the old
                            trigger_utils module (version 1.0.1)
+2009-08-11   Lars Kruse    Changed path to the semaphore file to use
+                           back-slashes (version 1.0.2)
 -------------------------------------------------------------------------
 ENDREVISION
 
@@ -68,7 +70,7 @@ sub enable_semaphore_backdoor() {
     my ( $scriptdir, $scriptfile ) = acc::split_dir_file($0);
 
     my $semaphore_dir  = $scriptdir . SEMAPHORE_DIR;
-    my $semaphore_file = $semaphore_dir . "/" . lc( $ENV{'username'} );
+    my $semaphore_file = $semaphore_dir . "\\" . lc( $ENV{'username'} );
 
     if ( -e $semaphore_file ) {
         print "Found semaphore file: $semaphore_file\n";
@@ -86,6 +88,8 @@ sub enable_semaphore_backdoor() {
             }
             print "But it doesn't mention '$mainscript'.\nTrigger is allowed to continue\n";
         }
+    } else {
+    	print "Looked for semaphore file: $semaphore_file, but there wasn't any.\n";
     }
     return $semaphore_file;
 }
