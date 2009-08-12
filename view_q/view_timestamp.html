@@ -1,0 +1,133 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Y:\acc\view_q\view_timestamp.pl</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:" />
+</head>
+
+<body style="background-color: white">
+
+
+<!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
+
+<ul>
+
+	<li><a href="#script_implementation">Script Implementation</a></li>
+	<ul>
+
+		<li><a href="#internal_subfunctions">Internal subfunctions</a></li>
+		<ul>
+
+			<li><a href="#validate_options___">validate_options( )</a></li>
+			<li><a href="#enable_log___">enable_log( )</a></li>
+			<li><a href="#help_mode___">help_mode( )</a></li>
+			<li><a href="#getlastexecution___">getlastexecution( )</a></li>
+			<li><a href="#get_the_log___">get_the_log( )</a></li>
+			<li><a href="#touch_views___">touch_views( )</a></li>
+		</ul>
+
+	</ul>
+
+</ul>
+
+<hr name="index" />
+</div>
+<!-- INDEX END -->
+
+<p>
+</p>
+<h1><a name="script_implementation">Script Implementation</a></h1>
+<p>
+</p>
+<h2><a name="internal_subfunctions">Internal subfunctions</a></h2>
+<p>
+</p>
+<h3><a name="validate_options___">validate_options( )</a></h3>
+<p>The sub-functions read the options and switches applied with the execution into
+the global variables that are defined to cache them.</p>
+<p>The function will kill the script execution if unknown switches are used.</p>
+<p>Parameters:</p>
+<pre>
+  none</pre>
+<p>Returns:</p>
+<pre>
+  nothing</pre>
+<p>
+</p>
+<h3><a name="enable_log___">enable_log( )</a></h3>
+<p>The sub-function overwrites the default settings for log, debug and verbose if set manually and enables the functionality in the logger.</p>
+<p>debug:
+- enables verbose, unless -noverbose is set in the script call.
+- can be extended to give additional information during execution (not implemented)</p>
+<p>verbose:
+- enables log to STDOUT</p>
+<p>logfile &quot;filename&quot;:
+- sets the logfilename (and path) if specified (default name [scriptdir]\view_check.log)</p>
+<p>Checks for ARGV arguments (unreferenced values):
+- if log is enabled, it dies if there is more then one (expect it to be filename or relative/absolute path AND filename)
+- if log is disabled, it dies if there are any
+- The logger module fails, if the specified log, can't be opened/created</p>
+<p>Parameters:</p>
+<pre>
+  Non
+  Uses -verbose, -debug and -logfile &quot;filename&quot;</pre>
+<p>Returns:</p>
+<pre>
+  nothing (unless it dies)</pre>
+<p>exit:</p>
+<pre>
+  Will kill the script exit 1 (die) on ARGV errors - printing the arguments</pre>
+<p>
+</p>
+<h3><a name="help_mode___">help_mode( )</a></h3>
+<p>Prints the help and exits</p>
+<p>Returns:</p>
+<pre>
+  Header, revision and extended usage information</pre>
+<p>Exit:</p>
+<pre>
+  Always</pre>
+<p>
+</p>
+<h3><a name="getlastexecution___">getlastexecution( )</a></h3>
+<pre>
+  Opens the previous logfil (if it exsists) and gets the last datetime-stamp in CC format or an error msg.</pre>
+<p>Returns:</p>
+<pre>
+  Last logentry in CC datetime format or textstring explaining it was not found (saved in global variable)</pre>
+<p>Exit:</p>
+<pre>
+  Dies if logfile can't be opened</pre>
+<p>
+</p>
+<h3><a name="get_the_log___">get_the_log( )</a></h3>
+<pre>
+  Executes &quot;cleartool getlog&quot; based on returns from getlastexecution().
+  If getlog is set, it only gets since \$getlastexecution.
+  If gotlog is not set, it gets the entire log</pre>
+<p>Returns:</p>
+<pre>
+  Array of views found in the getlog execution (saved in global variable)</pre>
+<p>Exit:</p>
+<pre>
+  No</pre>
+<p>
+</p>
+<h3><a name="touch_views___">touch_views( )</a></h3>
+<pre>
+  Touches (updates last access datetime-stamp) all views found in get_the_log()
+  Incomplete, need to include support for views in other regions</pre>
+<p>Returns:</p>
+<pre>
+  Nothing</pre>
+<p>Exit:</p>
+<pre>
+  No (but last sub)</pre>
+
+</body>
+
+</html>

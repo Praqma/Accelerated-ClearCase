@@ -1,0 +1,136 @@
+
+Test what: Script can inform about it self if called out of context
+Test how: ratlperl stop_twin.pl
+Expect: Header information printed to STDOUT
+Result: Pass
+
+Test what: Script can inform about it self if called out of context or invalid switch
+Test how: ratlperl stop_twin.pl -doo
+Expect: Header information printed to STDOUT
+Result: Pass
+
+Test what: Verbose information with -install switch	
+Test how: ratlperl stop_twin.pl -install 
+Expect: Syntax information to STDOUT 
+Result: Pass
+
+Test what: Report not existing vob tag
+Test how: ratlperl stop_twin.pl -install -vob notexistingtag
+Expect: "ERROR \nothere is not accessible"
+Result: Pass
+
+Test what: The script should use the praqma trigger template and associated perl modules
+Test how: Call script with the -install switch
+Expect: The trigger should install itself on the vob specied
+Result: Pass
+
+Test what: The script must create a logfile when a evil twin situation is prevented.
+Test how: Add an existing name to a directory
+Expect: Creation of a log file in the TEMP folder, the logfile name looks like stop_twin.pl.PIDXXXX.log
+Result: Pass
+
+Test what: ET Trigger tests:"reuse directory name"
+Test how: Add (directory) name, then remove name again. Try to add name again
+Expect: Operation stopped by trigger, Messagebox to user, logfile created.
+Result: Pass
+
+Test what: ET Trigger tests:"reuse file name"
+Test how: Add (file) name, then remove name again. Try to add name again
+Expect: Operation stopped by trigger, Messagebox to user, logfile created.
+Result: Pass
+
+Test what: ET Trigger tests:"reuse name, but with changed case"
+Test how: Add (file) name, then remove name again. Try to add name again, but different case
+Expect: Should be allowed, as long as that case combination has not been seen before.
+Result: Pass
+
+Test what: ET Trigger tests:"new name, never used before"
+Test how: Add whatever new name to the directory.	
+Expect: No reaction from trigger, opereration is allowed
+Result: Pass
+
+Test what: ET Trigger tests:"must work in snapshot view"
+Test how: Try add, rename, link, delete name in a snapshot. Test also on vob root as well as inside folder.
+Expect: Well... proper operation, just like in a dynamic view
+Result: Pass
+
+Test what: ET Trigger tests:"must work in dynamic view"
+Test how: Try add, rename, link, delete name in a dynamic. Test also on vob root as well as inside folder.
+Expect: Proper operation, just like in a snapshot view 
+Result: Pass
+
+Test what: Bypassing the script via semaphore, semaphore too old (+4 hours)
+Test how: semaphore created less that 4 hours ago, 
+Expect: Trigger operation continues
+Result: Pass
+
+Test what: Bypass script with valid semaphore
+Test how: It is allowed to create an evil twin. 
+Expect: Message to STDOUT, but no logging
+Result: Pass
+
+Test what: ET Trigger Logging tests:"Log file must be identified by notification message"
+Test how: Make an evil twin
+Expect: The log file should be specified in the messagebox.
+Result: Pass
+
+Test what: ET TriggerLogging tests:"Log file must identify element, directory and version when operation is blocked"
+Test how: Make an evil twin
+Expect: Message box - and logfile, identifies element name, directory name and directory version where name was last used
+Result: Pass
+
+Test what: 
+Test how: 
+Expect: 
+Result: 
+
+Test what: 
+Test how: 
+Expect: 
+Result: 
+
+Test what: 
+Test how: 
+Expect: 
+Result: 
+
+Test what: 
+Test how: 
+Expect: 
+Result: 
+
+Test what: 
+Test how: 
+Expect: 
+Result: 
+
+Test what: 
+Test how: 
+Expect: 
+Result: 
+
+Test what: 
+Test how: 
+Expect: 
+Result: 
+
+Test what: 
+Test how: 
+Expect: 
+Result: 
+
+Test what: 
+Test how: 
+Expect: 
+Result: 
+
+Test what: 
+Test how: 
+Expect: 
+Result: 
+
+Test what: 
+Test how: 
+Expect: 
+Result: 
+
