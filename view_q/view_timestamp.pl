@@ -32,14 +32,19 @@ my $log_enabled  = 1;
 
 # File version
 our $VERSION = "0.1";
-our $BUILD   = "2";
+our $BUILD   = "3";
 
 our $header = <<ENDHEADER;
 #########################################################################
 #     $scriptfile  version $VERSION\.$BUILD
+#     It is a helper utility to view_q.pl
+#
 #     This script is supposed to run as a scheduled task
-#     It's purpose is to register all views in use and touch them
-#     so that the last accessed timestamp is updated.
+#     It's purpose is to register all views that has been used since last execution
+#     and touch them so that the last accessed timestamp is updated.
+#
+#     It must run on the view-server, and will only process local, dynamic views.
+#     Snapshot views are not supported.
 #
 #     Used with the view cleanup script view_q.pl
 #
@@ -58,37 +63,35 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
 2009-03-25  Mikael Jensen  Initial development version
-2009-08-13  Jens Brejner   Bugfixes. Bumped major version because of changed
-                           interface, adding a new switch (-run). Updated doc-
+2009-08-13  Jens Brejner   Bugfixes. Bumped major version. Updated doc-
                            mentation to explain that snapshot views are not sup-
                            ported.
+2009-08-13  Jens Brejner   Remove -since switch, it was not implemented, not use-
+                           full. Remove documentation too about -since too
+                           Adding a new switch (-run).
+                           Document that snapshot views are not supported.
 -------------------------------------------------------------------------
 
 ENDREVISION
 
 my $usage = <<ENDUSAGE;
 
-  $scriptfile [switches]
-  --- Switches ---
-  -since YYYY-MM-DD
-  -logfile [logfilename]
-  -verbose
+  $scriptfile -run [-help] [-[no]logfile pname] [-[no]verbose] [-[no]debug]
 
 ENDUSAGE
 
 my $doc = <<ENDDOC;
 
+-run                    Required in order to execute. Help is displayed if omitted.
 -help                   Get help with the script syntax etc. (you are watching it now)
-
                         --- Auxiliary switches (can be omitted or used on all functions)---
--[no]logfile [location] Sets whether or not to create a logfile.
+-[no]logfile pname      Sets whether or not to create a logfile.
                         May define the name [and location] of the logfile.
                         Default value is the temp dir (usually under users "doc&set") and "view_q.pl[PID].log"
 -[no]verbose            Toggles verbose mode (log to STDOUT)
                         Default is off (for manual execution, verbose is recommended)
 -[no]debug              Toggles debug mode (additional information + force logfile + verbose)
                         Default is off
-
 
 ENDDOC
 
@@ -97,7 +100,7 @@ our $log = scriptlog->new;
 my ( $verbose, $log_enable );
 
 ### Useable variables ###
-my $log_file = $scriptdir . "view_check.log";
+my $log_file = $scriptdir . "view_timestamp.log";    # Default logfile
 
 # REV_1_JBR This comment can be repeated a couple of times
 # REV_1_JBR please comment each variable, what is it's purpose
@@ -110,10 +113,16 @@ my $gotlog;
 my ( @fulllog, @views );
 
 ### Switch arguments ###
-our ( $sw_since, $sw_logfile, $sw_debug, $sw_verbose, $sw_help, $sw_run );
+our ( $sw_logfile, $sw_debug, $sw_verbose, $sw_help, $sw_run );
 
 ### Execution order ###
 &validate_options();
+
+unless ($sw_run) {    #stop running if -run is not on the command line
+    print $header. $revision . $usage . $doc;
+    exit 0;
+}
+
 &help_mode();
 ### Determin if previous logfiles exists ###
 
@@ -132,7 +141,6 @@ else {
 ### Log processing ###
 
 &get_the_log();
-
 &touch_views();
 
 ### Final line ###
@@ -161,17 +169,15 @@ Returns:
 
 sub validate_options() {
     my %options = (
-        "since=s"   => \$sw_since,
-        "help!"     => \$sw_help,    # Display help (
-        "logfile=s" => \$sw_logfile, # User supplied log file name.
-        "debug!"    => \$sw_debug,   # Debug
-        "verbose!"  => \$sw_verbose, # Verbose output
-        "run!"      => \$sw_run      # Do it flag, the script will only attempt to touch views if this switch is on
+
+        "help!"     => \$sw_help,       # Display help (
+        "logfile=s" => \$sw_logfile,    # User supplied log file name.
+        "debug!"    => \$sw_debug,      # Debug
+        "verbose!"  => \$sw_verbose,    # Verbose output
+        "run!"      => \$sw_run         # Do it flag, the script will only attempt to touch views if this switch is on
     );
 
     die "$usage" unless GetOptions(%options);
-
-    #  GetOptions(%options);
 }
 
 sub enable_log() {
@@ -302,7 +308,7 @@ sub get_the_log() {
 =head3 get_the_log( )
 
   Executes "cleartool getlog" based on returns from getlastexecution().
-  If getlog is set, it only gets since \$getlastexecution.
+  If getlog is set, it only gets since the time found by getlastexecution().
   If gotlog is not set, it gets the entire log
 
 Returns:
@@ -317,11 +323,15 @@ Exit:
 
     if ($gotlog) {
 
-        # REV_1_JBR perlish for %COMPUTERNAME% is $ENV{'COMPUTERNAME'}
-        @fulllog = `cleartool getlog -host %COMPUTERNAME% -since $prev_exe_datetime view`;
+        # CHG in Build 3, -host switch does not make sense, we are only working on view servers
+        # @fulllog = `cleartool getlog -host %COMPUTERNAME% -since $prev_exe_datetime view`;
+        @fulllog = `cleartool getlog -since $prev_exe_datetime view`;
     }
     else {
-        @fulllog = `cleartool getlog -host %COMPUTERNAME% -full view`;
+
+        # CHG in Build 3, -host switch does not make sense, we are only working on view servers
+        # @fulllog = `cleartool getlog -host %COMPUTERNAME% -full view`;
+        @fulllog = `cleartool getlog -full view`;
     }
 
     foreach (@fulllog) {
@@ -347,23 +357,28 @@ Exit:
 =cut
 
     # REV_1_JBR     This construction will be hard to maintain.
-    # REV_1_JBR 	I think you should have created a couple more minor functions
+    # REV_1_JBR         I think you should have created a couple more minor functions
 
     foreach (@views) {
         /(\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\+\d\d) (.*)/;
         my $viewdate = $1;
         my $viewloc  = $2;
-        my $viewUNC;
-        my $viewnotstranded;
+        my ( $viewUNC, $viewnotstranded, $error );
 
-        # Insert region validation here
-        # REV_1_JBR Whoah ! is there code missing here.
-        # REV_1_JBR What should be validated? How ? Why?
-        # REV_1_JBR Or has that comment just survived you own notes...
-
-        my $error;
         $debug && $log->information("processing $viewloc from $viewdate\n");
-        my $viewtag = `cleartool lsview -short -storage $2 2>&1`;
+
+        # Skip views that are not dynamic
+        my $dynview = grep { /dynamic/ } grep { /^Properties:/ } qx(cleartool lsview -region * -properties -full -storage $viewloc 2>&1);
+        unless ($dynview) {
+            $log->warning("snapshot view ? at least we did not find dynamic view at $viewloc - trying next view\n");
+            next;
+        }
+        else {
+            $debug && $log->information("Found dynamic view at $viewloc - continue\n");
+        }
+
+        #
+        my $viewtag = `cleartool lsview -short -storage $viewloc 2>&1`;
         if ($?) {
             if ( $viewtag =~ /Unable to open file/ ) {
                 $log->error("Could not find location $viewloc (deleted?)\n");
@@ -372,7 +387,7 @@ Exit:
                 if ( $viewtag =~ /No view tags found/ ) {
                     $debug && $log->warning("viewtag not found\n");
 
-                    # REV_1_JBR The next loop should have been seperate sub
+                    # REV_1_JBR The next loop should have been a seperate sub
                     foreach my $region (`cleartool lsregion`) {
                         chomp($region);
                         $viewUNC = `cleartool lsview -region $region -storage $viewloc 2>&1`;
@@ -392,15 +407,15 @@ Exit:
                         $debug && $log->information("View is not stranded - processing\n");
 
                         # insert mktag, setcs and rmtag
-                        my $mktagcmd = "cleartool mktag -view -tag VIEW_CHECK_TEMP_TAG $viewUNC";
-                        my $setcscmd = "cleartool setcs -tag VIEW_CHECK_TEMP_TAG -current";
-                        my $rmtagcmd = "cleartool rmtag -view VIEW_CHECK_TEMP_TAG";
+                        my $mktagcmd = "cleartool mktag -view -tag VIEW_CHECK_TEMP_TAG $viewUNC 2>&1";
+                        my $setcscmd = "cleartool setcs -tag VIEW_CHECK_TEMP_TAG -current 2>&1";
+                        my $rmtagcmd = "cleartool rmtag -view VIEW_CHECK_TEMP_TAG 2>&1";
 
                         $debug && $log->information("$mktagcmd\n");
                         system("$mktagcmd");
                         if ($?) {
-                            $log->error( "Make tag failed with exitcode: " . ( $? / 256 ) . "\n" );    #/ #EPIC syntax highlight fixer
-                            next;                                                                      #Continues on next view
+                            $log->error( "Make tag failed with exitcode: " . ( $? / 256 ) . "\n" );
+                            next;    #Continues on next view
                         }
                         else {
                             $debug && $log->information("Make tag successful\n");
@@ -408,11 +423,16 @@ Exit:
                         $debug && $log->information("$setcscmd\n");
                         system("$setcscmd");
                         if ($?) {
-                            $log->error( "setcs failed with exitcode: " . ( $? / 256 ) . "\n" );       #/ #EPIC syntax highlight fixer
-                            next;                                                                      #Continues on next view
+                            $log->error( "setcs failed with exitcode: " . ( $? / 256 ) . "\n" );
+                            system("$rmtagcmd");
+                            if ($?) {
+                                $log->error( "rmtag failed with exitcode: " . ( $? / 256 ) . "\n" );    #/ #EPIC syntax highlight fixer
 
-                            # REV_1_JBR Oh, no sir. Don't leave my system with a new viewtag, just because you fail on setcs.
-
+                            }
+                            else {
+                                $log->information("   but rmtag successful\n");
+                            }
+                            next;                                                                       #Continues on next view
                         }
                         else {
                             $log->information("setcs successful for $viewUNC\n");
@@ -420,8 +440,8 @@ Exit:
                         $debug && $log->information("$rmtagcmd\n");
                         system("$rmtagcmd");
                         if ($?) {
-                            $log->error( "rmtag failed with exitcode: " . ( $? / 256 ) . "\n" );       #/ #EPIC syntax highlight fixer
-                            next;                                                                      #Continues on next view
+                            $log->error( "rmtag failed with exitcode: " . ( $? / 256 ) . "\n" );        #/ #EPIC syntax highlight fixer
+                            next;                                                                       #Continues on next view
                         }
                         else {
                             $debug && $log->information("rmtag successful\n");
@@ -441,10 +461,14 @@ Exit:
         else {
             $viewtag =~ s/\s+$//;
 
-            # insert age validation here
-            `cleartool setcs -tag $viewtag -current`;
+            my @return = `cleartool setcs -tag $viewtag -current 2>&1`;
             if ($?) {
                 $log->error("Touch view failed on $viewtag\n");
+                foreach (@return) {
+                    chomp;
+                    $log->error("\t$_\n");
+
+                }
             }
             else {
                 $log->information("View $viewloc\'s last access have been updated from $viewdate\n");

@@ -107,7 +107,7 @@ the global variables that are defined to cache them.</p>
 <h3><a name="get_the_log___">get_the_log( )</a></h3>
 <pre>
   Executes &quot;cleartool getlog&quot; based on returns from getlastexecution().
-  If getlog is set, it only gets since \$getlastexecution.
+  If getlog is set, it only gets since the time found by getlastexecution().
   If gotlog is not set, it gets the entire log</pre>
 <p>Returns:</p>
 <pre>
@@ -119,8 +119,7 @@ the global variables that are defined to cache them.</p>
 </p>
 <h3><a name="touch_views___">touch_views( )</a></h3>
 <pre>
-  Touches (updates last access datetime-stamp) all views found in get_the_log()
-  Incomplete, need to include support for views in other regions</pre>
+  Touches (updates last access datetime-stamp) all views found in get_the_log()</pre>
 <p>Returns:</p>
 <pre>
   Nothing</pre>
