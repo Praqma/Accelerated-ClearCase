@@ -146,6 +146,26 @@ else {
 ### Final line ###
 $log->information("done");
 
+=head1 NAME
+
+view_timestamp.pl - view quarantine utilities
+
+=head1 SYNOPSIS
+
+Updates the last_accessed timestamp of views that are in use, but not written to.
+
+=head1 DECRIPTION
+
+view_timestamp.pl is a auxilary utility that supports the functionality of view_q.pl.
+Reason is, that view_q.pl makes used of the "last_accessed" timestamp, with is only updated when an actual write is committed to the view.
+view_timestamp.pl scans the ClearCase log for any views opened (read) and forces a recompilation of the configspec, 
+which does nothing (as the configspec isn't changed) but updates the timestamp, which then tells view_q.pl that the view is still in use
+and thus preventing that the view is quarantined in view_q.pl's scheduled runs.
+
+=head1 SUPPORT
+
+Visit http://wiki.praqma.net/acc/comp/view_q for more information.
+
 =head1 Script Implementation
 
 =head2 Internal subfunctions
@@ -476,3 +496,5 @@ Exit:
         }    #end if/else (viewtag found)
     }    #end foreach
 }    #end sub
+
+

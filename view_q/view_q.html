@@ -1,0 +1,231 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>view_q.pl - View Quarantine Utilities</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:root@localhost" />
+</head>
+
+<body style="background-color: white">
+
+
+<!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<li><a href="#description">DESCRIPTION</a></li>
+	<li><a href="#support">SUPPORT</a></li>
+	<li><a href="#script_implementation">Script Implementation</a></li>
+	<ul>
+
+		<li><a href="#internal_subfunctions">Internal subfunctions</a></li>
+		<ul>
+
+			<li><a href="#validate_options___">validate_options( )</a></li>
+			<li><a href="#enable_log___">enable_log( )</a></li>
+			<li><a href="#xxx_mode___">xxx_mode( )</a></li>
+			<li><a href="#lsquarantined___">lsquarantined( )</a></li>
+			<li><a href="#purge_stg___stg__">purge_stg( $stg )</a></li>
+			<li><a href="#quarantine_stg___stg__">quarantine_stg( $stg )</a></li>
+			<li><a href="#vwsstgs_nasince___cut_date____result__">vwsstgs_nasince( $cut_date, \@result )</a></li>
+		</ul>
+
+	</ul>
+
+</ul>
+
+<hr name="index" />
+</div>
+<!-- INDEX END -->
+
+<p>
+</p>
+<h1><a name="name">NAME</a></h1>
+<p>view_q.pl - View Quarantine Utilities</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>A collection of features that enables quarantine, purge and recover of views based on
+the view's 'last accessed' date.</p>
+<p>Execute the script with -help switch to learn the syntax and usage.</p>
+<p>
+</p>
+<hr />
+<h1><a name="description">DESCRIPTION</a></h1>
+<p>A fundamental concept to understand when working with view_q.pl is &quot;Stranded views&quot;.</p>
+<p>Stranded views are views that have valid (and registered) view storages, but haven't got any
+view tags in any region.</p>
+<p>Stranded views are unavailable for use, but can easily be brought back to availability by using:</p>
+<pre>
+  cleartool mktag -view ...</pre>
+<p>Clearcase has a feature called rgy_check (which is only available on ClearCase registry servers
+though!). Rgy_check utility can report stranded views.</p>
+<pre>
+  rgy_check -views</pre>
+<p>Run cleartool man rgy_check to learn more.</p>
+<p>When view_q.pl puts a view into quarantine, it removes all tags in all regions. This puts the
+view into the state of being 'stranded'. An important difference between 'regular&quot; stranded
+and views put into quarantine by view_q.pl is the file called</p>
+<pre>
+  .view_quarantine</pre>
+<p>which view_q.pl created in the in the 'admin' subfolder in the view storage. This file contains the history
+of tags in all regions from where they were deleted. and enables a complete restore of which can be done from
+any machine with ClearCase installed.</p>
+<p>View_q.pl can be run in a mode where it lists all views not accessed since a certain date. if you whish you
+can even tell view_q.pl to automatically put these views into quarantine.</p>
+<p>View_q.pl has a different mode which lists all views that are currently in quarantine (As you may have figured
+out this is partly determined by the fact that views are stranded, so this mode only works when executed from
+the ClearCase Registry server, which support rgy_check!)</p>
+<p>When listing the quarantined views you can either automatically purge or recover the views.</p>
+<p>Views can also be purged or recovered individually.</p>
+<p>When view_q.pl purges a view it simply re-creates an intermediate view tag and runs a regular</p>
+<pre>
+  cleartool remove view</pre>
+<p>When a view is recovered by view_q.pl it simply restores all tags in all the regions where it was removed from.</p>
+<p>Some views aren't supposed to be deleted even when they haven't been accessed for a long time. View_q.pl can
+be instructed to disable quarantine of these views.</p>
+<p>
+</p>
+<hr />
+<h1><a name="support">SUPPORT</a></h1>
+<p>Visit <a href="http://www.praqma.net">http://www.praqma.net</a> to get help.</p>
+<p>
+</p>
+<hr />
+<h1><a name="script_implementation">Script Implementation</a></h1>
+<p>
+</p>
+<h2><a name="internal_subfunctions">Internal subfunctions</a></h2>
+<p>
+</p>
+<h3><a name="validate_options___">validate_options( )</a></h3>
+<p>The sub-functions read the options and switches applied with the execution into
+the global variables that are defined to cache them.</p>
+<p>The function will kill the script execution if unknown switches are used.</p>
+<p>Parameters:</p>
+<pre>
+  none</pre>
+<p>Returns:</p>
+<pre>
+  nothing</pre>
+<p>
+</p>
+<h3><a name="enable_log___">enable_log( )</a></h3>
+<pre>
+
+The sub-function overwrites the default settings for log, debug and verbose if set manually and enables the functionality in the logger.
+Prefix option name with &quot;no&quot; for force disable (e.g. -nodebug)</pre>
+<p>Debug:
+- enables verbose, unless -noverbose is set in the script call.
+- enables the logfile
+- gives some extra logging information (variable values, additional information, ect.)</p>
+<p>Verbose:
+- enables log to STDOUT</p>
+<p>Logfile:
+- enables the logfile
+- sets the logfilename (and path) if specified
+- the environment variables SCRIPTLOG_ENABLED or CLEARCASE_TRIGGER_DEBUG forces the logfile to enable, not matter what</p>
+<p>Checks for ARGV arguments (unreferenced values):
+- if log is enabled, it dies if there is more then one (expect it to be filename or relative/absolute path AND filename)
+- if log is disabled, it dies if there are any
+- The logger module fails, if the specified log, can't be opened/created</p>
+<p>Parameters:</p>
+<pre>
+  Non
+  Uses -verbose, -debug and -logfile</pre>
+<p>Returns:</p>
+<pre>
+  nothing (unless it dies)</pre>
+<p>exit:</p>
+<pre>
+  Will kill the script exit 1 (die) on ARGV errors - printing the arguments</pre>
+<p>
+</p>
+<h3><a name="xxx_mode___">xxx_mode( )</a></h3>
+<p>The sub-functions named xxx_mode all work as switches.</p>
+<p>They all start by checking the options and switches applied with the execution to see if the have any work
+to do. if so, they take full responsibility over the remainder of the script execution and exits the script
+with either 1 or 0;</p>
+<pre>
+
+Parameters:</pre>
+<pre>
+  none</pre>
+<p>Returns:</p>
+<pre>
+  nothing</pre>
+<p>exit:</p>
+<p>Will force the entire script to exit with 0 or 1</p>
+<pre>
+  1  =   Wrong set of switches applied
+  0  =   Successful execution</pre>
+<p>
+</p>
+<h3><a name="lsquarantined___">lsquarantined( )</a></h3>
+<p>NOTE: This function will only run on ClearCase registry servers!!!</p>
+<p>This function lists all the quarantined views.</p>
+<p>The format of the listing is the local view storage (as reported by lsview -age).</p>
+<p>A quarantined view is defined as a view that is reported &quot;stranded&quot; by rgy_check and which has
+a .view_quarantine file in the admin directory of the storage.</p>
+<p>Parameters:</p>
+<pre>
+  none</pre>
+<p>Returns:</p>
+<pre>
+  @result    =    The list of quarantined storages.</pre>
+<p>
+</p>
+<h3><a name="purge_stg___stg__">purge_stg( $stg )</a></h3>
+<p>This function purges a view storage.</p>
+<p>It will recreate one intermediate tag to the view stg and then do a regular
+(safe) view removal.</p>
+<p>Parameters:</p>
+<pre>
+  $stg   = The storage to purge (the global one, as reported by a lsview command, or
+           simply the local-path as reported by rgy_check)</pre>
+<p>Returns:</p>
+<pre>
+  1    =    Success
+  0    =    The $stg does not contain a .view_quarantine file or the $stg contains
+            a .view_q_ignore file.</pre>
+<p>
+</p>
+<h3><a name="quarantine_stg___stg__">quarantine_stg( $stg )</a></h3>
+<p>This function quarantines a view storage.</p>
+<p>It will untag tags in all regions and record the reverse commands (the corresponding
+mktag commands) in a file named .view_quarantine located in the admin directory of the
+view storage.</p>
+<p>Parameters:</p>
+<pre>
+  $stg   = The storage to quarantine (the global one, as reported by a lsview command)</pre>
+<p>Returns:</p>
+<pre>
+  1    =    Success
+  0    =    The $stg parameter is invalid - nothing to do!</pre>
+<p>
+</p>
+<h3><a name="vwsstgs_nasince___cut_date____result__">vwsstgs_nasince( $cut_date, \@result )</a></h3>
+<p>This function pushes (global) view storage locations onto the result array
+handed into the sub as a reference if they haven't been accessed since $cut_date.</p>
+<p>The format of the resulting list entries are like this:</p>
+<pre>
+  &lt;YYYY-MM-DD&gt; &lt;view_stg&gt;</pre>
+<p>Where  view &lt;YYYY-MM-DD&gt; is the last accessed date, and &lt;view_stg&gt; is the global view storage location.</p>
+<p>Parameters:</p>
+<pre>
+  $cut_date      =  The date to compare against. The scalar must be in the format YYYY-DD-MM
+  \@result       =  An array reference passed into the sub function</pre>
+<p>Returns:</p>
+<pre>
+  1    =    The content of @result is trust worthy
+  0    =    The $cut_date is in an unsupported format. The content of @result is crab!</pre>
+
+</body>
+
+</html>

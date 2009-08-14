@@ -2,9 +2,9 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<title>Y:\acc\view_q\view_timestamp.pl</title>
+<title>view_timestamp.pl - view quarantine utilities</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link rev="made" href="mailto:" />
+<link rev="made" href="mailto:root@localhost" />
 </head>
 
 <body style="background-color: white">
@@ -16,6 +16,10 @@
 
 <ul>
 
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<li><a href="#decription">DECRIPTION</a></li>
+	<li><a href="#support">SUPPORT</a></li>
 	<li><a href="#script_implementation">Script Implementation</a></li>
 	<ul>
 
@@ -40,6 +44,30 @@
 
 <p>
 </p>
+<h1><a name="name">NAME</a></h1>
+<p>view_timestamp.pl - view quarantine utilities</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>Updates the last_accessed timestamp of views that are in use, but not written to.</p>
+<p>
+</p>
+<hr />
+<h1><a name="decription">DECRIPTION</a></h1>
+<p>view_timestamp.pl is a auxilary utility that supports the functionality of view_q.pl.
+Reason is, that view_q.pl makes used of the &quot;last_accessed&quot; timestamp, with is only updated when an actual write is committed to the view.
+view_timestamp.pl scans the ClearCase log for any views opened (read) and forces a recompilation of the configspec, 
+which does nothing (as the configspec isn't changed) but updates the timestamp, which then tells view_q.pl that the view is still in use
+and thus preventing that the view is quarantined in view_q.pl's scheduled runs.</p>
+<p>
+</p>
+<hr />
+<h1><a name="support">SUPPORT</a></h1>
+<p>Visit <a href="http://wiki.praqma.net/acc/comp/view_q">http://wiki.praqma.net/acc/comp/view_q</a> for more information.</p>
+<p>
+</p>
+<hr />
 <h1><a name="script_implementation">Script Implementation</a></h1>
 <p>
 </p>
@@ -120,7 +148,9 @@ the global variables that are defined to cache them.</p>
 <h3><a name="touch_views___">touch_views( )</a></h3>
 <pre>
   Touches (updates last access datetime-stamp) all views found in get_the_log()</pre>
-<p>Returns:</p>
+<pre>
+
+Returns:</pre>
 <pre>
   Nothing</pre>
 <p>Exit:</p>
