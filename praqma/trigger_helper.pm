@@ -63,35 +63,36 @@ sub require_trigger_context() {
     defined( $ENV{CLEARCASE_VOB_PN} ) || die $main::header . "File version: $main::VERSION\.$main::BUILD\n" . $main::revision;
 }
 
-sub enable_semaphore_backdoor() {
+sub enable_semaphore_backdoor($) {
+	  my $msg = ""; #The status level of the semphore file.
 
     # If the semaphor file exists and it´s not older than MAX_SEMAPHORE_FILE_AGE_DAYS
     # then the trigger will exit silently with 0 - allowing the event the trigger subscribed to, to carry on
-    my ( $scriptdir, $scriptfile ) = acc::split_dir_file($0);
 
     my $semaphore_dir  = $scriptdir . SEMAPHORE_DIR;
     my $semaphore_file = $semaphore_dir . "\\" . lc( $ENV{'username'} );
 
+    my ( $mainpath, $mainscript ) = acc::split_dir_file($main::0);
     if ( -e $semaphore_file ) {
-        print "Found semaphore file: $semaphore_file\n";
+    	  $msg = "Script '$mainscript' found semaphore file at '$semaphore_file'\n";
         if ( ( -M $semaphore_file ) > MAX_SEMAPHORE_FILE_AGE_DAYS ) {
-            print "...but it's too old to stop the trigger\n!";
+            $msg = $msg."...but it's too old to stop us!";
         } else {
-            my ( $mainpath, $mainscript ) = acc::split_dir_file($main::0);
-            open( SEMAPHORE, $semaphore_file ) || print "Failed to open the semaphore file for read\n" && return;
+            open( SEMAPHORE, $semaphore_file ) || print $msg = $msg. "...Failed to open the semaphore file for read\n" && return;
             my @sempahore = grep( /^\s*$mainscript\s*$/i, <SEMAPHORE> );
             close(SEMAPHORE);
 
             if ( scalar @sempahore ) {
-                print "Found the script '$mainscript' listed in the semphore file\nThe trigger script is canceled by semaphore!\n";
+                $msg = $msg."...and found the script '$mainscript' listed in the semphore file\nThe trigger script is canceled by semaphore!\n";
+                print $msg;
                 exit 0;
             }
-            print "But it doesn't mention '$mainscript'.\nTrigger is allowed to continue\n";
+            $msg=$msg."...but it doesn't mention '$mainscript' so the trigger is allowed to continue\n";
         }
     } else {
-    	print "Looked for semaphore file: $semaphore_file, but there wasn't any.\n";
+    	$msg = "Script '$mainscript' looked for semaphore file at '$semaphore_file'\n...but there wasn't any\n";
     }
-    return $semaphore_file;
+    return $msg;
 }
 
 sub enable_install() {

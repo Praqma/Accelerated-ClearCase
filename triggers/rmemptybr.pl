@@ -17,7 +17,7 @@ our $TRIGGER_INSTALL="mktrtype -element -all -postop uncheckout,rmbranch,rmver v
 our $VERSION = "1.0"; 
 our $REVISION = "1";
 
-my $verbose_mode=1;
+my $verbose_mode=1; # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -25,9 +25,11 @@ our $header = <<ENDHEADER;
 #     $Scriptfile  version $VERSION\.$REVISION                                      
 #     This script is intended as trigger script for the 
 #     $TRIGGER_NAME trigger.
-#     The trigger runs after versions has beed removed from ClearCase 
-#     (rmver, rmbranch and uncheckout) and checks if the removed version 
-#     was the last on the branch, and if to removes the branch too.
+#     The trigger runs after versions, reserved checkouts or branches has 
+#     beed removed from ClearCase (rmver, rmbranch and uncheckout) and 
+#     checks if the operation left an empty branch and if so, removes the 
+#     branch too. The trigger always updates the removed or uncheckedout 
+#     element if the view is a snapshot view.
 #     This script supports self-install (execute with the -install 
 #     switch to learn more).
 #     Read the POD documentation in the script for more details
@@ -52,16 +54,17 @@ ENDREVISION
 our $thelp=trigger_helper->new;
 $thelp->enable_install;
 $thelp->require_trigger_context;
-our $semaphore_file = $thelp->enable_semaphore_backdoor;
+our $semaphore_status = $thelp->enable_semaphore_backdoor;
 
 #Enable the features in scriptlog
 our $log = scriptlog->new;
 $log->conditional_enable(); #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
 $log->set_verbose($verbose_mode);
 our $logfile=$log->get_logfile;
-($logfile) && $log->information("logfile is: $logfile\n");
+($logfile) && $log->information("logfile is: $logfile\n"); # Logfile is null if logging isn't enabled.
+$log->information($semaphore_status);
 
-#$log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
+$log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
 
 ######### CHECK IF BRANCH IS EMPTY AND REMOVE IF NECESSARY ##############
 if ( $ENV{CLEARCASE_OP_KIND} =~ /uncheckout|rmver/ ) { #Check that the events that fired the trigger is of the kind we support (rmbranch is dealt with later!)
@@ -75,16 +78,16 @@ if ( $ENV{CLEARCASE_OP_KIND} =~ /uncheckout|rmver/ ) { #Check that the events th
 	  	
   # Get out if uncheckout isn't triggered by the zero-version
   if ($ENV{'CLEARCASE_OP_KIND'} eq "uncheckout"){
-    nice_exit(0) if ($verno != 0); # If the version isn't the zero-version then the branch isn't empty - get out, do nothing!
+    nice_exit(0) unless ($verno = 0); # Get out NOW - unless the version is the zero-version - then we'll nuke it.
   }
 
   # Get out if rmver doesn't leave an empty branch
   if ($ENV{'CLEARCASE_OP_KIND'} eq "rmver"){
-     nice_exit(0) unless br_is_empty($elem_br);
+     nice_exit(0) unless br_is_empty($elem_br); # Get out NOW - unless the branch is empty - then we'll nuke it.
    }
   
-   nuke_br($elem_br);
-   nice_exit(0);
+  nuke_br($elem_br);
+  nice_exit(0);
 }
 
 ######### CHECK IF BRANCH IS CASCADING OFF AN EMPTY BRANCH ##############
@@ -101,19 +104,20 @@ if ( $ENV{CLEARCASE_OP_KIND} =~ /rmbranch/ ) { #Check that the events that fired
 	nice_exit(0);
 }
 
+# If the CLEARCASE_OP_KIND isn't recognized at this point, then we're off limits!
 $log->warning("This script is triggered by an event which it was not originally designed to handle\t\tMaybe it's not installed correct?");
-exit 1;
+exit 1; # Error code 1 on a post-op trigger will automatically cause a warning.
 
 ####################################  SUBS   #################################################
 sub br_is_empty($){
 	my $elem_br = shift;
-  my $cmd = "cleartool lsvtree -all \"$elem_br\"";
+  my $cmd = "cleartool lsvtree -all \"$elem_br\" 2>&1";
   my @vtree_elem_br = `$cmd`;
   if ($?){ # The lsvtree command failed!
-    $log->error("The command: '$cmd' failed");
-    nice_exit(1);
+  	my $output = join ",",@vtree_elem_br;
+    $log->error("The command: '$cmd' failed, output was:\n\>\>\>\n$output\n\<\<\<\n");
+    nice_exit(1); 
   }
-  
   # An empty branch has two element in total:
   #   1: The branch itself
   #   2: The zero-version on the branch
@@ -121,24 +125,34 @@ sub br_is_empty($){
   if ($#vtree_elem_br > 1){
   	return 0; # There are more versions on the branch - return false
   }  
-  return 1; 
+  return 1; #Else it's true - the branch is empty!
 }
 
 sub nuke_br($){
  	my $elem_br = shift;
-	my $comment="Automatic removal of empty branch by trigger ($Scriptfile)";
-	$log->information($comment."\n");
-  my $cmd = "cleartool rmbranch -force -c \"$comment\" \"$elem_br\"";
-  system($cmd);
+  my $cmd = "cleartool rmbranch -force -c \"Automatic removal of empty branch by trigger ($Scriptfile)\" \"$elem_br\" 2>&1";
+  $log->information("Executing: $cmd\n"); 
+  my $output = `$cmd`;
   if ($?){ # The rmbranch command failed!
-    $log->error("The command: '$cmd' failed\n\t\tUnable to determine state of ".$ENV{CLEARCASE_BRTYPE}."\n");
+    $log->error("The command: '$cmd' failed:\n$output\nUnable to determine state of ".$ENV{CLEARCASE_BRTYPE}."\n");
     nice_exit(1);
-  }
+  }                  
+  $log->information("Result was:\n\>\>\>\n$output\n\<\<\<\n");
+  $log->information_always("Trigger script ($Scriptfile) removed empty branch '$elem_br'\n");
   return 1;	
 }
 
 sub nice_exit($){
 	my $retval = shift;
-  system("cleartool update \"$ENV{'CLEARCASE_PN'}\"") if ($ENV{'CLEARCASE_VIEW_KIND'} eq 'snapshot' );
+	my $cmd = "cleartool update -log nul \"$ENV{'CLEARCASE_PN'}\" 2>&1";
+	if ($ENV{'CLEARCASE_VIEW_KIND'} eq 'snapshot' ){ #update the element
+	  $log->information("Executing: $cmd\n"); 
+	  my $output = `$cmd`;
+    if ($?){ # The update failed
+      $log->error("The command: '$cmd' failed, output was:\n\>\>\>\n$output\n\<\<\<\n");
+    }
+    $log->information("Result was:\n\>\>\>\n$output\n\<\<\<\n");
+    $log->information_always("Loaded the selected version of $ENV{CLEARCASE_PN} into snapshot view\n");                    
+	}; 
   exit $retval;
 }
