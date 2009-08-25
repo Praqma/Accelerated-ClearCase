@@ -1,0 +1,91 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>chow_on_mkelem - ClearCase trigger</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:" />
+</head>
+
+<body style="background-color: white">
+
+
+<!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<ul>
+
+		<li><a href="#restrictions">Restrictions</a></li>
+	</ul>
+
+	<li><a href="#description">DESCRIPTION</a></li>
+	<li><a href="#author">AUTHOR</a></li>
+	<li><a href="#bugs">BUGS</a></li>
+	<li><a href="#copyright">COPYRIGHT</a></li>
+</ul>
+
+<hr name="index" />
+</div>
+<!-- INDEX END -->
+
+<p>
+</p>
+<h1><a name="name">NAME</a></h1>
+<p>chow_on_mkelem - ClearCase trigger</p>
+<p>Script:        <em class="file">chow_on_mkelem.pl</em></p>
+<p>Trigger name:  <code>CHOW_ON_MKELEM</code></p>
+<p>Used as a trigger to change the ownership of newly added elemetns to be owned by the VOB owner.</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>Runs as ClearCase trigger script installed on basevobs and ucmvobs (not adminvobs or pvobs)</p>
+<p>The scripts installs itself correctly when executed outside a trigger context using:</p>
+<pre>
+  chow_on_mkelem.pl -install -vob \thevob</pre>
+<p>To learn the full syntax simply execute the the script without the -vob switch:</p>
+<pre>
+  chow_on_mkelem.pl -install</pre>
+<p>
+</p>
+<h2><a name="restrictions">Restrictions</a></h2>
+<p>During the install process, that script is supposed to run under the account which owns the VOB. 
+The script will fail if that is not the case.</p>
+<p>An exception is if you execute it in -preview mode</p>
+<p>To bypass the script you must create the appropriate semaphor file first 
+(see the POD documentation for praqma::trigger_helper-&gt;enable_semaphore_backdoor).</p>
+<p>It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure 
+that triggers are executed - and semaphore files ar looked-up - at locations where common users only 
+have read access. ...There! I said it anyway!</p>
+<p>
+</p>
+<hr />
+<h1><a name="description">DESCRIPTION</a></h1>
+<p>Elements are per default owned by the user who creates them (adds them to source control) and element ownership 
+means 'superpowers' ...superpowers which general users aren't supposed to have, so thererfor they are revoked 
+instantly upon creation by this trigger.</p>
+<p>
+</p>
+<hr />
+<h1><a name="author">AUTHOR</a></h1>
+<p>Lars Kruse, &lt;<a href="mailto:lak@praqma.net">lak@praqma.net</a>&gt;.</p>
+<p>
+</p>
+<hr />
+<h1><a name="bugs">BUGS</a></h1>
+<p>See the website below.</p>
+<p>
+</p>
+<hr />
+<h1><a name="copyright">COPYRIGHT</a></h1>
+<p>This program is distributed under the GNU General Pulic License v3.0</p>
+<p>Support:    <a href="http://launchpad.net/acc">http://launchpad.net/acc</a></p>
+<a href="http://launchpad.net/acc">Project home at Launchpad</a>
+</body>
+
+</html>
