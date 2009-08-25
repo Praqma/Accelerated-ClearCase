@@ -340,26 +340,38 @@ assumes that the caller ($main) has defined the following fore variabels:
 
 =head2 sub enable_semaphore_backdoor( )
 
-Checks for the existence a semaphore file and if it exist the trigger execution is canceled
+Checks for the existence of a valid semaphore.
 
-The semaphore file shall be in a folder called './semaphores' which is a relative path to the executing script.
+The semaphore enables triggers to exit silently and let the ClearCase event processed - as if the trigger had
+not been executed at all. 
 
-The semaphore file itself is a file with the same name as the executing user (no file extension)
+To create a valid semaphore for a trigger script the following conditions will have to be met:
 
-Sample:
+=over
 
-  \\server\triggers
-      script.pl
-      \semaphores
-          ycd
-          vobadm
+=item *
 
-Will cause that the script.pl trigger doesn´t fire when ClearCase events are created by the users
-ycd and vobadm
+A semaphore file must be created, The semaphore file must be named after the user account - no file extension (e.g lsku, g91551, ycd) 
+
+=item *
+
+The semaphore file must be located in a subfolder of the actual trigger loctaion named "semaphores" (defined by a constant in the module)
+
+=item *
+
+The semaphore file must have been created (not accessed, or updated, but CREATED) within the last 4 hours (defined by a constant in the module)
+
+=item *
+
+The semaphore file must contain a line stating the name of the perl script it is supposed to detronize (eg. no_rmelem_rmver.pl), the 
+same semaphore file can list many scritps.
+
+=back
+If a valid semaphore exist the trigger execution is canceled.
 
 The location of the C<semaphores> directory can tweak by setting the constant C<trigger_utils::SEMAPHORE_DIR>.
 
-The semaphore files are ignored (doesn´t stop the trigger) if they are more then 4 hrs old.
+Note that the semaphore files are ignored (doesn´t stop the trigger) if they are more then 4 hrs old. 
 
 This setting can be tweaked by setting the constant C<trigger_utils::MAX_SEMAPHORE_FILE_AGE_DAYS>.
 
