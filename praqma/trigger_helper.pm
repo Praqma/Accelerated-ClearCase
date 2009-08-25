@@ -26,7 +26,7 @@ use constant SEMAPHORE_DIR               => '\\semaphores';    # Relative to the
 
 # File version
 $VERSION = "1.0";
-$BUILD   = "2";
+$BUILD   = "3";
 
 our $header = <<ENDHEADER;
 #########################################################################
@@ -49,6 +49,9 @@ DATE         EDITOR        NOTE
                            trigger_utils module (version 1.0.1)
 2009-08-11   Lars Kruse    Changed path to the semaphore file to use
                            back-slashes (version 1.0.2)
+2009-08-25	Lars Kruse		 Changed the return value of enable_semaphore()
+                           to be the status of the semaphore look-up. 
+                           (version 1.0.3)
 -------------------------------------------------------------------------
 ENDREVISION
 

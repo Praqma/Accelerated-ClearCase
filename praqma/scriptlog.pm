@@ -113,7 +113,7 @@ sub information_always() {
    my $msg  = shift;
    my $prefix  = $self->timestamp . " [I]:\t";
    $Enabled && print LOGFILE $prefix.indent_msg($msg);
-   print STDOUT $msg; #unconditional print
+   print STDERR $msg; #unconditional print
    $Info_count++;
    return $Verbose;
 }
