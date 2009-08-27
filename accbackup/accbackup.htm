@@ -1,212 +1,305 @@
-<HTML>
-<HEAD>
-<TITLE>C:\DOCUME~1\student\Desktop\ACCBAC~1.FEA\ACCBAC~1.PL</TITLE>
-<LINK REV="made" HREF="mailto:">
-</HEAD>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>C:\Praqma\ACCBackup\accbackup.pl</title>
+<link rel="stylesheet" href="C:/Program Files/OptiPerl/Pod2Html.css" type="text/css" />
+<link rev="made" href="mailto:" />
+</head>
 
-<BODY>
+<body>
 
-<A NAME="__index__"></A>
+<p><a name="__index__"></a></p>
 <!-- INDEX BEGIN -->
+<!--
 
-<UL>
+<ul>
 
-	<LI><A HREF="#name">NAME</A></LI>
-	<LI><A HREF="#synopsis">SYNOPSIS</A></LI>
-	<LI><A HREF="#description">Description</A></LI>
-	<LI><A HREF="#availability">AVAILABILITY</A></LI>
-	<LI><A HREF="#parameters">Parameters</A></LI>
-	<LI><A HREF="#returns">Returns</A></LI>
-	<LI><A HREF="#functions">FUNCTIONS</A></LI>
-	<UL>
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<li><a href="#description">Description</a></li>
+	<li><a href="#availability">AVAILABILITY</a></li>
+	<li><a href="#parameters">Parameters</a></li>
+	<li><a href="#returns">Returns</a></li>
+	<li><a href="#functions">FUNCTIONS</a></li>
+	<ul>
 
-		<LI><A HREF="#die_gracefully ( $message )">die_gracefully  ( $message )</A></LI>
-		<LI><A HREF="#running_local( )">running_local( )</A></LI>
-		<LI><A HREF="#verify_switches( )">verify_switches( )</A></LI>
-		<LI><A HREF="#expand_path( \$stringtoexpand, \$expandedstring )">expand_path( \$stringtoexpand, \$expandedstring )</A></LI>
-		<LI><A HREF="#validate_folder( \$dir_pname )">validate_folder( \$dir_pname )</A></LI>
-		<LI><A HREF="#initialize( )">initialize( )</A></LI>
-		<LI><A HREF="#exist_robocopy( )">exist_robocopy( )</A></LI>
-		<LI><A HREF="#notify( )">notify( )</A></LI>
-		<LI><A HREF="#want_help( )">want_help( )</A></LI>
-		<LI><A HREF="#enable_debug( )">enable_debug( )</A></LI>
-		<LI><A HREF="#debug_print( $message )">debug_print( $message )</A></LI>
-		<LI><A HREF="#copy_vob_stg( $vobtag )">copy_vob_stg( $vobtag )</A></LI>
-		<LI><A HREF="#do_the_lock( $vobtag, $mode )">do_the_lock( $vobtag, $mode )</A></LI>
-		<LI><A HREF="#get_adminvobs( $vobtag )">get_adminvobs( $vobtag )</A></LI>
-		<LI><A HREF="#get_hlinks( \$object, \$direction, \$hltype )">get_hlinks( \$Object, \$Direction, \$HLType )</A></LI>
-		<LI><A HREF="#unique( )">unique( )</A></LI>
-		<LI><A HREF="#do_triggers( $vobtag )">do_triggers( $vobtag )</A></LI>
-		<LI><A HREF="#exists_regexe( )">exists_regexe( )</A></LI>
-		<LI><A HREF="#export_winrgy( )">export_winrgy( )</A></LI>
-		<LI><A HREF="#get_thevobs( )">get_thevobs( )</A></LI>
-		<LI><A HREF="#do_directories">do_directories</A></LI>
-	</UL>
+		<li><a href="#die_gracefully____message__">die_gracefully ( $message )</a></li>
+		<li><a href="#running_local____">running_local ( )</a></li>
+		<li><a href="#verify_switches____">verify_switches ( )</a></li>
+		<li><a href="#expand_path_____stringtoexpand____expandedstring__">expand_path ( \$stringtoexpand, \$expandedstring )</a></li>
+		<li><a href="#validate_folder_____dir_pname__">validate_folder ( \$dir_pname )</a></li>
+		<li><a href="#initialize____">initialize ( )</a></li>
+		<li><a href="#exist_robocopy____">exist_robocopy ( )</a></li>
+		<li><a href="#notify____">notify ( )</a></li>
+		<li><a href="#want_help___">want_help( )</a></li>
+		<li><a href="#enable_debug___">enable_debug( )</a></li>
+		<li><a href="#debug_print____message__">debug_print ( $message )</a></li>
+		<li><a href="#copy_vob_stg____vobtag__">copy_vob_stg ( $vobtag )</a></li>
+		<li><a href="#do_the_lock___vobtag___mode____nuserswitch____lockcomment__">do_the_lock( $vobtag, $mode, \$nuserswitch, \$lockcomment )</a></li>
+		<li><a href="#get_adminvobs___vobtag__">get_adminvobs( $vobtag )</a></li>
+		<li><a href="#get_hlinks____object____direction____hltype__">get_hlinks( \$Object, \$Direction, \$HLType )</a></li>
+		<li><a href="#unique___">unique( )</a></li>
+		<li><a href="#do_triggers___vobtag__">do_triggers( $vobtag )</a></li>
+		<li><a href="#exists_regexe___">exists_regexe( )</a></li>
+		<li><a href="#export_winrgy___">export_winrgy( )</a></li>
+		<li><a href="#get_thevobs___">get_thevobs( )</a></li>
+		<li><a href="#do_directories">do_directories</a></li>
+	</ul>
 
-</UL>
+</ul>
+-->
 <!-- INDEX END -->
 
-<HR>
-<P>
-<H1><A NAME="name">NAME</A></H1>
-<P>Accelerated Backup</P>
-<P>
-<HR>
-<H1><A NAME="synopsis">SYNOPSIS</A></H1>
-<P>Backup utility script for ClearCase</P>
-<P>
-<HR>
-<H1><A NAME="description">Description</A></H1>
-<P>Used for Automating Backing up ClearCase environment</P>
-<P>
-<HR>
-<H1><A NAME="availability">AVAILABILITY</A></H1>
-<P>To get newest version of this script visit:
-<A HREF="https://www.svn.praqma.net/svn">https://www.svn.praqma.net/svn</A></P>
-<P>
-<HR>
-<H1><A NAME="parameters">Parameters</A></H1>
-<P>Please call the script with -usage command line switch</P>
-<P>
-<HR>
-<H1><A NAME="returns">Returns</A></H1>
-<P>Returns 0 for successfull completion
-Returns 1 (or higher) for errors</P>
-<P>
-<HR>
-<H1><A NAME="functions">FUNCTIONS</A></H1>
-<P>
-<H2><A NAME="die_gracefully ( $message )">die_gracefully  ( $message )</A></H2>
-<P>die_gracefully($message);</P>
-<P>Used for exiting the program, kind of a nice out.
-before the program exits it writes the log file, and sends an email</P>
-<P>
-<H2><A NAME="running_local( )">running_local( )</A></H2>
-<P>used to check if we are running on ClearCase LT and the -host switch is defined, if this
-is the case we will exit with an error.</P>
-<P>To look for ClearCase LT we use the output from cleartool -ver.
-The reply will include the string Rational ClearCase LT</P>
-<P>Parameters: None
-Returns:    None</P>
-<P>
-<H2><A NAME="verify_switches( )">verify_switches( )</A></H2>
-<P>Takes all the Switches and checks if they are given in the right context.
+<p>
+</p>
+<h1><a name="name">NAME</a></h1>
+<p>Accelerated ClearCase Backup</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>Backup utility script for ClearCase</p>
+<p>
+</p>
+<hr />
+<h1><a name="description">Description</a></h1>
+<p>Used for Automating Backing up ClearCase environment</p>
+<p>
+</p>
+<hr />
+<h1><a name="availability">AVAILABILITY</a></h1>
+<p>To get newest version of this script visit:
+<a href="https://www.svn.praqma.net/svn">https://www.svn.praqma.net/svn</a></p>
+<p>
+</p>
+<hr />
+<h1><a name="parameters">Parameters</a></h1>
+<p>Please call the script with -usage command line switch</p>
+<p>
+</p>
+<hr />
+<h1><a name="returns">Returns</a></h1>
+<p>Returns 0 for successfull completion
+Returns 1 (or higher) for errors</p>
+<p>
+</p>
+<hr />
+<h1><a name="functions">FUNCTIONS</a></h1>
+<p>
+</p>
+<h2><a name="die_gracefully____message__">die_gracefully ( $message )</a></h2>
+<pre>
+ die_gracefully($message)</pre>
+<p>Used for exiting the program, kind of a nice out, before the program exits it writes the log file, and possibly send an email</p>
+<p>
+</p>
+<h2><a name="running_local____">running_local ( )</a></h2>
+<pre>
+ running_local()</pre>
+<p>used to check if we are running on ClearCase LT and the -host switch is defined, if this
+is the case we will exit with an error.</p>
+<p>To look for ClearCase LT we use the output from cleartool -ver.
+The reply will include the string Rational ClearCase LT</p>
+<p>Parameters: None
+Returns:    None</p>
+<p>
+</p>
+<h2><a name="verify_switches____">verify_switches ( )</a></h2>
+<pre>
+ verify_switches()</pre>
+<p>Takes all the Switches and checks if they are given in the right context.
 Dies telling the error, if any of the switches arent given in the right syntax
-or context.</P>
-<P>Parameters: None
-Returns:    Nothing</P>
-<P>
-<H2><A NAME="expand_path( \$stringtoexpand, \$expandedstring )">expand_path( \$stringtoexpand, \$expandedstring )</A></H2>
-<P>Expands a path string if valid template is found</P>
-<P>Returns     0 on error
-Returns     1 on success, a valid template was found</P>
-<P>
-<H2><A NAME="validate_folder( \$dir_pname )">validate_folder( \$dir_pname )</A></H2>
-<P>Test if folder exist.
-Attempt creation if not dir and not exist</P>
-<P>Parameter:        Reference to a string that should be a path</P>
-<P>Return 1 on Success
-Return 0 on Failure</P>
-<P>
-<H2><A NAME="initialize( )">initialize( )</A></H2>
-<P>Initialize simply initializes the environment we are working in.
+or context.</p>
+<p>Parameters: None
+Returns:    Nothing</p>
+<p>
+</p>
+<h2><a name="expand_path_____stringtoexpand____expandedstring__">expand_path ( \$stringtoexpand, \$expandedstring )</a></h2>
+<pre>
+ expand_path( \$stringtoexpand, \$expandedstring )</pre>
+<p>Expands a path string if valid template is found</p>
+<p>Returns     0 on error
+Returns     1 on success, a valid template was found</p>
+<p>
+</p>
+<h2><a name="validate_folder_____dir_pname__">validate_folder ( \$dir_pname )</a></h2>
+<pre>
+ validate_folder( \$dir_pname )</pre>
+<p>Test if folder exist.
+Attempt creation if not dir and not exist</p>
+<p>Parameter:        Reference to a string that should be a path</p>
+<p>Return 1 on Success
+Return 0 on Failure</p>
+<p>
+</p>
+<h2><a name="initialize____">initialize ( )</a></h2>
+<pre>
+ initialize()</pre>
+<p>Initialize simply initializes the environment we are working in.
 The order of events is important.
 Parameters:   None
-Returns:      Nothing.</P>
-<P>
-<H2><A NAME="exist_robocopy( )">exist_robocopy( )</A></H2>
-<P>Test if robocopy.exe is available and if it is the version that has been
-tested with this script</P>
-<P>Parameters: None
-Returns:    0 if not found
-Returns:    1 if OK</P>
-<P>
-<H2><A NAME="notify( )">notify( )</A></H2>
-<P>Used to send emails to a given list of recipients, the email will contain log information,
-there are tree option on notify [I|W|E]</P>
-<PRE>
+Returns:      Nothing.</p>
+<p>
+</p>
+<h2><a name="exist_robocopy____">exist_robocopy ( )</a></h2>
+<pre>
+ exist_robocopy()</pre>
+<p>Test if robocopy.exe is available and if it is the version that has been
+tested with this script</p>
+<p>Parameters: None
+Returns:    0 if not found (error)
+Returns:    1 if found (OK)</p>
+<p>
+</p>
+<h2><a name="notify____">notify ( )</a></h2>
+<pre>
+ notify()</pre>
+<p>Used to send emails to a given list of recipients, the email will contain log information,
+there are tree option on notify [I|W|E]</p>
+<pre>
  I) gives all the information the script has. (LIKE IN SPAM).
  W) gives all the warnings created under the run.
- E) gives all the errors created under the run.</PRE>
-<P>
-<H2><A NAME="want_help( )">want_help( )</A></H2>
-<P>Used to check if the scripter is needing assistance.</P>
-<P>
-<H2><A NAME="enable_debug( )">enable_debug( )</A></H2>
-<P>enables the ``debug mode'' which means the script will load all information
-to STDOUT(LIKE IN SPAM).</P>
-<P>
-<H2><A NAME="debug_print( $message )">debug_print( $message )</A></H2>
-<P>Used to actually print all the messages out to STDOUT it will alwas run but before printing
-it checks to see if this script is running in debug mode.</P>
-<P>
-<H2><A NAME="copy_vob_stg( $vobtag )">copy_vob_stg( $vobtag )</A></H2>
-<P><CODE>copy_vob_stg($vobtag)</CODE></P>
-<P>This sub functinon will copy the storage of a VOB to the target
-1st parameter is the VOB</P>
-<P>Returns:
+ E) gives all the errors created under the run.</pre>
+<p>
+</p>
+<h2><a name="want_help___">want_help( )</a></h2>
+<pre>
+ want_help()</pre>
+<p>Used to check if the scripter is needing assistance.</p>
+<p>
+</p>
+<h2><a name="enable_debug___">enable_debug( )</a></h2>
+<pre>
+ enable_debug()</pre>
+<p>enables the ``debug mode'' which means the script will load all information
+to STDOUT(LIKE IN SPAM).</p>
+<p>
+</p>
+<h2><a name="debug_print____message__">debug_print ( $message )</a></h2>
+<pre>
+ debug_print( $message )</pre>
+<p>Used to actually print all the messages out to STDOUT it will alwas run but before printing
+it checks to see if this script is running in debug mode.</p>
+<p>
+</p>
+<h2><a name="copy_vob_stg____vobtag__">copy_vob_stg ( $vobtag )</a></h2>
+<pre>
+ copy_vob_stg($vobtag)</pre>
+<p>This sub functinon will copy the storage of a VOB to the target
+1st parameter is the VOB</p>
+<p>Returns:
         0 on success.
-        other than 0 on failure.</P>
-<P>
-<H2><A NAME="do_the_lock( $vobtag, $mode )">do_the_lock( $vobtag, $mode )</A></H2>
-<P>This sub function will lock or unlock the VOB
+        other than 0 on failure.</p>
+<p>
+</p>
+<h2><a name="do_the_lock___vobtag___mode____nuserswitch____lockcomment__">do_the_lock( $vobtag, $mode, \$nuserswitch, \$lockcomment )</a></h2>
+<pre>
+ do_the_lock( $vobtag, $mode, \$nuserswitch, \$lockcomment )</pre>
+<p>A lock on a vob can have 4 flavours:</p>
+<ul>
+<li></li>
+a) unlocked (not locked)
+<p></p>
+<li></li>
+b) locked (locked for everybody
+<p></p>
+<li></li>
+c) locked -nuser name1,... (locked except for name1,...)
+<p></p>
+<li></li>
+d) locked -obsolete (locked for all, an not hidden from GUI
+<p></p></ul>
+<p>This function will lock or unlock the VOB as required
+In lock mode it will detect and cache the current lock type, as well as the lock
+comment, if it exist.
+In unlock mode the previous setting will be reapplied.</p>
+<ul>
+<li></li>
 1st parameter is the VOB
+<p></p>
+<li></li>
 2nd parameter is the mode: lock|unlock
-Returns 0 if success otherwise an integer different from 0</P>
-<P>
-<H2><A NAME="get_adminvobs( $vobtag )">get_adminvobs( $vobtag )</A></H2>
-<P><CODE>get_adminvos($vobtag)</CODE></P>
-<P>Finds the VOBTAG´s admin vob. A admin vob is defined with theire vobtag
-includes ``(AdminVob)''</P>
-<P>Returns the admin vob´s VOBTAG for the vob given as a parameter.</P>
-<P>
-<H2><A NAME="get_hlinks( \$object, \$direction, \$hltype )">get_hlinks( \$Object, \$Direction, \$HLType )</A></H2>
-<P>get_hlinks (\$Object, \$Direction, \$HLType).
-Object:                is the object that are check for hyperlinks.
-Direction:  Wihc way the hyperlink that are looked for should turn.
-HLType:                Indicates wich type of hyperlink there should be looked for.</P>
-<P>
-<H2><A NAME="unique( )">unique( )</A></H2>
-<P>Get unique values, return as array or comma-seperated list</P>
-<P>
-<H2><A NAME="do_triggers( $vobtag )">do_triggers( $vobtag )</A></H2>
-<P>do_trigger($vobtag);</P>
-<P>A vob isn't much worth wihtout the triggers to define the use of the VOB there
-this sub takes care of backing up the trigger for the given VOB.</P>
-<P>Returns:
+<p></p>
+<li></li>
+3rd parameter is a reference to the nuser list
+<p></p>
+<li></li>
+4th parameter is a reference to the existing lock comment
+<p></p></ul>
+<p>
+</p>
+<h2><a name="get_adminvobs___vobtag__">get_adminvobs( $vobtag )</a></h2>
+<pre>
+ get_adminvos($vobtag)</pre>
+<p>Finds the VOBTAGÂ´s admin vob. A admin vob is defined with theire vobtag
+includes ``(AdminVob)''</p>
+<p>Returns the admin vobÂ´s VOBTAG for the vob given as a parameter.</p>
+<p>
+</p>
+<h2><a name="get_hlinks____object____direction____hltype__">get_hlinks( \$Object, \$Direction, \$HLType )</a></h2>
+<pre>
+ get_hlinks (\$Object, \$Direction, \$HLType).</pre>
+<p>Object:     is the object that are check for hyperlinks.
+Direction:  Which way the hyperlink that are looked for should turn.
+HLType:     Indicates wich type of hyperlink there should be looked for.</p>
+<p>
+</p>
+<h2><a name="unique___">unique( )</a></h2>
+<p>Get unique values, return as array or comma-separated list</p>
+<p>
+</p>
+<h2><a name="do_triggers___vobtag__">do_triggers( $vobtag )</a></h2>
+<pre>
+ do_trigger($vobtag);</pre>
+<p>A vob isn't much worth wihtout the triggers to define the use of the VOB there
+this sub takes care of backing up the trigger for the given VOB.</p>
+<p>Returns:
         0 on succes.
-        Non-zero on failure.</P>
-<P>
-<H2><A NAME="exists_regexe( )">exists_regexe( )</A></H2>
-<P>Attempt to execute reg.exe.
-If not available the arraysize is low</P>
-<P>Parameters:        None</P>
-<P>Returns 0 if unable to find
-Returns 1 if found (success)</P>
-<P>
-<H2><A NAME="export_winrgy( )">export_winrgy( )</A></H2>
-<P>export_winrgy exports Clearcase specific registry information.
+        Non-zero on failure.</p>
+<p>
+</p>
+<h2><a name="exists_regexe___">exists_regexe( )</a></h2>
+<pre>
+ exists_regexe()</pre>
+<p>Attempt to execute reg.exe.
+If not available the arraysize is low</p>
+<p>Parameters:        None</p>
+<p>Returns 0 if unable to find
+Returns 1 if found (success)</p>
+<p>
+</p>
+<h2><a name="export_winrgy___">export_winrgy( )</a></h2>
+<pre>
+ export_winrgy()</pre>
+<p>export_winrgy exports Clearcase specific registry information.
 The export depends on reg.exe which is a system utility on
 Win XP (or server 2003) but otherwise it can be optained as part of
-the Windows Server Ressource Kit</P>
-<P>The default keys are always exported, by if switch -winrgy does not contain
+the Windows Server Ressource Kit</p>
+<p>The default keys are always exported, by if switch -winrgy does not contain
 the word clearcase, the option is assumed to designate more keys that then
-will be added to the keys.</P>
-<P>Each key and all it's subkeys are being exported.</P>
-<P>If reg.exe encounters problems, an error message is written to the log, but the
-script will continue.</P>
-<P>Parameters:        None
-Returns Nothing</P>
-<P>
-<H2><A NAME="get_thevobs( )">get_thevobs( )</A></H2>
-<P>Get all vobs on host
-Return array of vobs on this host.</P>
-<P>
-<H2><A NAME="do_directories">do_directories</A></H2>
-<P>Copy directories
-Return 0 on Successfull copy
-Return 1 on failure</P>
+will be added to the keys.</p>
+<p>Each key and all it's subkeys are being exported.</p>
+<p>If reg.exe encounters problems, an error message is written to the log, but the
+script will continue.</p>
+<p>Parameters:        None
+Returns Nothing</p>
+<p>
+</p>
+<h2><a name="get_thevobs___">get_thevobs( )</a></h2>
+<pre>
+ get_thevobs()</pre>
+<p>Get all vobs on host
+Return array of vobs on this host.</p>
+<p>
+</p>
+<h2><a name="do_directories">do_directories</a></h2>
+<pre>
+ do_directories()</pre>
+<p>Copy directories</p>
+<p>Parameters: none</p>
+<p>Return 0 on Successfull copy
+Return 1 on failure</p>
 
-</BODY>
+</body>
 
-</HTML>
+</html>

@@ -2,16 +2,17 @@ require 5.001;
 
 use strict;
 
-# use warnings;
+#use warnings;
 use Getopt::Long;
+use Switch;
 
 # File version
 our $VERSION = "1.0";
 
 # BUILD is SVN revision number!
-our $BUILD = "165";
+our $BUILD = "170";
 
-our( $Scriptdir, $Scriptfile );
+our ( $Scriptdir, $Scriptfile );
 $0 =~ /([A-Za-z0-9-_\.]*$)/;
 my $thisfile = $1;    # Extract this file's name - without leading path
 
@@ -27,7 +28,7 @@ BEGIN {
 
 =head1 NAME
 
-Accelerated Backup
+Accelerated ClearCase Backup
 
 =head1 SYNOPSIS
 
@@ -85,6 +86,16 @@ DATE         EDITOR         NOTE
                             http://sourceforge.net/projects/blat
                             Using version 2.6.2.0 of BLAT for the
                             validation.
+2009-08-25   Jens Brejner   Bumped revision. Script now respects the current
+                            lock on a vob. Vobs that are lock -nuser are changed
+                            to lock for all users during backup, the lock is restored
+                            after backup. Lock comments are respected too, but
+                            because of a CC bug, multi-line lock-comments will be
+                            flattened to a single line.
+                            No changes to the interfaces, but the script now uses
+                            Switch.pm, which is part of Ratlperl distribution, just
+                            like Getopt
+
 -------------------------------------------------------------------------
 
 ENDREVISION
@@ -259,13 +270,13 @@ use constant WEEKDAYS => qw(
 );
 
 # Declare global switch variables
-our(
+our (
     $sw_database, $sw_debug,  $sw_depend,   $sw_directory, $sw_help,    $sw_level, $sw_livesync, $sw_logdir, $sw_notify,
     $sw_robocopy, $sw_target, $sw_triggers, $sw_usage,     $sw_verbose, $sw_vobs,  $sw_winrgy,   $sw_version
 );
 
 # Declare remaining global variables
-our(
+our (
     $date,        $destination, $flag_lt, $g_debug,         $g_file,   $g_retval,   @g_notify,
     $g_infolevel, $host,        $log,     $robocopy_params, $template, %masterlist, %options,
     @basevobs,    @processed,   @ucmvobs, @voblist,         %ucmfamily
@@ -345,24 +356,24 @@ if ( defined($sw_vobs) ) {
     };
 
     foreach (@voblist) {
-
+        my $nuserswitch = "";    # used to cache -nuser contents
+        my $usercomment = "";    # Possible original lock comment
         $log->information( "####### Backing up vob:$_ #######", \@g_notify );
 
         #LOCK UNLESS LIVESYNC
-
         if ($sw_livesync) {
             $log->information( "\tLivesync mode, not locking vob:$_", \@g_notify );
         } else {
-            &do_the_lock( $_, "lock" );
+            &do_the_lock( $_, "lock", \$nuserswitch, \$usercomment );
         }
 
         #COPY STORAGE
         &copy_vob_stg($_);
 
         #UNLOCK UNLESS LIVESYNC
+        &do_the_lock( $_, "unlock", \$nuserswitch, \$usercomment ) unless ($sw_livesync);
 
-        &do_the_lock( $_, "unlock" ) unless ($sw_livesync);
-
+        # Process triggers if
         &do_triggers($_) if ($sw_triggers);
         $log->information( "", \@g_notify );    # Just a spacer
     }
@@ -407,12 +418,11 @@ exit $g_retval;
 
 sub die_gracefully($) {
 
-=head2 die_gracefully  ( $message )
+=head2 die_gracefully ( $message )
 
-die_gracefully($message);
+ die_gracefully($message)
 
-Used for exiting the program, kind of a nice out.
-before the program exits it writes the log file, and sends an email
+Used for exiting the program, kind of a nice out, before the program exits it writes the log file, and possibly send an email
 
 =cut
 
@@ -430,7 +440,9 @@ before the program exits it writes the log file, and sends an email
 
 sub running_local() {
 
-=head2 running_local( )
+=head2 running_local ( )
+
+ running_local()
 
 used to check if we are running on ClearCase LT and the -host switch is defined, if this
 is the case we will exit with an error.
@@ -459,7 +471,9 @@ Returns:    None
 
 sub verify_switches {
 
-=head2 verify_switches( )
+=head2 verify_switches ( )
+
+ verify_switches()
 
 Takes all the Switches and checks if they are given in the right context.
 Dies telling the error, if any of the switches arent given in the right syntax
@@ -497,7 +511,7 @@ Returns:    Nothing
       && die_gracefully("$msg\n$usage");
 
     $msg = "Only a single source directory is allowed in dir-copy-mode.\n";
-    ( !defined($sw_vobs) && ($sw_directory =~ /,/) )
+    ( !defined($sw_vobs) && ( $sw_directory =~ /,/ ) )
       && die_gracefully("$msg\n$usage");
 
     $msg = "-notify and -level are mutually dependent on each other\n";
@@ -533,7 +547,9 @@ Returns:    Nothing
 
 sub expand_path($$) {
 
-=head2 expand_path( \$stringtoexpand, \$expandedstring )
+=head2 expand_path ( \$stringtoexpand, \$expandedstring )
+
+ expand_path( \$stringtoexpand, \$expandedstring )
 
 Expands a path string if valid template is found
 
@@ -593,7 +609,9 @@ Returns     1 on success, a valid template was found
 
 sub validate_folder($) {
 
-=head2 validate_folder( \$dir_pname )
+=head2 validate_folder ( \$dir_pname )
+
+ validate_folder( \$dir_pname )
 
 Test if folder exist.
 Attempt creation if not dir and not exist
@@ -635,7 +653,9 @@ Return 0 on Failure
 
 sub initialize {
 
-=head2 initialize( )
+=head2 initialize ( )
+
+ initialize()
 
 Initialize simply initializes the environment we are working in.
 The order of events is important.
@@ -713,7 +733,7 @@ Returns:      Nothing.
 
         # vobs are requested for backup, Find vobs to process
         @voblist = &get_thevobs();
-        $log->information( "Vobs requested for backup: " . join ( ',', @voblist ), \@g_notify );
+        $log->information( "Vobs requested for backup: " . join( ',', @voblist ), \@g_notify );
         if ( -e "$destination" ) {
 
             # Remove obsolete files in destination, but leave "vobs" folder
@@ -750,14 +770,16 @@ Returns:      Nothing.
 
 sub exists_robocopy {
 
-=head2 exist_robocopy( )
+=head2 exist_robocopy ( )
+
+ exist_robocopy()
 
 Test if robocopy.exe is available and if it is the version that has been
 tested with this script
 
 Parameters: None
-Returns:    0 if not found
-Returns:    1 if OK
+Returns:    0 if not found (error)
+Returns:    1 if found (OK)
 
 =cut
 
@@ -770,7 +792,9 @@ Returns:    1 if OK
 
 sub notify() {
 
-=head2 notify( )
+=head2 notify ( )
+
+ notify()
 
 Used to send emails to a given list of recipients, the email will contain log information,
 there are tree option on notify [I|W|E]
@@ -875,6 +899,8 @@ sub want_help {
 
 =head2 want_help( )
 
+ want_help()
+
 Used to check if the scripter is needing assistance.
 
 =cut
@@ -887,6 +913,8 @@ Used to check if the scripter is needing assistance.
 sub enable_debug {
 
 =head2 enable_debug( )
+
+ enable_debug()
 
 enables the "debug mode" which means the script will load all information
 to STDOUT(LIKE IN SPAM).
@@ -942,7 +970,9 @@ to STDOUT(LIKE IN SPAM).
 
 sub debug_print($) {
 
-=head2 debug_print( $message )
+=head2 debug_print ( $message )
+
+ debug_print( $message )
 
 Used to actually print all the messages out to STDOUT it will alwas run but before printing
 it checks to see if this script is running in debug mode.
@@ -950,15 +980,15 @@ it checks to see if this script is running in debug mode.
 =cut
 
     if ($g_debug) {
-        $log->debug_print( shift () );
+        $log->debug_print( shift() );
     }
 }
 
 sub copy_vob_stg($) {
 
-=head2 copy_vob_stg( $vobtag )
+=head2 copy_vob_stg ( $vobtag )
 
-copy_vob_stg($vobtag)
+ copy_vob_stg($vobtag)
 
 This sub functinon will copy the storage of a VOB to the target
 1st parameter is the VOB
@@ -1052,52 +1082,224 @@ Returns:
     return $retval;
 }
 
-sub do_the_lock($$) {
+sub do_the_lock($$$$) {
 
-=head2 do_the_lock( $vobtag, $mode )
+=head2 do_the_lock( $vobtag, $mode, \$nuserswitch, \$lockcomment )
 
-This sub function will lock or unlock the VOB
+ do_the_lock( $vobtag, $mode, \$nuserswitch, \$lockcomment )
+
+A lock on a vob can have 4 flavours:
+
+=item *
+
+a) unlocked (not locked)
+
+=item *
+
+b) locked (locked for everybody
+
+=item *
+
+c) locked -nuser name1,... (locked except for name1,...)
+
+=item *
+
+d) locked -obsolete (locked for all, an not hidden from GUI
+
+=back
+
+This function will lock or unlock the VOB as required
+In lock mode it will detect and cache the current lock type, as well as the lock
+comment, if it exist.
+In unlock mode the previous setting will be reapplied.
+
+
+=item *
+
 1st parameter is the VOB
+
+=item *
+
 2nd parameter is the mode: lock|unlock
+
+=item *
+
+3rd parameter is a reference to the nuser list
+
+=item *
+
+4th parameter is a reference to the existing lock comment
+
+=back
 Returns 0 if success otherwise an integer different from 0
 
 =cut
 
-    my $vob  = shift;
-    my $mode = lc(shift);
+    my $vob       = shift;
+    my $mode      = lc(shift);
+    my $nuserlist = shift;
+    my $cmnt      = shift;
 
-    my $retval = 1;
-    debug_print("Entering sub do_the_lock($vob, $mode)\n");    ###################### quotemeta
-    if ( $mode =~ /lock|unlock/ ) {
+    my $retval = 1;    # Default return is error, we must have success to return sucess.
+    my $msg;
+
+    debug_print("Entering sub do_the_lock($vob, $mode, $$nuserlist, $$cmnt)\n");    ######################
+
+    if ( $mode =~ /lock|unlock/ ) {                                                 # continue only if mode is understood.
         my $cmd           = "cleartool desc -fmt \"\%[locked]p\" vob:$vob";
-        my $locked_status = `$cmd`;                                           # locked | unlocked | obsolete
-        if ( $locked_status =~ /^$mode/ ) {                                   # Check if the VOB is alread locked/unlocked
-            my $msg = "WARNING: Attempting to $mode vob:$vob, but it is already $mode" . "ed";
-            $log->warning( $msg, \@g_notify );
-            $retval = 0;
-        } else {
-            if ( $locked_status eq "obsolete" ) {                             # Check if the VOB is locked obsolete
-                my $msg = "WARNING: Attempting to $mode vob:$vob, ";
-                $msg = $msg . " but it is locked obsolete (The $mode operation will be ignored)";
-                $log->warning( $msg, \@g_notify );
-                $retval = 0;
-            } else {
-                my $cmd = "cleartool " . $mode . " -c \"$mode set by $thisfile\" vob:$vob 2>&1";
+        my $locked_status = `$cmd`;                                                 # locked | unlocked | obsolete
+        my ( $ignore, $action, $replace, $nuser, $lockcomment );
 
-                my $stderrout = `$cmd`;
-                chomp($stderrout);
-                debug_print( "Executed: [$cmd] Return value was: [" . scalar($?) / 256 . "]\n" );
-                if ($?) {
-                    $log->error( $stderrout, \@g_notify );
+        $action      = $mode;
+        $lockcomment = "-c \"$action set by $thisfile\"";
+
+        switch ($locked_status) {
+
+            case ("locked") {
+
+                my $cmd       = "cleartool lslock -fmt %Nc vob:$vob 2>&1";
+                my @stderrout = `$cmd`;
+                my $comment;
+
+                if ( lc($mode) eq "lock" ) {
+
+                    # Already locked. Look for -nuser
+                    # Cache -nuser and comment if there.
+                    for ( my $i = 0 ; $i <= $#stderrout ; $i++ ) {
+                        if ( $i == 0 ) {
+                            if ( $stderrout[$i] =~ /:/ ) {
+
+                                # reply if locked -nuser looks like "Locked except for users: kim ingrid kaj", note the colon
+                                $stderrout[$i] =~ /(.*: )(.*)/;    # isolate user list
+                                ( my $userlist = $2 ) =~ s/\s+/,/g;    # separate list with comma's
+                                $$nuserlist = $userlist;               # update reference
+                                debug_print("-nuser list calculated to: [$userlist]\n");
+                                next;
+                            } else {                                   # First line did not list -nuser's
+                                next;
+                            }
+                        }
+                        my $line = $stderrout[$i];
+
+                        # There is a bug in CC, we can't apply multiline lock comments
+                        # from CLI again, so we have to flatten it to a single line.
+                        # Multiline lock comments are possible from the GUI, but not
+                        # much help in CLI.
+                        $line =~ s/[\cM|\cJ]//g;                       # strip control codes
+                        $comment = "$comment$line ";
+                    }
+
+                    # cache that comment
+
+                    $$cmnt = $comment;
+                    debug_print("Original lock comment cached: [$comment]\n");
+
+                    if ($$nuserlist) {
+                        $msg = "$vob is locked with -nuser list. Must lock for all users while backing up";
+                        $log->information( $msg, \@g_notify );
+
+                    } else {
+                        $ignore = 1;    # Don't change the lock
+                        $retval = 0;
+
+                        $msg = "$vob is already locked, Request to $mode can be ignored";
+                        $log->information( $msg, \@g_notify );
+
+                    }
+
+                    if ($$nuserlist) {
+                        $msg = "$vob is locked with users excluded from lock, must lock for all users...";
+                        debug_print("$msg\n");
+                        $replace = "-replace";
+                        $nuser   = "";
+
+                    }
+                } else {    # mode is unlock
+
+                    if ($$nuserlist) {
+
+                        # was locked -nuser, replace lock
+                        $msg = "Status $locked_status and mode $mode, found $$nuserlist, replacing lock with -nuser list";
+                        $log->information( $msg, \@g_notify );
+                        $action      = "lock";
+                        $replace     = "-replace";
+                        $nuser       = "-nuser $$nuserlist";
+                        $lockcomment = "-c \"$$cmnt\"";        # reuse original lock comment
+                    } else {
+                        if ( $$cmnt !~ /$thisfile/ ) {
+                            $ignore = 1;                       # Don't change the lock
+                            $retval = 0;
+
+                            $msg = "$vob was not locked by script, Ignoring $mode request";
+                            $log->information( $msg, \@g_notify );
+                        }    # end if ($$cmnt !~ /$thisfile/ )
+                    }    # end if  ($$nuserlist)
+                }    # end if         (lc($mode) eq "lock")
+            }    # End case ("locked")
+
+            case ("obsolete") {
+
+                $ignore = 1;    # Don't change the lock
+                $retval = 0;
+
+                $msg = "Attempt to $mode vob:$vob, ";
+                $msg = $msg . " but it is locked obsolete (The $mode operation will be ignored)";
+
+                $log->information( $msg, \@g_notify );
+            }    # end case ("obsolete")
+
+            case ("unlocked") {
+                if ( lc($mode) eq "lock" ) {
+                    $$cmnt = $lockcomment;
+
                 } else {
-                    $log->information( $stderrout, \@g_notify );
+                    $msg         = "WARNING: Attempt to $mode vob:$vob, ";
+                    $msg         = $msg . " but it is already $locked_status (The $mode operation will be ignored)";
+                    $msg         = $msg . " \n Look for previous warnings";
+                    $lockcomment = "-nc";
+                    $log->error( $msg, \@g_notify );
                 }
-                $retval = scalar($?) / 256;
+
             }
+
+            else {    # this is case 'else'
+                $msg = "Status of lock [$locked_status] not expected";
+
+                $log->error( $msg, \@g_notify );
+
+            }
+        }    # End Switch statement
+
+        if ($ignore) {    # don't change the lock
+            $retval = 0;
+            $msg    = "vob:$vob, is already $locked_status, ignoring request to $mode ";
+            debug_print("$msg\n");
+
+        } else {
+
+            # Finalize command string
+            $cmd = "cleartool $action $replace $nuser $lockcomment vob:$vob 2>&1";
+
+            my $stderrout = `$cmd`;
+            chomp($stderrout);
+
+            debug_print( "Executed: [$cmd] Return value was: [" . scalar( ( $? / 256 ) ) . "]\n" );
+
+            if ($?) {
+
+                $log->error( $stderrout, \@g_notify );
+            } else {
+
+                $log->information( $stderrout, \@g_notify );
+            }
+            $retval = scalar( ( $? / 256 ) );
+
         }
-    } else {
-        my $msg = "sub do_the_lock did not understand  \$mode [$mode]";
+    } else {    # Mode not understood
+        $msg = "sub do_the_lock did not understand  \$mode [$mode]";
+
         $log->error( $msg, \@g_notify );
+
     }
 
     return $retval;
@@ -1107,7 +1309,7 @@ sub get_adminvob($) {
 
 =head2 get_adminvobs( $vobtag )
 
-get_adminvos($vobtag)
+ get_adminvos($vobtag)
 
 Finds the VOBTAG´s admin vob. A admin vob is defined with theire vobtag
 includes "(AdminVob)"
@@ -1129,10 +1331,11 @@ sub get_hlinks($$$) {
 
 =head2 get_hlinks( \$Object, \$Direction, \$HLType )
 
-get_hlinks (\$Object, \$Direction, \$HLType).
-Object:                is the object that are check for hyperlinks.
-Direction:  Wihc way the hyperlink that are looked for should turn.
-HLType:                Indicates wich type of hyperlink there should be looked for.
+ get_hlinks (\$Object, \$Direction, \$HLType).
+
+Object:     is the object that are check for hyperlinks.
+Direction:  Which way the hyperlink that are looked for should turn.
+HLType:     Indicates wich type of hyperlink there should be looked for.
 
 =cut
 
@@ -1154,7 +1357,7 @@ sub unique {
 
 =head2 unique( )
 
-Get unique values, return as array or comma-seperated list
+Get unique values, return as array or comma-separated list
 
 =cut
 
@@ -1163,7 +1366,7 @@ Get unique values, return as array or comma-seperated list
     my @unique = grep { !$seen{$_}++ } @$input;
     if ( lc($mode) eq "csv" ) {
         chomp @unique;
-        my $csv = join ( ",", @unique );
+        my $csv = join( ",", @unique );
         return $csv;
     }
     return @unique;
@@ -1173,7 +1376,7 @@ sub do_triggers($) {
 
 =head2 do_triggers( $vobtag )
 
-do_trigger($vobtag);
+ do_trigger($vobtag);
 
 A vob isn't much worth wihtout the triggers to define the use of the VOB there
 this sub takes care of backing up the trigger for the given VOB.
@@ -1270,6 +1473,8 @@ sub exists_regexe() {
 
 =head2 exists_regexe( )
 
+ exists_regexe()
+
 Attempt to execute reg.exe.
 If not available the arraysize is low
 
@@ -1288,6 +1493,8 @@ Returns 1 if found (success)
 sub export_winrgy {
 
 =head2 export_winrgy( )
+
+ export_winrgy()
 
 export_winrgy exports Clearcase specific registry information.
 The export depends on reg.exe which is a system utility on
@@ -1325,7 +1532,7 @@ Returns Nothing
 
     # Add additional keys requested on command line
     if ( lc($sw_winrgy) ne "clearcase" ) {
-        push ( @defaultkeys, split ( /,/, $sw_winrgy ) );
+        push( @defaultkeys, split( /,/, $sw_winrgy ) );
     }
 
     if ( !-e "$outpath" ) {
@@ -1341,7 +1548,7 @@ Returns Nothing
         &debug_print("Attempting registry export command: [$cmd]");
         $log->information( "Exporting REG key $_ to $file", \@g_notify );
         $log->information( "\tto \"$outpath\\$file.reg\"",  \@g_notify );
-        push ( @result, `$cmd` );
+        push( @result, `$cmd` );
         ($?) / 256 && $log->error( "Trouble exporting registry key $_", \@g_notify );
     }
 
@@ -1350,6 +1557,8 @@ Returns Nothing
 sub get_thevobs {
 
 =head2 get_thevobs( )
+
+ get_thevobs()
 
 Get all vobs on host
 Return array of vobs on this host.
@@ -1368,7 +1577,7 @@ Return array of vobs on this host.
 
         # A CSV string a vobtags in $sw_vobs
         debug_print("SUB sortvoblist parses \$sw_vobs which is found that vobs: [$sw_vobs] is defined");
-        my @tags = split ( /,/, $sw_vobs );
+        my @tags = split( /,/, $sw_vobs );
         foreach (@tags) {
 
             system("cleartool lsvob $_ >nul 2>1");
@@ -1420,14 +1629,19 @@ sub do_directories {
 
 =head2 do_directories
 
+ do_directories()
+
 Copy directories
+
+Parameters: none
+
 Return 0 on Successfull copy
 Return 1 on failure
 
 =cut
 
     my $notrecursive = "/LEV:1 /COPYALL /MIR /SEC /R:2 /A-:A /W:5 ";    # robocopy will only copy 1'st level subdir's a.k.a not recursive
-    my @dirs         = split ( /,/, $sw_directory );
+    my @dirs = split( /,/, $sw_directory );
 
     foreach my $dir (@dirs) {
 
@@ -1443,20 +1657,19 @@ Return 1 on failure
         }
 
         # Determine if we should do recursive copy and normalize source path string
-        if ( $copy_from =~ /.*(\\\*$)/ ) {       # path ends with asterisk, do recursive copy
+        if ( $copy_from =~ /.*(\\\*$)/ ) {    # path ends with asterisk, do recursive copy
             $copyswitches = $robocopy_params;    # Use the normal robocopy parameters (mirror mode)
             $copy_from =~ s/(.*)(\\\*$)/$1/;     # remove trailing backslash and asterisk
-        }
-        else {
+        } else {
             $copyswitches = $notrecursive;       # Use robocopy parameters so recursive copy is only 1 level deep.
         }
 
-        if (!$sw_vobs) {
-             $copyswitches = $robocopy_params;    # Use the normal robocopy parameters (mirror mode), in copy-only mode
+        if ( !$sw_vobs ) {
+            $copyswitches = $robocopy_params;    # Use the normal robocopy parameters (mirror mode), in copy-only mode
         }
 
         # Source determined, including expansion, next if it does not exists
-        if (($sw_vobs) && !-e $copy_from || !-d $copy_from ) {
+        if ( ($sw_vobs) && !-e $copy_from || !-d $copy_from ) {
             $log->warning( "Directory [$copy_from] was not found, ignoring copy request ", \@g_notify );
             next;
         }
