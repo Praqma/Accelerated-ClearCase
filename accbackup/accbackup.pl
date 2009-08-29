@@ -2,29 +2,31 @@ require 5.001;
 
 use strict;
 
-#use warnings;
+# Getting the script dir
+our ( $scriptdir, $scriptfile );
+
+BEGIN {
+    if ( $0 =~ /(.*[\/\\])(.*)$/ ) {
+        $scriptdir  = $1;
+        $scriptfile = $2;
+    } else {
+        $scriptdir  = ".";
+        $scriptfile = $0;
+    }
+}
+
+use lib "$scriptdir..";
 use Getopt::Long;
-use Switch;
+use praqma::scriptlog;
+$| = 1;    # autoflush on
+
+#use warnings;
 
 # File version
 our $VERSION = "1.0";
 
 # BUILD is SVN revision number!
-our $BUILD = "170";
-
-our ( $Scriptdir, $Scriptfile );
-$0 =~ /([A-Za-z0-9-_\.]*$)/;
-my $thisfile = $1;    # Extract this file's name - without leading path
-
-BEGIN {
-    $Scriptdir  = ".\\";
-    $Scriptfile = $0;
-
-    $Scriptfile =~ /(.*\\)(.*)$/ && do {
-        $Scriptdir  = $1;
-        $Scriptfile = $2;
-    };
-}
+our $BUILD = "172";
 
 =head1 NAME
 
@@ -57,7 +59,7 @@ Returns 1 (or higher) for errors
 
 my $header = <<ENDHEADER;
 #########################################################################
-#     $thisfile                                                         #
+#     $scriptfile  version $VERSION\.$BUILD                             #
 #     This script is a Backup Script for ClearCase.                     #
 #     In runs in different modes - execute the script with -help        #
 #     to learn more.                                                    #
@@ -65,20 +67,21 @@ my $header = <<ENDHEADER;
 #     which is installed seperately. Blat must be configured to work    #
 #     properly.                                                         #
 #                                                                       #
-#     Date:       2008-OKT-23                                           #
-#     Authors:    Jens Brejner, jens.brejner\@praqma.net                 #
-#                 Lars Kruse, lars.kruse\@praqma.net                     #
-#     Copyright:  "Praqma Disclosure Agreement"                         #
+#     Execute with -help switch to learn more                           #
 #                                                                       #
-#     see http://www.praqma.info for user manual and installation       #
-#                                                                       #
+#     Date:       2009-08-25                                            #
+#     Author:     Jens Brejner, jens.brejner\@praqma.net                #
+#     Copyright:  Praqma A/S, Denmark                                   #
+#     License:    GNU General Pulic License                             #
+#     Support:    http://www.praqma.info                                #
 #########################################################################
+
 ENDHEADER
 
 # Revision information
 #########################################################################
 my $revision = <<ENDREVISION;
-$thisfile Version $VERSION\.$BUILD
+$scriptfile Version $VERSION\.$BUILD
 DATE         EDITOR         NOTE
 -----------  -------------  ----------------------------------------------
 2008-10-23   Lars Kruse     Made the script use BLAT.EXE instead of
@@ -95,6 +98,9 @@ DATE         EDITOR         NOTE
                             No changes to the interfaces, but the script now uses
                             Switch.pm, which is part of Ratlperl distribution, just
                             like Getopt
+2009-08-29   Jens Brejner   Removing usage of switch.pm. Replace scriptlogccbackup
+                            with scriptlog.pm. Publishing this version on launchpad
+                            in the acc project.
 
 -------------------------------------------------------------------------
 
@@ -104,7 +110,7 @@ ENDREVISION
 #########################################################################
 my $usage = <<ENDUSAGE;
 The syntax of this command is:
- $thisfile  -target vdir
+ $scriptfile  -target vdir
             -vobs {vob_tag[,...] | -all
             [-[no]depend]
             [-livesync [-[no]database]]
@@ -114,7 +120,7 @@ The syntax of this command is:
             [-verbose] [-logdir log_directory]
             [-notify email[,...] -level {I|W|E}]
 
- $thisfile  -help | -version | -usage
+ $scriptfile  -help | -version | -usage
 
 ENDUSAGE
 
@@ -122,7 +128,7 @@ ENDUSAGE
 #########################################################################
 my $helpmsg = <<ENDHELP;
 =========================================================================
-"$thisfile" Provides utilities for ClearCase backup.
+"$scriptfile" Provides utilities for ClearCase backup.
 
 The script returns 0 if ALL operations are succesful - otherwise
 it returns 1
@@ -256,14 +262,9 @@ expandable keywords         The -target vdir and the -directory vpname can both
 -help                       Displays this help message.
 -version                    Displays version info and revsion history.
 -usage                      Displays the synopsis of the syntax of
-                            $thisfile
+                            $scriptfile
 =========================================================================
 ENDHELP
-
-# Declarations
-
-use lib $Scriptdir;
-use scriptlogccbackup;
 
 use constant WEEKDAYS => qw(
   sun mon tue wed thu fri sat
@@ -328,7 +329,7 @@ my $optres = GetOptions(%options);
 &enable_debug();
 
 # Create log object
-$log = scriptlogccbackup->new();
+$log = scriptlog->new();
 
 # enable verbose logging if specified in options
 $log->set_verbose($sw_verbose);
@@ -351,18 +352,18 @@ if ( defined($sw_vobs) ) {
     ( $sw_livesync && ( $sw_database eq 0 ) ) && do {
         &debug_print("\$sw_database has value [$sw_database]\n");
 
-        $log->information( "Switch -nodatabase enabled, adding /XD db to robocopy parameters", \@g_notify );
+        $log->information("Switch -nodatabase enabled, adding /XD db to robocopy parameters\n");
         $robocopy_params = $robocopy_params . " /XD db ";
     };
 
     foreach (@voblist) {
         my $nuserswitch = "";    # used to cache -nuser contents
         my $usercomment = "";    # Possible original lock comment
-        $log->information( "####### Backing up vob:$_ #######", \@g_notify );
+        $log->information("####### Backing up vob:$_ #######\n");
 
         #LOCK UNLESS LIVESYNC
         if ($sw_livesync) {
-            $log->information( "\tLivesync mode, not locking vob:$_", \@g_notify );
+            $log->information("\tLivesync mode, not locking vob:$_\n");
         } else {
             &do_the_lock( $_, "lock", \$nuserswitch, \$usercomment );
         }
@@ -375,25 +376,25 @@ if ( defined($sw_vobs) ) {
 
         # Process triggers if
         &do_triggers($_) if ($sw_triggers);
-        $log->information( "", \@g_notify );    # Just a spacer
+        $log->information("\n");    # Just a spacer
     }
 }
 
 #if specified we will backup sepecified registry keys..
 if ( defined($sw_winrgy) ) {
     &debug_print("Backing up windows Registry");
-    $log->information( "######## Backing up Windows Registry ########", \@g_notify );
+    $log->information("######## Backing up Windows Registry ########\n");
     &export_winrgy();
-    $log->information( "", \@g_notify );        # Just a spacer
+    $log->information("\n");        # Just a spacer
 }
 
 # if wanted we will backup the specified dir's.
 if ( defined($sw_directory) ) {
 
     &debug_print("Backing up external dir's");
-    $log->information( "######## Backing up External Dir's ########", \@g_notify );
+    $log->information("######## Backing up External Dir's ########\n");
     &do_directories;
-    $log->information( "", \@g_notify );        # Just a spacer
+    $log->information("\n");        # Just a spacer
 
 }
 
@@ -406,7 +407,7 @@ $g_retval = $g_retval + ( $log->get_accumulated_errorlevel() );
 
 #End the main loop, close the logfile, return accumulated errorlevel.
 $log->DESTROY();
-print STDERR "$thisfile return value   was $g_retval\n";
+print STDERR "$scriptfile return value   was $g_retval\n";
 
 exit $g_retval;
 
@@ -432,7 +433,7 @@ Used for exiting the program, kind of a nice out, before the program exits it wr
     my $msg = "$_ \n" . "$!";
 
     #    print STDOUT $msg;
-    $log->error( $msg, \@g_notify );
+    $log->error("$msg\n");
     &notify($msg);
     $g_retval++;
     die "\nERROR: $_\n";
@@ -461,10 +462,10 @@ Returns:    None
 
     if ( $tmp =~ /ClearCase LT/i ) {
         $flag_lt = 1;
-        $log->information( "$thisfile executing on Clearcase LT", \@g_notify );
+        $log->information("$scriptfile executing on Clearcase LT\n");
         &debug_print("sub running_local found that we are on Clearcase LT");
     } else {
-        $log->information( "$thisfile executing on Clearcase", \@g_notify );
+        $log->information("$scriptfile executing on Clearcase\n");
         &debug_print("sub running_local found that we are standard Clearcase");
     }
 }
@@ -634,17 +635,17 @@ Return 0 on Failure
         my $retval    = ( ($?) / 256 );
         &debug_print("Executed: [$cmd] Return value was: [$retval]\n");
         if ($retval) {
-            $log->error( "Executed: [$cmd] Return value was: $retval", \@g_notify );
-            $log->error( "\tcontent written to console was",           \@g_notify );
+            $log->error("Executed: [$cmd] Return value was: $retval\n");
+            $log->error("\tcontent written to console was\n");
             foreach (@stderrout) {
                 chomp;
-                $log->error( "\t$_", \@g_notify );
+                $log->error("\t$_\n");
             }
             return 0;
         }
 
         else {
-            $log->information( "Created directory: \"$dir\"", \@g_notify );
+            $log->information("Created directory: \"$dir\"\n");
             return 1;
         }
     };
@@ -680,9 +681,9 @@ Returns:      Nothing.
     # Determine target path, expand it if there is template syntax
 
     if ( expand_path( \$sw_target, \$destination ) ) {
-        $log->information( "Path template [$sw_target] set to  [$destination]", \@g_notify );
+        $log->information("Path template [$sw_target] set to  [$destination]\n");
     } else {
-        $log->error( "Trouble expanding path template [$sw_target] ", \@g_notify );
+        $log->error("Trouble expanding path template [$sw_target] \n");
     }
 
     #MUST DIE if we cant create destination folder:
@@ -694,21 +695,21 @@ Returns:      Nothing.
         &debug_print("\$sw_logdir set to default value [$sw_logdir]");
     };
 
-    $log->information( "Log directory set to $sw_logdir", \@g_notify );
+    $log->information("Log directory set to $sw_logdir\n");
 
     # Validate log dir
     $g_retval = ( validate_folder( \$sw_logdir ) ) ? $g_retval : $g_retval++;
 
     # assign log file name
 
-    $g_file = "$sw_logdir\\$thisfile.PID$$.log";
+    $g_file = "$sw_logdir\\$scriptfile.PID$$.log";
 
     # assign log file
     $log->set_logfile($g_file);
 
     # start logging
     # We MUST DIE if wi can't enable the log.
-    $log->enable() || die_gracefully("Failed to enable log [$sw_logdir\\$thisfile.PID$$.log]");
+    $log->enable() || die_gracefully("Failed to enable log [$sw_logdir\\$scriptfile.PID$$.log]");
 
     # fixed robocopy parameters, don't change unless you know the consequences
     $robocopy_params = "/E /COPYALL /MIR /SEC /R:5 /A-:A";
@@ -719,25 +720,25 @@ Returns:      Nothing.
     $sw_triggers = defined($sw_triggers) ? $sw_triggers : 1;    # default is -triggers
 
     # Log version number
-    $log->information( "Script: $thisfile Version $VERSION.$BUILD ", \@g_notify );
+    $log->information("Script: $scriptfile Version $VERSION.$BUILD \n");
 
     # Override $robocopy_params if requested via switch
     if ( defined($sw_robocopy) ) {
         $robocopy_params = $sw_robocopy;
-        $log->warning( "NON default robocopy parameters: \"$robocopy_params\", you are on your own !", \@g_notify );
+        $log->warning("NON default robocopy parameters: \"$robocopy_params\", you are on your own !\n");
     } else {
-        $log->information( "Robocopy parameters: \"$robocopy_params\"", \@g_notify );
+        $log->information("Robocopy parameters: \"$robocopy_params\"\n");
     }
 
     if ( defined($sw_vobs) ) {
 
         # vobs are requested for backup, Find vobs to process
         @voblist = &get_thevobs();
-        $log->information( "Vobs requested for backup: " . join( ',', @voblist ), \@g_notify );
+        $log->information( "Vobs requested for backup: " . join( ',', @voblist ) . "\n" );
         if ( -e "$destination" ) {
 
             # Remove obsolete files in destination, but leave "vobs" folder
-            $log->information( "Backup target exists, removing all files except vobs and logfile", \@g_notify );
+            $log->information("Backup target exists, removing all files except vobs and logfile\n");
 
             my @destinationfiles = `dir /b $destination`;
             foreach (@destinationfiles) {
@@ -752,18 +753,18 @@ Returns:      Nothing.
                 }
                 if ( -d "$item" ) {
                     `rmdir /S /Q \"$item\"`;    # Remove any other directory
-                    ( ($?) / 256 ) && $log->warning( "Trouble removing \"$item\"", \@g_notify );
+                    ( ($?) / 256 ) && $log->warning("Trouble removing \"$item\"\n");
                 }
                 if ( -f "$item" ) {
                     `del /F /Q \"$item\"`;      # Remove any other file
-                    ( ($?) / 256 ) && $log->warning( "Trouble removing \"$item\"", \@g_notify );
+                    ( ($?) / 256 ) && $log->warning("Trouble removing \"$item\"\n");
 
                 }
             }
 
         }
     } else {
-        $log->information( "No vobs requested for backup, destination \"$destination\" not cleared before copy", \@g_notify );
+        $log->information("No vobs requested for backup, destination \"$destination\" not cleared before copy\n");
     }
 
 }    # end sub initialize
@@ -806,10 +807,14 @@ there are tree option on notify [I|W|E]
 
 =cut
 
-    # This sub function will flush the content of @g_notify to a file
-    # and mail it to the recipients
+    # This function will send the log file to recipients
     debug_print("Entering notify()\n");
-
+    my $runningfile = $log->get_logfile;
+    if ( -e $runningfile ) {
+        open( LOG, "< $runningfile" ) or die "can't open $runningfile: $!";
+        push @g_notify, $_ while <LOG>;
+        close LOG;
+    }
     if ( scalar(@g_notify) && defined($sw_notify) ) {
 
         # Create end note, telling about the location of the complete log
@@ -836,7 +841,7 @@ there are tree option on notify [I|W|E]
         my $recipients = join " ", split ",", $sw_notify;
         my $notify_file = "$destination\\$date.notify";
         debug_print("\$notify_file\t$notify_file\n");
-        open( NOTIFY, ">$notify_file" ) or $log->error( "Failed opening notify file $notify_file", \@g_notify );
+        open( NOTIFY, ">$notify_file" ) or $log->error("Failed opening notify file $notify_file\n");
 
         print NOTIFY "##############################################################################\n";
         print NOTIFY "##\tNOTE\n";
@@ -848,7 +853,7 @@ there are tree option on notify [I|W|E]
 
         # Pour the message array into the notify file
         foreach $_ (@g_notify) {
-            print NOTIFY "$_\n";
+            print NOTIFY "$_";
         }
         close NOTIFY;
 
@@ -884,11 +889,11 @@ there are tree option on notify [I|W|E]
             my $retval = ( ($?) / 256 );
             &debug_print("Executed: [$cmd] Return value was: [$retval]\n");
             if ($retval) {
-                $log->error( "Executed: [$cmd] Return value was: $retval", \@g_notify );
-                $log->error( "\tcontent written to console was",           \@g_notify );
+                $log->error("Executed: [$cmd] Return value was: $retval\n");
+                $log->error("\tcontent written to console was\n");
                 foreach (@stderrout) {
                     chomp;
-                    $log->error( "\t$_", \@g_notify );
+                    $log->error("\t$_\n");
                 }
             }
         }
@@ -927,7 +932,7 @@ to STDOUT(LIKE IN SPAM).
     #        1) If the environment variable "trace_subsys" contains the name of this script.
     #        2) If the environment variable ccdebug is defined
     #        3) If the debug switch is applied
-    $_ = lc($thisfile);
+    $_ = lc($scriptfile);
 
     #look for the name of the perl script in "trace_subsys"
     if ( lc( $ENV{trace_subsys} ) ) {
@@ -980,7 +985,10 @@ it checks to see if this script is running in debug mode.
 =cut
 
     if ($g_debug) {
-        $log->debug_print( shift() );
+        my $str = shift;
+        chomp $str;
+        my $msg = "\t    DEBUG::  $str\n";
+        print STDERR $msg;
     }
 }
 
@@ -1021,7 +1029,7 @@ Returns:
                 debug_print("host:\t$host\n");
                 debug_print("vobstg:\t$vobstg\n");
                 if ( lc($host) ne lc( $ENV{COMPUTERNAME} ) ) {
-                    $log->error( "$thisfile Won't process vob $vob located on remote host $host.", \@g_notify );
+                    $log->error("$scriptfile Won't process vob $vob located on remote host $host.\n");
                     return 1;                     # Return error.
                 }
             } else {
@@ -1050,7 +1058,7 @@ Returns:
             # make the copy
             $cmd = "robocopy $vobstg $finaltarget $robocopy_params 2\>\&1";
 
-            $log->information( "Will copy \"$vobstg\" to \"$finaltarget\"", \@g_notify );
+            $log->information("Will copy \"$vobstg\" to \"$finaltarget\"\n");
             my @stderrout = `$cmd`;
             $retval = scalar($?) / 256;
             &debug_print("Executed: [$cmd] Return value was: [$retval]\n");
@@ -1060,14 +1068,14 @@ Returns:
             if ( $retval < 8 ) { $retval = 0; }
 
             if ($retval) {
-                $log->error( "Executed: [$cmd] Return value was: $retval", \@g_notify );
-                $log->error( "\tcontent written to console was",           \@g_notify );
+                $log->error("Executed: [$cmd] Return value was: $retval\n");
+                $log->error("\tcontent written to console was\n");
                 foreach (@stderrout) {
                     chomp;
-                    $log->error( "\t$_", \@g_notify );
+                    $log->error("\t$_\n");
                 }
             } else {
-                $log->information( "Succesfully backed up vob:$vob", \@g_notify );
+                $log->information("Succesfully backed up vob:$vob\n");
             }
         }
 
@@ -1151,130 +1159,107 @@ Returns 0 if success otherwise an integer different from 0
         my ( $ignore, $action, $replace, $nuser, $lockcomment );
 
         $action      = $mode;
-        $lockcomment = "-c \"$action set by $thisfile\"";
+        $lockcomment = "-c \"$action set by $scriptfile\"";
 
-        switch ($locked_status) {
+        if ( $locked_status eq "locked" ) {
 
-            case ("locked") {
+            my $cmd       = "cleartool lslock -fmt %Nc vob:$vob 2>&1";
+            my @stderrout = `$cmd`;
+            my $comment;
 
-                my $cmd       = "cleartool lslock -fmt %Nc vob:$vob 2>&1";
-                my @stderrout = `$cmd`;
-                my $comment;
+            if ( lc($mode) eq "lock" ) {
 
-                if ( lc($mode) eq "lock" ) {
+                # Already locked. Look for -nuser
+                # Cache -nuser and comment if there.
+                for ( my $i = 0 ; $i <= $#stderrout ; $i++ ) {
+                    if ( $i == 0 ) {
+                        if ( $stderrout[$i] =~ /:/ ) {
 
-                    # Already locked. Look for -nuser
-                    # Cache -nuser and comment if there.
-                    for ( my $i = 0 ; $i <= $#stderrout ; $i++ ) {
-                        if ( $i == 0 ) {
-                            if ( $stderrout[$i] =~ /:/ ) {
-
-                                # reply if locked -nuser looks like "Locked except for users: kim ingrid kaj", note the colon
-                                $stderrout[$i] =~ /(.*: )(.*)/;    # isolate user list
-                                ( my $userlist = $2 ) =~ s/\s+/,/g;    # separate list with comma's
-                                $$nuserlist = $userlist;               # update reference
-                                debug_print("-nuser list calculated to: [$userlist]\n");
-                                next;
-                            } else {                                   # First line did not list -nuser's
-                                next;
-                            }
+                            # reply if locked -nuser looks like "Locked except for users: kim ingrid kaj", note the colon
+                            $stderrout[$i] =~ /(.*: )(.*)/;    # isolate user list
+                            ( my $userlist = $2 ) =~ s/\s+/,/g;    # separate list with comma's
+                            $$nuserlist = $userlist;               # update reference
+                            debug_print("-nuser list calculated to: [$userlist]\n");
+                            next;
+                        } else {                                   # First line did not list -nuser's
+                            next;
                         }
-                        my $line = $stderrout[$i];
-
-                        # There is a bug in CC, we can't apply multiline lock comments
-                        # from CLI again, so we have to flatten it to a single line.
-                        # Multiline lock comments are possible from the GUI, but not
-                        # much help in CLI.
-                        $line =~ s/[\cM|\cJ]//g;                       # strip control codes
-                        $comment = "$comment$line ";
                     }
+                    my $line = $stderrout[$i];
 
-                    # cache that comment
-
-                    $$cmnt = $comment;
-                    debug_print("Original lock comment cached: [$comment]\n");
-
-                    if ($$nuserlist) {
-                        $msg = "$vob is locked with -nuser list. Must lock for all users while backing up";
-                        $log->information( $msg, \@g_notify );
-
-                    } else {
-                        $ignore = 1;    # Don't change the lock
-                        $retval = 0;
-
-                        $msg = "$vob is already locked, Request to $mode can be ignored";
-                        $log->information( $msg, \@g_notify );
-
-                    }
-
-                    if ($$nuserlist) {
-                        $msg = "$vob is locked with users excluded from lock, must lock for all users...";
-                        debug_print("$msg\n");
-                        $replace = "-replace";
-                        $nuser   = "";
-
-                    }
-                } else {    # mode is unlock
-
-                    if ($$nuserlist) {
-
-                        # was locked -nuser, replace lock
-                        $msg = "Status $locked_status and mode $mode, found $$nuserlist, replacing lock with -nuser list";
-                        $log->information( $msg, \@g_notify );
-                        $action      = "lock";
-                        $replace     = "-replace";
-                        $nuser       = "-nuser $$nuserlist";
-                        $lockcomment = "-c \"$$cmnt\"";        # reuse original lock comment
-                    } else {
-                        if ( $$cmnt !~ /$thisfile/ ) {
-                            $ignore = 1;                       # Don't change the lock
-                            $retval = 0;
-
-                            $msg = "$vob was not locked by script, Ignoring $mode request";
-                            $log->information( $msg, \@g_notify );
-                        }    # end if ($$cmnt !~ /$thisfile/ )
-                    }    # end if  ($$nuserlist)
-                }    # end if         (lc($mode) eq "lock")
-            }    # End case ("locked")
-
-            case ("obsolete") {
-
-                $ignore = 1;    # Don't change the lock
-                $retval = 0;
-
-                $msg = "Attempt to $mode vob:$vob, ";
-                $msg = $msg . " but it is locked obsolete (The $mode operation will be ignored)";
-
-                $log->information( $msg, \@g_notify );
-            }    # end case ("obsolete")
-
-            case ("unlocked") {
-                if ( lc($mode) eq "lock" ) {
-                    $$cmnt = $lockcomment;
-
-                } else {
-                    $msg         = "WARNING: Attempt to $mode vob:$vob, ";
-                    $msg         = $msg . " but it is already $locked_status (The $mode operation will be ignored)";
-                    $msg         = $msg . " \n Look for previous warnings";
-                    $lockcomment = "-nc";
-                    $log->error( $msg, \@g_notify );
+                    # There is a bug in CC, we can't apply multiline lock comments
+                    # from CLI again, so we have to flatten it to a single line.
+                    # Multiline lock comments are possible from the GUI, but not
+                    # much help in CLI.
+                    $line =~ s/[\cM|\cJ]//g;                       # strip control codes
+                    $comment = "$comment$line ";
                 }
 
+                # cache that comment
+
+                $$cmnt = $comment;
+                debug_print("Original lock comment cached: [$comment]\n");
+
+                if ($$nuserlist) {
+                    $log->information("$vob is locked with -nuser list. Must lock for all users while backing up\n");
+
+                } else {
+                    $ignore = 1;    # Don't change the lock
+                    $retval = 0;
+                    $log->information("$vob is already locked, Request to $mode can be ignored\n");
+
+                }
+
+                if ($$nuserlist) {
+                    $log->information("$vob is locked with users excluded from lock, must lock for all users...\n");
+                    $replace = "-replace";
+                    $nuser   = "";
+
+                }
+            } else {    # mode is unlock
+
+                if ($$nuserlist) {
+
+                    # was locked -nuser, replace lock
+                    $log->information("Status $locked_status and mode $mode, found $$nuserlist, replacing lock with -nuser list\n");
+                    $action      = "lock";
+                    $replace     = "-replace";
+                    $nuser       = "-nuser $$nuserlist";
+                    $lockcomment = "-c \"$$cmnt\"";        # reuse original lock comment
+                } else {
+                    if ( $$cmnt !~ /$scriptfile/ ) {
+                        $ignore = 1;                       # Don't change the lock
+                        $retval = 0;
+                        $log->information("$vob was not locked by script, Ignoring $mode request\n");
+                    }    # end if ($$cmnt !~ /$scriptfile/ )
+                }    # end if  ($$nuserlist)
+            }    # end if         (lc($mode) eq "lock")
+        } elsif ( $locked_status eq "obsolete" ) {
+
+            $ignore = 1;    # Don't change the lock
+            $retval = 0;
+            $log->information("Attempt to $mode vob:$vob, but it is locked obsolete (The $mode operation will be ignored)\n");
+        } elsif ( $locked_status eq "unlocked" ) {
+
+            if ( lc($mode) eq "lock" ) {
+                $$cmnt = $lockcomment;
+
+            } else {
+                $lockcomment = "-nc";
+                $log->warning(
+                    "Attempt to $mode vob:$vob,
+                    but it is already $locked_status (The $mode operation will be ignored
+                    Look for previous warnings or errors\n"
+                );
             }
 
-            else {    # this is case 'else'
-                $msg = "Status of lock [$locked_status] not expected";
-
-                $log->error( $msg, \@g_notify );
-
-            }
-        }    # End Switch statement
+        } else {
+            $log->error("Status of lock [$locked_status] not expected\n");
+        }
 
         if ($ignore) {    # don't change the lock
             $retval = 0;
-            $msg    = "vob:$vob, is already $locked_status, ignoring request to $mode ";
-            debug_print("$msg\n");
-
+            $log->information("vob:$vob, is already $locked_status, ignoring request to $mode \n");
         } else {
 
             # Finalize command string
@@ -1287,18 +1272,16 @@ Returns 0 if success otherwise an integer different from 0
 
             if ($?) {
 
-                $log->error( $stderrout, \@g_notify );
+                $log->error("$stderrout\n");
             } else {
 
-                $log->information( $stderrout, \@g_notify );
+                $log->information("$stderrout\n");
             }
             $retval = scalar( ( $? / 256 ) );
 
         }
     } else {    # Mode not understood
-        $msg = "sub do_the_lock did not understand  \$mode [$mode]";
-
-        $log->error( $msg, \@g_notify );
+        $log->error("sub do_the_lock did not understand  \$mode [$mode]\n");
 
     }
 
@@ -1399,9 +1382,9 @@ Returns:
     my @triggerlist = `$cmd`;
 
     if (@triggerlist) {
-        $log->information( "#     Backing Triggers in $_      #", \@g_notify );
+        $log->information("#     Backing Triggers in $_      #\n");
     } else {
-        $log->information( "#     No triggers to backup in $_      #", \@g_notify );
+        $log->information("#     No triggers to backup in $_      #\n");
     }
 
     foreach my $trigger (@triggerlist) {
@@ -1412,7 +1395,7 @@ Returns:
         if ( !-e "$target" ) {
             `mkdir \"$target\"`;
             ( ($?) / 256 )
-              && $log->error( "Trouble creating trigger output dir \"$target\"", \@g_notify );
+              && $log->error("Trouble creating trigger output dir \"$target\"\n");
         }
 
         # Save trigger description
@@ -1425,10 +1408,10 @@ Returns:
 
         open( TRIGGERFILE, ">$file" ) || do {
             my $msg = "Can't open output file $file: $!";
-            $log->error( $msg, \@g_notify );
+            $log->error("$msg\n");
         };
-        my $msg = "Saving trtype:$trigger\@$vobtag to $target";
-        $log->information( $msg, \@g_notify );
+        my $msg = "Saving trtype:$trigger\@$vobtag to $target\n";
+        $log->information("$msg");
         &debug_print($msg);
         foreach (@description) {
             print TRIGGERFILE $_;
@@ -1447,8 +1430,8 @@ Returns:
         if ( ( !-e "$action" ) || ( !-f "$action" ) ) {
 
             # It can be discussed if this should be logged as information or warning. choosing information for now.
-            $log->information( "Can't find find a file at \"$action\"",                        \@g_notify );
-            $log->information( "Action execution: \"$action\" has not been copied to a file.", \@g_notify );
+            $log->information("Can't find find a file at \"$action\"\n");
+            $log->information("Action execution: \"$action\" has not been copied to a file.\n");
             next;
         }
 
@@ -1457,12 +1440,12 @@ Returns:
         my @stderrout = `$cmd`;
         $retval = ($?) / 256;
         if ($retval) {
-            debug_print("xcopy returns an error, the return level was $retval");
+            debug_print("xcopy returns an error, the return level was $retval\n");
             my $msg = "Could not copy scrppt file [$action] for trigger [$trigger\@$vobtag]";
-            $log->error( $msg, \@g_notify );
+            $log->error("$msg\n");
             chomp @stderrout;
             foreach (@stderrout) {
-                $log->error( "XCOPY ERROR:\t $_", \@g_notify );
+                $log->error("XCOPY ERROR:\t $_\n");
             }
         }
     }
@@ -1538,7 +1521,7 @@ Returns Nothing
     if ( !-e "$outpath" ) {
         `mkdir \"$outpath\"`;
         ( ($?) / 256 )
-          && $log->error( "Trouble creating trigger output dir \"$outpath\"", \@g_notify );
+          && $log->error("Trouble creating trigger output dir \"$outpath\"\n");
     }
 
     foreach (@defaultkeys) {
@@ -1546,10 +1529,10 @@ Returns Nothing
         ( my $file = $_ ) =~ s/\\/./g;    #Create export file name by replacing backslash with dot
         my $cmd = "reg export \"$_\"  \"$outpath\\$file.reg\" 2>&1";
         &debug_print("Attempting registry export command: [$cmd]");
-        $log->information( "Exporting REG key $_ to $file", \@g_notify );
-        $log->information( "\tto \"$outpath\\$file.reg\"",  \@g_notify );
+        $log->information("Exporting REG key $_ to $file\n");
+        $log->information("\tto \"$outpath\\$file.reg\"\n");
         push( @result, `$cmd` );
-        ($?) / 256 && $log->error( "Trouble exporting registry key $_", \@g_notify );
+        ( $? / 256 ) && $log->error("Trouble exporting registry key $_\n");
     }
 
 }
@@ -1582,7 +1565,7 @@ Return array of vobs on this host.
 
             system("cleartool lsvob $_ >nul 2>1");
             if ($?) {
-                $log->error( "The VOB named [$_] doesn't exist", \@g_notify );
+                $log->error("The VOB named [$_] doesn't exist\n");
             } else {
                 push @allvobs, qx(cleartool lsvob $_);
             }
@@ -1609,7 +1592,7 @@ Return array of vobs on this host.
                 push @_, $_;
             } else {
                 chomp;
-                $log->error( "Ignoring vob [$_] as it is not local to [$host]\n", \@g_notify );
+                $log->error("Ignoring vob [$_] as it is not local to [$host]\n\n");
             }
         }
         @allvobs = @_;
@@ -1645,15 +1628,15 @@ Return 1 on failure
 
     foreach my $dir (@dirs) {
 
-        $log->information( "Processing [$dir] for directory copy", \@g_notify );
+        $log->information("Processing [$dir] for directory copy\n");
 
         # see if the requested directory can be expanded by keyword
         my ( $copy_from, $copy_to, $copyswitches, $builtpath );
 
         if ( &expand_path( \$dir, \$copy_from ) ) {
-            $log->information( "Source: [$dir] expanded to [$copy_from]", \@g_notify );
+            $log->information("Source: [$dir] expanded to [$copy_from]\n");
         } else {
-            $log->error( "Trouble expanding Source dir: [$dir]", \@g_notify );
+            $log->error("Trouble expanding Source dir: [$dir]\n");
         }
 
         # Determine if we should do recursive copy and normalize source path string
@@ -1670,7 +1653,7 @@ Return 1 on failure
 
         # Source determined, including expansion, next if it does not exists
         if ( ($sw_vobs) && !-e $copy_from || !-d $copy_from ) {
-            $log->warning( "Directory [$copy_from] was not found, ignoring copy request ", \@g_notify );
+            $log->warning("Directory [$copy_from] was not found, ignoring copy request \n");
             next;
         }
 
@@ -1694,12 +1677,12 @@ Return 1 on failure
 
         # if robocopy returns 8 or higher it is bad, else is ok
         if ( ( ($?) / 256 ) < 8 ) {
-            $log->information( "Succesfully copied [$copy_from]", \@g_notify );
+            $log->information("Succesfully copied [$copy_from]\n");
         } else {
-            $log->error( "Problems copying [$copy_from] ", \@g_notify );
+            $log->error("Problems copying [$copy_from] \n");
             chomp @stderrout;
             foreach (@stderrout) {
-                $log->information( "ROBOCOPY SAID:\t $_ ", \@g_notify );
+                $log->information("ROBOCOPY SAID:\t $_ \n");
             }
         }
 
