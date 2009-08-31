@@ -32,7 +32,7 @@ use praqma::scriptlog;
 use praqma::trigger_helper;
 
 #Required if you call trigger_helper->enable_install
-our $TRIGGER_NAME = "STOP_TWIN";
+our $TRIGGER_NAME = "ACC_STOP_TWIN";
 
 # REV lak: The trygger isn't needed on AdminVOBs, what about using:
 # our $TRIGGER_INSTALL = "mktrtype -preop lnname -element -all vob:client";

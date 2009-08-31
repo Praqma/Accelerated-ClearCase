@@ -24,7 +24,7 @@ my $LogIsOpen  = 0;     #Flag indicating wether the log is succesfully open or n
 
 # Module version
 our $VERSION = "1.0";
-our $BUILD   = "4";
+our $BUILD   = "5";
 our $header  = <<ENDHEADER;
 #########################################################################
 #     This module contains a class which enables easy script logging
@@ -42,7 +42,10 @@ DATE        EDITOR  NOTE
 ----------  -------------  ----------------------------------------------
 2007-08-27  Lars Kruse     1st release prepared for Novo (version 1.0)
                            https://svn.praqma.net/svn/acc/dock revision 76
-2009-07-02  Lars Kruse     Prepared for Novo Nordisk (version 1.0.4)                           
+2009-07-02  Lars Kruse     Prepared for Novo Nordisk (version 1.0.4)    
+2009-08-19  Lars Kruse     Changed the printing subs (i+w+e) so they only 
+                           print the timestamp to the log - not STDOUT. 
+                           Added information_always() (version 1.0.5)
 -------------------------------------------------------------------------
 ENDREVISION
 
@@ -96,37 +99,62 @@ sub disable {
 sub information() {
     ( $Enabled || $Verbose ) && do {
         my $self = shift;
-        my $msg  = $self->timestamp . " [I]:\t" . shift;
-        $Enabled && print LOGFILE $msg;
+        my $msg  = shift;
+        my $prefix  = $self->timestamp . " [I]:\t";
+        $Enabled && print LOGFILE $prefix.indent_msg($msg);
         $Verbose && print STDOUT $msg;
         $Info_count++;
+        return $Verbose;
       }
 }
+
+sub information_always() {
+   my $self = shift;
+   my $msg  = shift;
+   my $prefix  = $self->timestamp . " [I]:\t";
+   $Enabled && print LOGFILE $prefix.indent_msg($msg);
+   print STDERR $msg; #unconditional print
+   $Info_count++;
+   return $Verbose;
+}
+
 
 sub warning($) {
     ( $Enabled || $Verbose ) && do {
         my $self = shift;
-        my $msg  = $self->timestamp . " [W]:\t" . shift;
-        $Enabled && print LOGFILE $msg;
+        my $msg  = shift;
+        my $prefix  = $self->timestamp . " [W]:\t";
+        $Enabled && print LOGFILE $prefix.indent_msg($msg);
         $Verbose && print STDERR $msg;
         $Warn_count++;
+        return $Verbose;
       }
 }
 
 sub error($) {
     ( $Enabled || $Verbose ) && do {
         my $self = shift;
-        my $msg  = $self->timestamp . " [E]:\t" . shift;
-        $Enabled && print LOGFILE $msg;
+        my $msg  = shift;
+        my $prefix  = $self->timestamp . " [E]:\t";
+        $Enabled && print LOGFILE $prefix.indent_msg($msg);
         $Verbose && print STDERR $msg;
         $Err_count++;
+        return $Verbose;
       }
+}
+
+sub indent_msg(){
+	my $msg = shift;
+	chomp($msg);
+	$msg =~ s/\n/\n\t\t/g;
+	return $msg."\n";
 }
 
 sub assertion_failed($) {
     my $self = shift;
-    my $msg  = $self->timestamp() . " [ASSERTION FAILED]:\n" . shift;
-    $LogIsOpen && print LOGFILE $msg;
+        my $msg  = shift;
+        my $prefix  = $self->timestamp . " [ASSERTION FAILED]:\n";
+    $LogIsOpen && print LOGFILE $prefix.$msg;
     die $msg;
 }
 
@@ -244,6 +272,7 @@ Used to ease the logging of perl scripts.
  conditional_enable([flag])
  disable
  information(msg)
+ information_always(msg)
  warning(msg)
  error(msg)
  assertion_failed(msg)
@@ -318,9 +347,10 @@ added as a twist of syntactical sugar for the Clearcase trigger programmers
 
 =back
 
-Writing to to log is done through one of the three methods information, warning or error
+Writing to to log is done through one of the four methods:
 
   $log->information("Hey!\n");
+  $log->information_always("Hey - again!\n");
   $log->warning("Watch out!\n");
   $log->error("WRONG!!!!\n");
 
@@ -328,8 +358,15 @@ These loggings will turn up in the log prefixed with the a time stamp and a lett
 inform of the information level:
 
   10.43:35 [I]:   Hey!
+  10.43:35 [I]:   Hey - again!
   10.43:35 [W]:   Watch out!
   10.43:35 [E]:   WRONG!!!!
+  
+If the Log is in verbose mode, then the informations will be printet to STDOUT (informations and warnings)
+or STDOUT (errors) as well (but without the timestamp prefix). 
+
+information_always() will always print to STDOUT - even if the log isn't in verbose mode. It's convenient
+when you want to provide a 'service outut' regardless if the user chose verbose mode or not.
 
 Dumping arrays or CLEARCASE_* environment variables is alwas done at the information level:
 

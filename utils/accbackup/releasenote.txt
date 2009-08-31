@@ -1,11 +1,10 @@
 ACCELERATED BACKUP
 Release Note
 
-version 1.0.165
+version 1.0.172
 
-SVN revision 165
+https://code.launchpad.net/acc
 
-https://svn.praqma.net/ccbackup/dock
 
 Status: Release 1.0
 
@@ -14,6 +13,7 @@ Issues:
 https://praqma.fogbugz.com/default.asp?pg=pgRss&ixPerson=2&ixFilter=4
 
 Documentation: 
+
 http://novo.praqma.info/accbackup_reference.ashx
 
 Test cases:

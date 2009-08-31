@@ -26,7 +26,7 @@ use constant SEMAPHORE_DIR               => '\\semaphores';    # Relative to the
 
 # File version
 $VERSION = "1.0";
-$BUILD   = "2";
+$BUILD   = "3";
 
 our $header = <<ENDHEADER;
 #########################################################################
@@ -49,6 +49,9 @@ DATE         EDITOR        NOTE
                            trigger_utils module (version 1.0.1)
 2009-08-11   Lars Kruse    Changed path to the semaphore file to use
                            back-slashes (version 1.0.2)
+2009-08-25	Lars Kruse		 Changed the return value of enable_semaphore()
+                           to be the status of the semaphore look-up. 
+                           (version 1.0.3)
 -------------------------------------------------------------------------
 ENDREVISION
 
@@ -63,35 +66,36 @@ sub require_trigger_context() {
     defined( $ENV{CLEARCASE_VOB_PN} ) || die $main::header . "File version: $main::VERSION\.$main::BUILD\n" . $main::revision;
 }
 
-sub enable_semaphore_backdoor() {
+sub enable_semaphore_backdoor($) {
+	  my $msg = ""; #The status level of the semphore file.
 
     # If the semaphor file exists and it´s not older than MAX_SEMAPHORE_FILE_AGE_DAYS
     # then the trigger will exit silently with 0 - allowing the event the trigger subscribed to, to carry on
-    my ( $scriptdir, $scriptfile ) = acc::split_dir_file($0);
 
     my $semaphore_dir  = $scriptdir . SEMAPHORE_DIR;
     my $semaphore_file = $semaphore_dir . "\\" . lc( $ENV{'username'} );
 
+    my ( $mainpath, $mainscript ) = acc::split_dir_file($main::0);
     if ( -e $semaphore_file ) {
-        print "Found semaphore file: $semaphore_file\n";
+    	  $msg = "Script '$mainscript' found semaphore file at '$semaphore_file'\n";
         if ( ( -M $semaphore_file ) > MAX_SEMAPHORE_FILE_AGE_DAYS ) {
-            print "...but it's too old to stop the trigger\n!";
+            $msg = $msg."...but it's too old to stop us!";
         } else {
-            my ( $mainpath, $mainscript ) = acc::split_dir_file($main::0);
-            open( SEMAPHORE, $semaphore_file ) || print "Failed to open the semaphore file for read\n" && return;
+            open( SEMAPHORE, $semaphore_file ) || print $msg = $msg. "...Failed to open the semaphore file for read\n" && return;
             my @sempahore = grep( /^\s*$mainscript\s*$/i, <SEMAPHORE> );
             close(SEMAPHORE);
 
             if ( scalar @sempahore ) {
-                print "Found the script '$mainscript' listed in the semphore file\nThe trigger script is canceled by semaphore!\n";
+                $msg = $msg."...and found the script '$mainscript' listed in the semphore file\nThe trigger script is canceled by semaphore!\n";
+                print $msg;
                 exit 0;
             }
-            print "But it doesn't mention '$mainscript'.\nTrigger is allowed to continue\n";
+            $msg=$msg."...but it doesn't mention '$mainscript' so the trigger is allowed to continue\n";
         }
     } else {
-    	print "Looked for semaphore file: $semaphore_file, but there wasn't any.\n";
+    	$msg = "Script '$mainscript' looked for semaphore file at '$semaphore_file'\n...but there wasn't any\n";
     }
-    return $semaphore_file;
+    return $msg;
 }
 
 sub enable_install() {
@@ -336,26 +340,38 @@ assumes that the caller ($main) has defined the following fore variabels:
 
 =head2 sub enable_semaphore_backdoor( )
 
-Checks for the existence a semaphore file and if it exist the trigger execution is canceled
+Checks for the existence of a valid semaphore.
 
-The semaphore file shall be in a folder called './semaphores' which is a relative path to the executing script.
+The semaphore enables triggers to exit silently and let the ClearCase event processed - as if the trigger had
+not been executed at all. 
 
-The semaphore file itself is a file with the same name as the executing user (no file extension)
+To create a valid semaphore for a trigger script the following conditions will have to be met:
 
-Sample:
+=over
 
-  \\server\triggers
-      script.pl
-      \semaphores
-          ycd
-          vobadm
+=item *
 
-Will cause that the script.pl trigger doesn´t fire when ClearCase events are created by the users
-ycd and vobadm
+A semaphore file must be created, The semaphore file must be named after the user account - no file extension (e.g lsku, g91551, ycd) 
+
+=item *
+
+The semaphore file must be located in a subfolder of the actual trigger loctaion named "semaphores" (defined by a constant in the module)
+
+=item *
+
+The semaphore file must have been created (not accessed, or updated, but CREATED) within the last 4 hours (defined by a constant in the module)
+
+=item *
+
+The semaphore file must contain a line stating the name of the perl script it is supposed to detronize (eg. no_rmelem_rmver.pl), the 
+same semaphore file can list many scritps.
+
+=back
+If a valid semaphore exist the trigger execution is canceled.
 
 The location of the C<semaphores> directory can tweak by setting the constant C<trigger_utils::SEMAPHORE_DIR>.
 
-The semaphore files are ignored (doesn´t stop the trigger) if they are more then 4 hrs old.
+Note that the semaphore files are ignored (doesn´t stop the trigger) if they are more then 4 hrs old. 
 
 This setting can be tweaked by setting the constant C<trigger_utils::MAX_SEMAPHORE_FILE_AGE_DAYS>.
 
