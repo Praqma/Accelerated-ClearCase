@@ -25,8 +25,8 @@ $| = 1;    # autoflush on
 # File version
 our $VERSION = "1.0";
 
-# BUILD is SVN revision number!
-our $BUILD = "172";
+# BUILD is revision number!
+our $BUILD = "174";
 
 =head1 NAME
 
