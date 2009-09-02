@@ -15,7 +15,7 @@ BEGIN {
     }
 }
 
-use lib "$scriptdir..";
+use lib "$scriptdir\\..\\..";
 use Getopt::Long;
 use praqma::scriptlog;
 $| = 1;    # autoflush on
