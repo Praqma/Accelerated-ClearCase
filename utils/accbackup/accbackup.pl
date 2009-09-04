@@ -3,19 +3,19 @@ require 5.001;
 use strict;
 
 # Getting the script dir
-our ( $scriptdir, $scriptfile );
+our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
     if ( $0 =~ /(.*[\/\\])(.*)$/ ) {
-        $scriptdir  = $1;
-        $scriptfile = $2;
+        $Scriptdir  = $1;
+        $Scriptfile = $2;
     } else {
-        $scriptdir  = ".";
-        $scriptfile = $0;
+        $Scriptdir  = ".";
+        $Scriptfile = $0;
     }
 }
 
-use lib "$scriptdir..";
+use lib "$Scriptdir\\..\\..";
 use Getopt::Long;
 use praqma::scriptlog;
 $| = 1;    # autoflush on
@@ -25,8 +25,8 @@ $| = 1;    # autoflush on
 # File version
 our $VERSION = "1.0";
 
-# BUILD is SVN revision number!
-our $BUILD = "172";
+# BUILD is revision number!
+our $BUILD = "175";
 
 =head1 NAME
 
@@ -43,7 +43,7 @@ Used for Automating Backing up ClearCase environment
 =head1 AVAILABILITY
 
 To get newest version of this script visit:
-https://www.svn.praqma.net/svn
+http://launchpad.net/acc
 
 =head1 Parameters
 
@@ -59,7 +59,7 @@ Returns 1 (or higher) for errors
 
 my $header = <<ENDHEADER;
 #########################################################################
-#     $scriptfile  version $VERSION\.$BUILD                             #
+#     $Scriptfile  version $VERSION\.$BUILD                             #
 #     This script is a Backup Script for ClearCase.                     #
 #     In runs in different modes - execute the script with -help        #
 #     to learn more.                                                    #
@@ -73,7 +73,7 @@ my $header = <<ENDHEADER;
 #     Author:     Jens Brejner, jens.brejner\@praqma.net                #
 #     Copyright:  Praqma A/S, Denmark                                   #
 #     License:    GNU General Pulic License                             #
-#     Support:    http://www.praqma.info                                #
+#     Support:    http://launchpad.net/acc                              #
 #########################################################################
 
 ENDHEADER
@@ -81,7 +81,7 @@ ENDHEADER
 # Revision information
 #########################################################################
 my $revision = <<ENDREVISION;
-$scriptfile Version $VERSION\.$BUILD
+$Scriptfile Version $VERSION\.$BUILD
 DATE         EDITOR         NOTE
 -----------  -------------  ----------------------------------------------
 2008-10-23   Lars Kruse     Made the script use BLAT.EXE instead of
@@ -110,7 +110,7 @@ ENDREVISION
 #########################################################################
 my $usage = <<ENDUSAGE;
 The syntax of this command is:
- $scriptfile  -target vdir
+ $Scriptfile  -target vdir
             -vobs {vob_tag[,...] | -all
             [-[no]depend]
             [-livesync [-[no]database]]
@@ -120,7 +120,7 @@ The syntax of this command is:
             [-verbose] [-logdir log_directory]
             [-notify email[,...] -level {I|W|E}]
 
- $scriptfile  -help | -version | -usage
+ $Scriptfile  -help | -version | -usage
 
 ENDUSAGE
 
@@ -128,7 +128,7 @@ ENDUSAGE
 #########################################################################
 my $helpmsg = <<ENDHELP;
 =========================================================================
-"$scriptfile" Provides utilities for ClearCase backup.
+"$Scriptfile" Provides utilities for ClearCase backup.
 
 The script returns 0 if ALL operations are succesful - otherwise
 it returns 1
@@ -262,7 +262,7 @@ expandable keywords         The -target vdir and the -directory vpname can both
 -help                       Displays this help message.
 -version                    Displays version info and revsion history.
 -usage                      Displays the synopsis of the syntax of
-                            $scriptfile
+                            $Scriptfile
 =========================================================================
 ENDHELP
 
@@ -356,6 +356,7 @@ if ( defined($sw_vobs) ) {
         $robocopy_params = $robocopy_params . " /XD db ";
     };
 
+    $log->information("\n");    # Just a spacer
     foreach (@voblist) {
         my $nuserswitch = "";    # used to cache -nuser contents
         my $usercomment = "";    # Possible original lock comment
@@ -407,7 +408,7 @@ $g_retval = $g_retval + ( $log->get_accumulated_errorlevel() );
 
 #End the main loop, close the logfile, return accumulated errorlevel.
 $log->DESTROY();
-print STDERR "$scriptfile return value   was $g_retval\n";
+print STDERR "$Scriptfile return value   was $g_retval\n";
 
 exit $g_retval;
 
@@ -462,10 +463,10 @@ Returns:    None
 
     if ( $tmp =~ /ClearCase LT/i ) {
         $flag_lt = 1;
-        $log->information("$scriptfile executing on Clearcase LT\n");
+        $log->information("$Scriptfile executing on Clearcase LT\n");
         &debug_print("sub running_local found that we are on Clearcase LT");
     } else {
-        $log->information("$scriptfile executing on Clearcase\n");
+        $log->information("$Scriptfile executing on Clearcase\n");
         &debug_print("sub running_local found that we are standard Clearcase");
     }
 }
@@ -702,14 +703,14 @@ Returns:      Nothing.
 
     # assign log file name
 
-    $g_file = "$sw_logdir\\$scriptfile.PID$$.log";
+    $g_file = "$sw_logdir\\$Scriptfile.PID$$.log";
 
     # assign log file
     $log->set_logfile($g_file);
 
     # start logging
     # We MUST DIE if wi can't enable the log.
-    $log->enable() || die_gracefully("Failed to enable log [$sw_logdir\\$scriptfile.PID$$.log]");
+    $log->enable() || die_gracefully("Failed to enable log [$sw_logdir\\$Scriptfile.PID$$.log]");
 
     # fixed robocopy parameters, don't change unless you know the consequences
     $robocopy_params = "/E /COPYALL /MIR /SEC /R:5 /A-:A";
@@ -720,7 +721,7 @@ Returns:      Nothing.
     $sw_triggers = defined($sw_triggers) ? $sw_triggers : 1;    # default is -triggers
 
     # Log version number
-    $log->information("Script: $scriptfile Version $VERSION.$BUILD \n");
+    $log->information("Script: $Scriptfile Version $VERSION.$BUILD \n");
 
     # Override $robocopy_params if requested via switch
     if ( defined($sw_robocopy) ) {
@@ -932,7 +933,7 @@ to STDOUT(LIKE IN SPAM).
     #        1) If the environment variable "trace_subsys" contains the name of this script.
     #        2) If the environment variable ccdebug is defined
     #        3) If the debug switch is applied
-    $_ = lc($scriptfile);
+    $_ = lc($Scriptfile);
 
     #look for the name of the perl script in "trace_subsys"
     if ( lc( $ENV{trace_subsys} ) ) {
@@ -1029,7 +1030,7 @@ Returns:
                 debug_print("host:\t$host\n");
                 debug_print("vobstg:\t$vobstg\n");
                 if ( lc($host) ne lc( $ENV{COMPUTERNAME} ) ) {
-                    $log->error("$scriptfile Won't process vob $vob located on remote host $host.\n");
+                    $log->error("$Scriptfile Won't process vob $vob located on remote host $host.\n");
                     return 1;                     # Return error.
                 }
             } else {
@@ -1159,7 +1160,7 @@ Returns 0 if success otherwise an integer different from 0
         my ( $ignore, $action, $replace, $nuser, $lockcomment );
 
         $action      = $mode;
-        $lockcomment = "-c \"$action set by $scriptfile\"";
+        $lockcomment = "-c \"$action set by $Scriptfile\"";
 
         if ( $locked_status eq "locked" ) {
 
@@ -1200,22 +1201,20 @@ Returns 0 if success otherwise an integer different from 0
                 $$cmnt = $comment;
                 debug_print("Original lock comment cached: [$comment]\n");
 
+######################
                 if ($$nuserlist) {
-                    $log->information("$vob is locked with -nuser list. Must lock for all users while backing up\n");
+
+                    $replace = "-replace";
+                    $nuser   = "";
+                    $log->information("The vob $vob is locked with -nuser list. Must lock for all users while backing up\n");
 
                 } else {
                     $ignore = 1;    # Don't change the lock
                     $retval = 0;
-                    $log->information("$vob is already locked, Request to $mode can be ignored\n");
+                    $log->information("The vob $vob is already locked, Request to $mode can be ignored\n");
 
                 }
 
-                if ($$nuserlist) {
-                    $log->information("$vob is locked with users excluded from lock, must lock for all users...\n");
-                    $replace = "-replace";
-                    $nuser   = "";
-
-                }
             } else {    # mode is unlock
 
                 if ($$nuserlist) {
@@ -1227,18 +1226,18 @@ Returns 0 if success otherwise an integer different from 0
                     $nuser       = "-nuser $$nuserlist";
                     $lockcomment = "-c \"$$cmnt\"";        # reuse original lock comment
                 } else {
-                    if ( $$cmnt !~ /$scriptfile/ ) {
+                    if ( $$cmnt !~ /$Scriptfile/ ) {
                         $ignore = 1;                       # Don't change the lock
                         $retval = 0;
-                        $log->information("$vob was not locked by script, Ignoring $mode request\n");
-                    }    # end if ($$cmnt !~ /$scriptfile/ )
+                        $log->information("$vob was not locked by $Scriptfile, Ignoring $mode request\n");
+                    }    # end if ($$cmnt !~ /$Scriptfile/ )
                 }    # end if  ($$nuserlist)
             }    # end if         (lc($mode) eq "lock")
         } elsif ( $locked_status eq "obsolete" ) {
 
             $ignore = 1;    # Don't change the lock
             $retval = 0;
-            $log->information("Attempt to $mode vob:$vob, but it is locked obsolete (The $mode operation will be ignored)\n");
+            $log->information("Attempt to $mode vob:$vob, but it was locked obsolete (The $mode operation will be ignored)\n");
         } elsif ( $locked_status eq "unlocked" ) {
 
             if ( lc($mode) eq "lock" ) {
@@ -1257,9 +1256,9 @@ Returns 0 if success otherwise an integer different from 0
             $log->error("Status of lock [$locked_status] not expected\n");
         }
 
+        #        Execute the lock or unlock as required (if we really have to)
         if ($ignore) {    # don't change the lock
             $retval = 0;
-            $log->information("vob:$vob, is already $locked_status, ignoring request to $mode \n");
         } else {
 
             # Finalize command string

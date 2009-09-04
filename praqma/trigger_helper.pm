@@ -50,7 +50,7 @@ DATE         EDITOR        NOTE
 2009-08-11   Lars Kruse    Changed path to the semaphore file to use
                            back-slashes (version 1.0.2)
 2009-08-25	Lars Kruse		 Changed the return value of enable_semaphore()
-                           to be the status of the semaphore look-up. 
+                           to be the status of the semaphore look-up.
                            (version 1.0.3)
 -------------------------------------------------------------------------
 ENDREVISION
@@ -197,7 +197,7 @@ ENDUSAGE
     my $replace = ( $? / 256 ) ? "" : " -replace";
 
     #Compile the trigger installation command
-    my $trig_inst_com           = "\"Created using the -install switch of the scritpfile: $::Scriptfile\"";
+    my $trig_inst_com           = "\"Created using the -install switch of the scriptfile: $::Scriptfile\"";
     my $current_trigger_install = "cleartool " . $::TRIGGER_INSTALL;
     my $subst_str               = "-c $trig_inst_com -exec \"" . acc::TRIGGER_PERL . " $trigger_pname\" $trigger_tag\@$sw_vob";
     $current_trigger_install =~ s/vob:(adminvob|clientvob|both)/$subst_str /;
@@ -343,7 +343,7 @@ assumes that the caller ($main) has defined the following fore variabels:
 Checks for the existence of a valid semaphore.
 
 The semaphore enables triggers to exit silently and let the ClearCase event processed - as if the trigger had
-not been executed at all. 
+not been executed at all.
 
 To create a valid semaphore for a trigger script the following conditions will have to be met:
 
@@ -351,7 +351,7 @@ To create a valid semaphore for a trigger script the following conditions will h
 
 =item *
 
-A semaphore file must be created, The semaphore file must be named after the user account - no file extension (e.g lsku, g91551, ycd) 
+A semaphore file must be created, The semaphore file must be named after the user account - no file extension (e.g lsku, g91551, ycd)
 
 =item *
 
@@ -363,7 +363,7 @@ The semaphore file must have been created (not accessed, or updated, but CREATED
 
 =item *
 
-The semaphore file must contain a line stating the name of the perl script it is supposed to detronize (eg. no_rmelem_rmver.pl), the 
+The semaphore file must contain a line stating the name of the perl script it is supposed to detronize (eg. no_rmelem_rmver.pl), the
 same semaphore file can list many scritps.
 
 =back
@@ -371,7 +371,7 @@ If a valid semaphore exist the trigger execution is canceled.
 
 The location of the C<semaphores> directory can tweak by setting the constant C<trigger_utils::SEMAPHORE_DIR>.
 
-Note that the semaphore files are ignored (doesn´t stop the trigger) if they are more then 4 hrs old. 
+Note that the semaphore files are ignored (doesn´t stop the trigger) if they are more then 4 hrs old.
 
 This setting can be tweaked by setting the constant C<trigger_utils::MAX_SEMAPHORE_FILE_AGE_DAYS>.
 

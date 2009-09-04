@@ -1,7 +1,7 @@
 ACCELERATED BACKUP
 Release Note
 
-version 1.0.172
+version 1.0.175
 
 https://code.launchpad.net/acc
 
@@ -14,7 +14,7 @@ https://praqma.fogbugz.com/default.asp?pg=pgRss&ixPerson=2&ixFilter=4
 
 Documentation: 
 
-http://novo.praqma.info/accbackup_reference.ashx
+http://sites.google.com/a/praqma.net/acc/comp/utilities/accbackup/acc-backup-reference
 
 Test cases:
-http://novo.praqma.info/accbackup_test.ashx
+http://sites.google.com/a/praqma.net/acc/comp/utilities/accbackup/acc-backup-tests
