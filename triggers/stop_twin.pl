@@ -16,14 +16,13 @@ BEGIN {
 our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
-    $Scriptdir = ".\\";
-    $Scriptfile =
-      $0;  # Assume the script is called from 'current directory' (no leading path - $0 is the file)
+    $Scriptdir  = ".\\";
+    $Scriptfile = $0;      # Assume the script is called from 'current directory' (no leading path - $0 is the file)
     $Scriptfile =~ /(.*\\)(.*)$/
       && do {
         $Scriptdir  = $1;
         $Scriptfile = $2;
-      }  # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+      }                    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
 
 use lib $Scriptdir. "..";
@@ -42,10 +41,9 @@ our $TRIGGER_INSTALL = "mktrtype -preop lnname -element -all vob:both";
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "20";
-# REV lak: I didn't step the revision to 21 (I only added comments, so basically the script is still the same.
+our $REVISION = "21";
 
-my $verbose_mode = 1;
+my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -85,7 +83,7 @@ our $thelp = trigger_helper->new;
 $thelp->enable_install;
 $thelp->require_trigger_context;
 
-our $semaphore_file = $thelp->enable_semaphore_backdoor;
+our $semaphore_status = $thelp->enable_semaphore_backdoor;
 
 #Enable the features in scriptlog
 our $log = scriptlog->new;
@@ -95,36 +93,31 @@ our $log = scriptlog->new;
 $log->conditional_enable();
 $log->set_verbose($verbose_mode);
 our $logfile = $log->get_logfile;
-($logfile) && $log->information("logfile is: $logfile\n");
-$log->information(
-    "Searching valid semaphore file at '$semaphore_file'\n\t\t...but couldn't find any!\n");
+($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
+$log->information($semaphore_status);
 
-my $debug = 0;    # Write more messages to the log file
+my $debug = 0;                                                # Write more messages to the log file
 $ENV{'CLEARCASE_TRIGGER_DEBUG'} && do {
     $debug = 1;
-    $log->dump_ccvars;    # Run this statement to have the trigger dump the CLEARCASE variables
+    $log->dump_ccvars;                                        # Run this statement to have the trigger dump the CLEARCASE variables
 };
 
 # End of standard stuff
 
 # Here starts the actual trigger code.
-my $case_sensitive = 1;    # 0 means Case IN-Sensitive name matching
+my $case_sensitive = 1;                                       # 0 means Case IN-Sensitive name matching
 
 my ( $dir_delim, $possible_dupe, $dupver );
 my $viewkind = $ENV{CLEARCASE_VIEW_KIND};
 my $pathname = $ENV{CLEARCASE_XPN};
 my $sfx      = $ENV{'CLEARCASE_XN_SFX'} ? $ENV{'CLEARCASE_XN_SFX'} : '@@';
 
-# REV lak: regexp matches windowsssssssssssssssssssssssssssssssssssssssss ;-) try using:
-# if ( $ENV{'OS'} =~ /[Ww]indows/ ) {
-
-if ( $ENV{'OS'} =~ /[Ww]indows*/ ) {
+if ( $ENV{'OS'} =~ /[Ww]indows/ ) {
 
     # Convert any "X:\view_tag\vob_tag\.\*" to "X:\view_tag\vob_tag\*"
     $pathname =~ s/\\.\\/\\/;
     $dir_delim = "\\";
-}
-else {
+} else {
     $dir_delim = "/";
 }
 
@@ -132,7 +125,9 @@ else {
 my ( $parent, $element ) = acc::split_dir_file($pathname);
 
 # Make parent directory DNA
-my $parent_dna = "$parent" . "$dir_delim" . ".$sfx";
+#my $parent_dna = "$parent" . "$dir_delim" . ".$sfx";
+
+my $parent_dna = "$parent.$sfx";
 
 # Are we in a snapshot view?
 my $snapview;
@@ -140,28 +135,28 @@ if ( exists( $ENV{'CLEARCASE_VIEW_KIND'} )
     && $ENV{'CLEARCASE_VIEW_KIND'} ne 'dynamic' )
 {
     $snapview = 1;
-}
-else {
+} else {
 
     # The 2nd test is a special case for the vob root.
     $snapview = !-e "$parent$sfx/main" && !-e "$parent/$sfx/main";
 }
+
+$debug && $log->information("Snapview ? $snapview\n");
 
 my $found = 0;
 my $pattern;    # Casesensitive search pattern - or not
 
 if ($case_sensitive) {
     $pattern = "$element";
-}
-else {
+} else {
     $pattern = "(?i)$element";
 }
 
 # get lines from lshist that begins with non-whitespace and ends with digit
 my @lines =
   grep { /^\S.*\\\d+$/ } qx(cleartool lshist -nop -min -nco -dir -fmt "%Nc%Vn\\n" "$parent_dna");
-  
-#REV lak: It seems like you are only interested in lines starting with Added og Uncat. 
+
+#REV lak: It seems like you are only interested in lines starting with Added og Uncat.
 #         It also seems the he new-line you are adding to output is used for nothing except chomping it again a few lines later
 #         And even later your run another grep to see if the element is part of the Add/Uncat action)
 #         So why no go:
@@ -171,16 +166,14 @@ my @lines =
 #
 # HEY!!! I didn't actually test the reg-exp above ...might need adjustment, but point is it's possible to grep ONLY what actually interesting in one go!
 
-
 # REV lak: If you @lines only hold what is truely interesting you don't need the two hashes
 my %added        = ();    #  table of latest version where NAME was added
 my %uncatalogued = ();    #  table of latest version where NAME was seen before uncatalog
 
 foreach (@lines) {
 
-# REV lak: You could save yourself this reg exp match (see prev REV comment)
+    # REV lak: You could save yourself this reg exp match (see prev REV comment)
     next unless /^Added|^Uncat/i;
-
 
     # isolate elementname and branch version
     my ( $action, $name, $junk, $branch ) = /(.*")(.*)("\.)(.*)/;
@@ -237,15 +230,13 @@ if ( $pop_kind eq "mkelem" ) {
     # From a mkelem command
     $prompt = "$prompt The name: [$element]\\n";
 
-}
-else {
+} else {
 
     # From a "ln", "ln -s" or "mv" command
     if ( !$pop_kind || ( $pop_kind eq "rmname" ) || ( $pop_kind eq "mkslink" ) ) {
 
         $debug
-          && $log->information(
-            "DEBUG\tLine " . __LINE__ . " Operation is not mkelem, but $pop_kind\n" );
+          && $log->information( "DEBUG\tLine " . __LINE__ . " Operation is not mkelem, but $pop_kind\n" );
         $prompt = "$prompt The element name [$element]\\n";
 
     }
@@ -291,7 +282,7 @@ stop_twin - ClearCase trigger
 
 Script:        F<stop_twin.pl>
 
-Trigger name:  C<STOP_TWIN>
+Trigger name:  C<ACC_STOP_TWIN>
 
 Used as a generic trigger which prevents creation of evil twins in ClearCase - please see the Description
 
@@ -346,11 +337,11 @@ without involving the vob owner.
 The case sensitive pattern matching can be changed to case insensitive if that is required, to do that, you will edit the
 trigger script and change the line
 
-	my $case_sensitive = 1;
+        my $case_sensitive = 1;
 
 to
 
-	my $case_sensitive = 0;
+        my $case_sensitive = 0;
 
 =head2 Bypassing the trigger.
 
