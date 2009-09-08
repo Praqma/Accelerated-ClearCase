@@ -41,7 +41,7 @@ our $TRIGGER_INSTALL = "mktrtype -preop lnname -element -all vob:both";
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "21";
+our $REVISION = "22";
 
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 
@@ -197,7 +197,7 @@ foreach (@lines) {
 #  REV lak: You put the newline there in your -fmt switch to lshistory a few lines up
 #           If you drop it, you won't need a chomp in the next line.
 #           in fact you can drop the entire grep and check directly on @lines
-chomp( my @match = grep /$pattern$/, keys %added );
+chomp( my @match = grep /^$pattern$/, keys %added );
 if (@match) {
     $dupver = $match[$#match];
 
