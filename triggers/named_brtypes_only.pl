@@ -100,10 +100,10 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq "uncheckout") ||  ($ENV{CLEARCASE_OP_KIND} eq 
 	    my $opkind =lc($ENV{'CLEARCASE_OP_KIND'});
 	    my $brtype =  $ENV{'CLEARCASE_BRTYPE'};
 	    $log->information(
-	        "ERROR \\n...triggered by a [$opkind $brtype] event.\\n\\n".
-	        "You are about to create a branch that is not approved\\n".
-	        "The config spec of your view might be wrong!\\n\\n".
-	        "Contact the Configuration Manager \\n".
+	        "ERROR \n...triggered by a [$opkind $brtype] event.\n\n".
+	        "You are about to create a branch that is not approved\n".
+	        "The config spec of your view might be wrong!\n\n".
+	        "Contact the Configuration Manager \n".
 	        "or ClearCase Admin to get help!");
 	}
 
