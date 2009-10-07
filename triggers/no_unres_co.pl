@@ -102,10 +102,10 @@ my $reserve_state = lc($ENV{CLEARCASE_RESERVED}); # Only available if the opkind
 if ( ( $ENV{CLEARCASE_OP_KIND} eq "checkout" && $reserve_state eq "0") ||  ($ENV{CLEARCASE_OP_KIND} eq "unreserve") ) { #Check that the events that fired the trigger are the ones we support
 	my $opkind= lc($ENV{CLEARCASE_OP_KIND}); # unreserve|checkout
     $log->information(
-        "ERROR \\n...triggered by a [-$opkind] event.\\n\\n".
-        "You are about to make an unreserved checkout\\n".
-        "That is not allowed!\\n\\n".
-        "Contact the Configuration Manager\\n".
+        "ERROR \n...triggered by a [-$opkind] event.\n\n".
+        "You are about to make an unreserved checkout\n".
+        "That is not allowed!\n\n".
+        "Contact the Configuration Manager\n".
         "or ClearCase Admin to get help!");
     exit 1;
 }
