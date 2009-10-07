@@ -72,7 +72,7 @@ our $log = scriptlog->new;
 
 # Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or
 # SCRIPTLOG_ENABLE=1 to start logging
-$log->enable();
+$log->conditional_enable();
 
 
 #$log->conditional_enable();
@@ -94,7 +94,7 @@ if ($ENV{'CLEARCASE_TRIGGER_DEBUG'}) {
 # End of standard stuff
 # ------------------------------------
 # Here starts the actual trigger code.
-if ( ( $ENV{CLEARCASE_OP_KIND} eq "uncheckout") ||  ($ENV{CLEARCASE_OP_KIND} eq "checkin") ) { #Check that the events that fired the trigger are the ones we support
+if ( ( $ENV{CLEARCASE_OP_KIND} eq "mkbranch") ) { #Check that the events that fired the trigger are the ones we support
 	my $regexp = "main"; # list of branches that are allowed to create "brtype|brtype|..."
 	unless ($ENV{'CLEARCASE_BRTYPE'}=~/$regexp/){
 	    my $opkind =lc($ENV{'CLEARCASE_OP_KIND'});
