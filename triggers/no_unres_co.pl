@@ -23,7 +23,7 @@ our $TRIGGER_NAME = "ACC_NO_UNRES_CO";
 
 
 # vob: is on of clientvob | adminvob | both
-our $TRIGGER_INSTALL = "mktrtype -element -all -preop checkout,unreserve vob:client";
+our $TRIGGER_INSTALL = "mktrtype -element -all -preop checkout,unreserve vob:clientvob";
 
 # File version
 our $VERSION  = "1.1";

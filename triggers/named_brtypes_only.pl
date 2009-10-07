@@ -19,8 +19,7 @@ use praqma::scriptlog;
 use praqma::trigger_helper;
 
 #Required if you call trigger_helper->enable_install
-our $TRIGGER_NAME = "ACC_NAMED_BRTYPES_ONLY"; # MISSING: Must have name
-
+our $TRIGGER_NAME = "ACC_NAMED_BRTYPES_ONLY";
 
 # vob: is on of clientvob | adminvob | both
 our $TRIGGER_INSTALL = "mktrtype -element -all -preop mkbranch vob:both";
