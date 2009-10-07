@@ -98,33 +98,18 @@ if ($ENV{'CLEARCASE_TRIGGER_DEBUG'}) {
 # Here starts the actual trigger code.
 
 ################# The trigger action begins here ##########################
-if ( ( $ENV{CLEARCASE_OP_KIND} eq "checkout") ||  ($ENV{CLEARCASE_OP_KIND} eq "unreserve") ) { #Check that the events that fired the trigger are the ones we support
+my $reserve_state = lc($ENV{CLEARCASE_RESERVED}); # Only available if the opkind is "checkout"
+if ( ( $ENV{CLEARCASE_OP_KIND} eq "checkout" && $reserve_state eq "0") ||  ($ENV{CLEARCASE_OP_KIND} eq "unreserve") ) { #Check that the events that fired the trigger are the ones we support
 	my $opkind= lc($ENV{CLEARCASE_OP_KIND}); # unreserve|checkout
-	my $reserve_state = lc($ENV{CLEARCASE_RESERVED}); # Only available if the opkind is "checkout"
-    if (($opkind eq "checkout" && $reserve_state eq "0")||($opkind eq "unreserve")){
-	    $retval = abortmsg(
-	        "ERROR \\n...triggered by a [-$opkind] event.\\n\\n".
-	        "You are about to make an unreserved checkout\\n".
-	        "That is not allowed!\\n\\n".
-	        "Contact the Configuration Manager\\n".
-	        "or ClearCase Admin to get help!"
-	    );
-	    exit $retval;
-    }
+    $log->information(
+        "ERROR \\n...triggered by a [-$opkind] event.\\n\\n".
+        "You are about to make an unreserved checkout\\n".
+        "That is not allowed!\\n\\n".
+        "Contact the Configuration Manager\\n".
+        "or ClearCase Admin to get help!");
+    exit 1;
 }
 exit 0;
-
-
-########################## SUB FUNCTIONS ##################################
-sub abortmsg{
-  my $msg = shift;
-  my $cmd= "clearprompt proceed -prompt \"$msg\" -type error -mask abort -default abort -newline -prefer_gui";
-  $g_debug && print "Executing:\n$cmd\n";
-  `$cmd`;
-  my $retval = $?/256;
-  $g_debug && print "...returncode was [$retval]\n";
-  return $retval;
-}
 
 __END__
 

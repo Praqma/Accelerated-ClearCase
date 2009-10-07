@@ -99,16 +99,16 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq "uncheckout") ||  ($ENV{CLEARCASE_OP_KIND} eq 
 	if ("$ENV{'CLEARCASE_ELTYPE'}" eq "directory")
 	   { exit 0; }
 
-	$ELEMENT = "$ENV{'CLEARCASE_PN'}";
+	my $ELEMENT = "$ENV{'CLEARCASE_PN'}";
 
-	@CONTRIBS = glob("$ELEMENT".".contrib*");
+	my @CONTRIBS = glob("$ELEMENT".".contrib*");
 
-	foreach $CONTRIB (@CONTRIBS)
+	foreach my $CONTRIB (@CONTRIBS)
 	{
 	   if ( ("$CONTRIB" =~ /\.contrib$/) or
 	        ("$CONTRIB" =~ /\.contrib\.[0-9]+$/ ))
 	   {
-	      $ob_type=`cleartool desc -fmt %m $CONTRIB`;
+	      my $ob_type=`cleartool desc -fmt %m $CONTRIB`;
 
 	      if ("$ob_type" eq "view private object")
 	      {

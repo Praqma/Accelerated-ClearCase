@@ -27,7 +27,7 @@ our $TRIGGER_INSTALL = "mktrtype -element -all -preop mkbranch vob:both";
 
 # File version
 our $VERSION  = "1.1";
-our $REVISION = "2";
+our $REVISION = "3";
 
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 
@@ -56,7 +56,7 @@ my $revision = <<ENDREVISION;
 DATE        EDITOR  NOTE
 ----------  -------------  ----------------------------------------------
 2006-10-26  Lars Kruse     1st release prepared for Novo Nordisk
-                           (version 1.0.0.0)
+                           (version 1.0.1)
 2009-10-07  Mikael Jensen  ACC'ified (version 1.1.2)
 -------------------------------------------------------------------------
 ENDREVISION
@@ -96,35 +96,24 @@ if ($ENV{'CLEARCASE_TRIGGER_DEBUG'}) {
 # ------------------------------------
 # Here starts the actual trigger code.
 if ( ( $ENV{CLEARCASE_OP_KIND} eq "uncheckout") ||  ($ENV{CLEARCASE_OP_KIND} eq "checkin") ) { #Check that the events that fired the trigger are the ones we support
-	my $retval = 0;
-	$regexp = "main"; # list of branches that are allowed to create "brtype|brtype|..."
+	my $regexp = "main"; # list of branches that are allowed to create "brtype|brtype|..."
 	unless ($ENV{'CLEARCASE_BRTYPE'}=~/$regexp/){
 	    my $opkind =lc($ENV{'CLEARCASE_OP_KIND'});
 	    my $brtype =  $ENV{'CLEARCASE_BRTYPE'};
-	    $retval = abortmsg(
+	    $log->information(
 	        "ERROR \\n...triggered by a [$opkind $brtype] event.\\n\\n".
 	        "You are about to create a branch that is not approved\\n".
 	        "The config spec of your view might be wrong!\\n\\n".
 	        "Contact the Configuration Manager \\n".
-	        "or ClearCase Admin to get help!"
-	    )
+	        "or ClearCase Admin to get help!");
 	}
 
-	$g_debug && print "Exit value:[$retval]\n";
-	exit $retval;
+	exit 1;
 }
 exit 0;
 
 #################### sub functions #######################
-sub abortmsg{
-  my $msg = shift;
-  my $cmd= "clearprompt proceed -prompt \"$msg\" -type error -mask abort -default abort -newline -prefer_gui";
-  $g_debug && print "Executing:\n$cmd\n";
-  `$cmd`;
-  my $retval = $?/256;
-  $g_debug && print "...returncode was [$retval]\n";
-  return $retval;
-}
+
 
 __END__
 
