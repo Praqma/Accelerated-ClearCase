@@ -101,9 +101,8 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq "mkbranch") ) { #Check that the events that fi
 	        "The config spec of your view might be wrong!\n\n".
 	        "Contact the Configuration Manager \n".
 	        "or ClearCase Admin to get help!");
+            exit 1;
 	}
-
-	exit 1;
 }
 exit 0;
 
@@ -127,7 +126,7 @@ Trigger name:  C<ACC_NAMED_BRTYPES_ONLY>
 
 =head1 SYNOPSIS
 
-Runs as ClearCase trigger script installed on
+Runs as ClearCase trigger script installed on all vobtypes and is supposed to run on mkbranch operations.
 
 The scripts installs itself correctly when executed outside a trigger context using:
 
@@ -146,7 +145,7 @@ An exception is if you execute it in -preview mode
 
 =head1 DESCRIPTION
 
-
+The triggerscript monitors a list of approved branches and requires that no branches are created except those listed in the $regexp variable. It supports several matchstrings seperated by "|" (vertical bar aka "or" in regex's), but the match pattern is hardcoded (currently as "main").
 
 =head2 Bypassing the trigger.
 

@@ -38,8 +38,9 @@ our $header = <<ENDHEADER;
 #     This script is intended as ClearCase trigger script for the
 #     $TRIGGER_NAME trigger.
 #
-#     On checkin and uncheckout remove associated ".contrib" files
-#     in "dynamic" views.
+#     This script is intended as trigger script (element -all)          
+#     on the checkkout and unreserve events.
+#     It removes associated ".contrib" files.
 #
 #     Date:       2009-10-07
 #     Author:     Mikael Jensen, mij\@praqma.net
@@ -139,7 +140,7 @@ Trigger name:  C<ACC_RM_CONTRIBS>
 
 =head1 SYNOPSIS
 
-Runs as ClearCase trigger script installed on
+Runs as ClearCase trigger script installed on clientvobs (not adminvobs) and is supposed to run on checkin and uncheckout operations.
 
 The scripts installs itself correctly when executed outside a trigger context using:
 
@@ -158,9 +159,7 @@ An exception is if you execute it in -preview mode
 
 =head1 DESCRIPTION
 
-On checkin and uncheckout the trigger removes associated ".contrib" files.
-
-
+On checkin and uncheckout, the trigger looks for and removes associated ".contrib" files.
 
 =head2 Bypassing the trigger.
 

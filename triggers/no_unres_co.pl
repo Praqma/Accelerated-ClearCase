@@ -126,7 +126,7 @@ Trigger name:  C<ACC_NO_UNRES_CO>
 
 =head1 SYNOPSIS
 
-Runs as ClearCase trigger script installed on
+Runs as ClearCase trigger script installed on clientvobs (not adminvobs) and is supposed to run on checkout and unreserve operations
 
 The scripts installs itself correctly when executed outside a trigger context using:
 
@@ -145,7 +145,7 @@ An exception is if you execute it in -preview mode
 
 =head1 DESCRIPTION
 
-
+The trigger will abort the operation, if either the operation is "unreserve" or the operation is a checkout without reserve ($ENV{CLEARCASE_RESERVED} = 0).
 
 =head2 Bypassing the trigger.
 
