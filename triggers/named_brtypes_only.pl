@@ -33,18 +33,17 @@ my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging 
 # Header and revision history
 our $header = <<ENDHEADER;
 #########################################################################
-#     $Scriptfile  version $VERSION\.$REVISION							#
-#     This script is intended as ClearCase trigger script for the       #
-#     $TRIGGER_NAME trigger.                                            #
-#                                                                       #
-#     This script is intended as trigger script (element -all)          #
-#     on the mkbranch event. It monitors a list of approved branches    #
-#     and requires that no branches are created except these.           #
-#                                                                       #
-#     Date:       2009-10-07                                            #
-#     Author:     Mikael Jensen, mij\@praqma.net              			#
-#     License:    GNU General Pulic License v3.0                        #
-#     Support:    http://launchpad.net/acc                              #
+#     $Scriptfile  version $VERSION\.$REVISION				
+#     This script is intended as ClearCase trigger script for the       
+#     $TRIGGER_NAME trigger.                                            
+#                                                                       
+#     This script is intended as trigger script (element -all)          
+#     on the mkbranch event. It monitors a list of approved branches    
+#     and requires that no branches are created except these.           #                                                                       
+#     Date:       2009-10-07                                            
+#     Author:     Mikael Jensen, mij\@praqma.net              		
+#     License:    GNU General Pulic License v3.0                        
+#     Support:    http://launchpad.net/acc                              
 #########################################################################
 ENDHEADER
 
@@ -73,23 +72,20 @@ our $log = scriptlog->new;
 # Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or
 # SCRIPTLOG_ENABLE=1 to start logging
 $log->conditional_enable();
+$log->set_verbose($verbose_mode);
 
-
-#$log->conditional_enable();
-#$log->set_verbose($verbose_mode);
-$log->set_verbose(1);
 our $logfile = $log->get_logfile;
 ($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
 
 
-my $debug = 0;                                                # Write more messages to the log file
+my $debug = 0; # Write more messages to the log file
 
 
 if ($ENV{'CLEARCASE_TRIGGER_DEBUG'}) {
     $debug = 1;
-    $log->dump_ccvars;                                        # Run this statement to have the trigger dump the CLEARCASE variables
 }
+($debug) && $log->dump_ccvars; # Dumps Clearcase variables if debug is defined
 
 # End of standard stuff
 # ------------------------------------

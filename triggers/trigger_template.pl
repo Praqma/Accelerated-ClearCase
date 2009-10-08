@@ -39,7 +39,7 @@ our $header = <<ENDHEADER;
 #     $TRIGGER_NAME trigger.
 #
 #
-#
+# MISSING: Description of trigger
 #
 #
 #
@@ -74,24 +74,21 @@ our $log = scriptlog->new;
 
 # Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or
 # SCRIPTLOG_ENABLE=1 to start logging
-$log->enable();
+$log->conditional_enable();
+$log->set_verbose($verbose_mode);
 
-
-#$log->conditional_enable();
-#$log->set_verbose($verbose_mode);
-$log->set_verbose(1);
 our $logfile = $log->get_logfile;
 ($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
 
 
-my $debug = 0;                                                # Write more messages to the log file
+my $debug = 0;  # Write more messages to the log file
 
 
 if ($ENV{'CLEARCASE_TRIGGER_DEBUG'}) {
     $debug = 1;
-    $log->dump_ccvars;                                        # Run this statement to have the trigger dump the CLEARCASE variables
 }
+($debug) && $log->dump_ccvars; # Dumps Clearcase variables if debug is defined
 
 # End of standard stuff
 # ------------------------------------
