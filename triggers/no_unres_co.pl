@@ -123,7 +123,6 @@ Script:        F<no_unres_co.pl>
 
 Trigger name:  C<ACC_NO_UNRES_CO>
 
-
 =head1 SYNOPSIS
 
 Runs as ClearCase trigger script installed on clientvobs (not adminvobs) and is supposed to run on checkout and unreserve operations

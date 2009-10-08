@@ -137,7 +137,6 @@ Script:        F<rm_contribs.pl>
 
 Trigger name:  C<ACC_RM_CONTRIBS>
 
-
 =head1 SYNOPSIS
 
 Runs as ClearCase trigger script installed on clientvobs (not adminvobs) and is supposed to run on checkin and uncheckout operations.

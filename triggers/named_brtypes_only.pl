@@ -123,7 +123,6 @@ Script:        F<named_brtypes_only.pl>
 
 Trigger name:  C<ACC_NAMED_BRTYPES_ONLY>
 
-
 =head1 SYNOPSIS
 
 Runs as ClearCase trigger script installed on all vobtypes and is supposed to run on mkbranch operations.
