@@ -95,12 +95,14 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq "mkbranch") ) { #Check that the events that fi
 	unless ($ENV{'CLEARCASE_BRTYPE'}=~/$regexp/){
 	    my $opkind =lc($ENV{'CLEARCASE_OP_KIND'});
 	    my $brtype =  $ENV{'CLEARCASE_BRTYPE'};
-	    $log->information(
-	        "ERROR \n...triggered by a [$opkind $brtype] event.\n\n".
-	        "You are about to create a branch that is not approved\n".
-	        "The config spec of your view might be wrong!\n\n".
-	        "Contact the Configuration Manager \n".
-	        "or ClearCase Admin to get help!");
+	    my $errormsg = 
+	        "ERROR \\n...triggered by a [$opkind $brtype] event.\\n\\n".
+	        "You are about to create a branch that is not approved\\n".
+	        "The config spec of your view might be wrong!\\n\\n".
+	        "Contact the Configuration Manager \\n".
+	        "or ClearCase Admin to get help!";
+	    print STDERR $errormsg;
+	    $log->error($errormsg);
             exit 1;
 	}
 }
