@@ -33,17 +33,17 @@ my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging 
 # Header and revision history
 our $header = <<ENDHEADER;
 #########################################################################
-#     $Scriptfile  version $VERSION\.$REVISION				
-#     This script is intended as ClearCase trigger script for the       
-#     $TRIGGER_NAME trigger.                                            
-#                                                                       
-#     This script is intended as trigger script (element -all)          
-#     on the mkbranch event. It monitors a list of approved branches    
-#     and requires that no branches are created except these.           #                                                                       
-#     Date:       2009-10-07                                            
-#     Author:     Mikael Jensen, mij\@praqma.net              		
-#     License:    GNU General Pulic License v3.0                        
-#     Support:    http://launchpad.net/acc                              
+#     $Scriptfile  version $VERSION\.$REVISION
+#     This script is intended as ClearCase trigger script for the
+#     $TRIGGER_NAME trigger.
+#
+#     This script is intended as trigger script (element -all)
+#     on the mkbranch event. It monitors a list of approved branches
+#     and requires that no branches are created except these.           #
+#     Date:       2009-10-07
+#     Author:     Mikael Jensen, mij\@praqma.net
+#     License:    GNU General Pulic License v3.0
+#     Support:    http://launchpad.net/acc
 #########################################################################
 ENDHEADER
 
@@ -95,11 +95,11 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq "mkbranch") ) { #Check that the events that fi
 	unless ($ENV{'CLEARCASE_BRTYPE'}=~/$regexp/){
 	    my $opkind =lc($ENV{'CLEARCASE_OP_KIND'});
 	    my $brtype =  $ENV{'CLEARCASE_BRTYPE'};
-	    my $errormsg = 
-	        "ERROR \\n...triggered by a [$opkind $brtype] event.\\n\\n".
-	        "You are about to create a branch that is not approved\\n".
-	        "The config spec of your view might be wrong!\\n\\n".
-	        "Contact the Configuration Manager \\n".
+	    my $errormsg =
+	        "ERROR \n...triggered by a [$opkind $brtype] event.\n\n".
+	        "You are about to create a branch that is not approved\n".
+	        "The config spec of your view might be wrong!\n\n".
+	        "Contact the Configuration Manager \n".
 	        "or ClearCase Admin to get help!";
 	    print STDERR $errormsg;
 	    $log->error($errormsg);
