@@ -38,7 +38,7 @@ our $header = <<ENDHEADER;
 #     This script is intended as ClearCase trigger script for the
 #     $TRIGGER_NAME trigger.
 #
-#     This script is intended as trigger script (element -all)          
+#     This script is intended as trigger script (element -all)
 #     on the checkkout and unreserve events.
 #     It removes associated ".contrib" files.
 #
@@ -114,7 +114,7 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq "uncheckout") ||  ($ENV{CLEARCASE_OP_KIND} eq 
 	         ######################################################
 	         # Inform of and remove any associated .contrib files #
 	         ######################################################
-	         printf ("Removing \".contrib\" file \"$CONTRIB\"...\n");
+	         $log->information("Removing \".contrib\" file \"$CONTRIB\"...\n");
 	         unlink ($CONTRIB);
 	      }
 	   }
