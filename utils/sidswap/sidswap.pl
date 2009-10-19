@@ -35,6 +35,12 @@ BEGIN {
         $Scriptdir  = ".";
         $Scriptfile = $0;
     }
+
+    END {
+
+        # global log file
+        close LOGFILE;
+    }
 }
 
 # Use clauses
@@ -42,6 +48,7 @@ use strict;
 use lib "$Scriptdir..//..";
 use praqma::scriptlog;
 use Getopt::Long;
+use Win32::NetAdmin;
 use Win32::TieRegistry( Delimiter => "#", ArrayValues => 0 );
 my $pound = $Registry->Delimiter("/");
 
@@ -84,8 +91,8 @@ ENDREVISION
 # Usage information
 my $usage = <<ENDUSAGE;
   $Scriptfile -help
-  $Scriptfile -vobtag VOBTAG -newgroup NEWGROUP -logfolder LOGFOLDER
-                      [-dryrun] [-debug]
+  $Scriptfile -vobtag VOBTAG -newgroup NEWGROUP -logdir LOGFOLDER
+                      [-keepservices] [-no_other] [-dryrun] [-debug]
 
 ENDUSAGE
 
@@ -118,6 +125,11 @@ $Scriptfile  version $VERSION\.$BUILD help.
 
                         --- Auxiliary switches ---
 
+-keepservices           Optional. Keep Clearcase services running. The default
+                        is to stop and subsequently start the ClearCase services
+                        while running the the fix_prot step as per Rational re-
+                        commandations.
+
 -no_other               Optional. This will remove any priveledges held by any-
                         body, but the owner and the new primary group, by doing
                         a "cleartool protect -chmod o= " on each object in the
@@ -130,29 +142,85 @@ ENDDOC
 
 ### Global variables ###
 my (
-    $utilhome,       # root of Clearcase utils folder, usually %CLEARCASEHOME%\etc\utils
-    $credsutil,      # full path to Clearcase creds.exe
-    $fixprot,        # full path to ClearCase fix_prot.exe
-    $sw_debug,       # Enable debugging, default is off
-    $sw_dryrun,      # print findings, and suggested command lines, but no execution
-    $sw_help,        #
-    $sw_logdir,      # required, all logs will be written below this path
-    $sw_newgroup,    # qualified new group name
-    $sw_no_other,    # optional, process all elements and remove group other
-    $sw_vobtag,      # required, the vobtag from the command line
-    $sum_log,        # The summary log, for each invocation, with the same
-                     # logdir, this log will be appended
-    $log,            # Object for the scriptlogger.
-    $locallogpath    # path to the logging directory for this invocation
+    $utilhome,        # root of Clearcase utils folder, usually %CLEARCASEHOME%\etc\utils
+    $credsutil,       # full path to Clearcase creds.exe
+    $fixprot,         # full path to ClearCase fix_prot.exe
+    $sw_debug,        # Enable debugging, default is off
+    $sw_dryrun,       # print findings, and suggested command lines, but no execution
+    $sw_help,         #
+    $sw_keep,         # enable to avoid stop & start of services
+    $sw_logdir,       # required, all logs will be written below this path
+    $sw_newgroup,     # qualified new group name
+    $sw_no_other,     # optional, process all elements and remove group other
+    $sw_vobtag,       # required, the vobtag from the command line
+    $sum_log,         # The summary log, for each invocation, with the same
+                      # logdir, this log will be appended
+    $log,             # Object for the scriptlogger.
+    $locallogpath,    # path to the logging directory for this invocation
+    @allcommands      # All commands to execute, in order
 );
 
 ### main ###
 
-validate_options();
-initialize();
+validate_options();    # Check input options
+initialize();          # Setup logging
+createcommands();      # Establish all nessecary commands
 
 ################################################################################
 #######                          sub functions                         #########
+
+sub ccservice ($) {
+
+    # Either stop or start Clearcase Services
+    # return array of the commands
+
+    my $action   = shift;
+    #my @services = qw(ALBD LOCKMGR CCCREDMGR);
+    my @services;
+    foreach (qw(ALBD LOCKMGR CCCREDMGR)) {
+        push @services, "net $action $_";
+    }
+    return    @services;
+ }
+
+sub createcommands {
+
+    # Build all the commands to execute
+
+    # stop services before fixprot
+    push @allcommands, ccservice("stop") unless ($sw_keep);
+
+    # find vob storage in local file system
+    my $vobpath;
+    my $serverpath = "Vob server access path: ";
+    foreach (`cleartool lsvob -l $sw_vobtag`) {
+        next unless /^$serverpath/;
+        $vobpath = substr $_, length($serverpath);
+    }
+    my $fixcmd = "$fixprot  -r -root -chgrp $sw_newgroup $vobpath";
+	push @allcommands, $fixcmd;
+
+
+    #
+
+    print "found $vobpath\n";
+
+    push @allcommands, ccservice("start") unless ($sw_keep);}
+
+sub now_formatted {
+
+    # Just a formatting of the current time
+
+    # create a formatted string based on date and time for now
+    my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime;
+    $year = $year + 1900;
+
+    # format it after YYYYMMDDHHmmSS
+    my $startstamp = sprintf( "%04d%02d%02d.%02d%02d%02d", $year, $mon, $mday, $hour, $min, $sec );
+    $debug && print "Formatted time is: $startstamp\n";
+    return "$startstamp";
+
+}
 
 sub preparelog {
 
@@ -163,12 +231,7 @@ sub preparelog {
     # strip backslash from vobtag
     ( my $vobname = $sw_vobtag ) =~ s/\\//;
 
-    # create a formatted string based on date and time for now
-    my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime;
-    $year = $year + 1900;
-
-    # format it after YYYYMMDDHHmmSS
-    my $startstamp = sprintf( "_%04d%02d%02d.%02d%02d%02d", $year, $mon, $mday, $hour, $min, $sec );
+    my $startstamp = "_" . now_formatted;
     $debug && print "$vobname$startstamp\n";
     $locallogpath = "$sw_logdir\\$vobname$startstamp";
     if ( !-e $locallogpath ) {
@@ -176,21 +239,23 @@ sub preparelog {
         `$cmd`;
         ( $? / 256 ) && die "Trouble creating Local logging directory \"$locallogpath\"\n";
     }
+    return $locallogpath;
 }
 
-sub help_mode() {
+sub help_mode {
     defined($sw_help) && do { print $header. $revision . $usage . $doc; exit 0; };
 }
 
 sub validate_options {
     my %options = (
-        "debug!"     => \$sw_debug,       # Enable debugging, default is off
-        "dryrun!"    => \$sw_dryrun,      # print findings, and suggested command lines, but no execution
-        "help|?"     => \$sw_help,        #
-        "logdir=s"   => \$sw_logdir,      # required, all logs will be written below this path
-        "newgroup=s" => \$sw_newgroup,    # qualified new group name
-        "no_other!"  => \$sw_no_other,    # optional, process all elements and remove group other
-        "vobtag=s"   => \$sw_vobtag       # required, must know which vob to process.
+        "debug!"        => \$sw_debug,       # Enable debugging, default is off
+        "dryrun!"       => \$sw_dryrun,      # print findings, and suggested command lines, but no execution
+        "help|?"        => \$sw_help,        #
+        "logdir=s"      => \$sw_logdir,      # required, all logs will be written below this path
+        "newgroup=s"    => \$sw_newgroup,    # qualified new group name
+        "no_other!"     => \$sw_no_other,    # optional, process all elements and remove group other
+        "vobtag=s"      => \$sw_vobtag,      # required, must know which vob to process.
+        "keepservices!" => \$sw_keep
     );
 
     # Look for invalid options.
@@ -236,20 +301,39 @@ sub initialize {
     $exitmsg = "Computer $ENV{'COMPUTERNAME'} is not host for vob $sw_vobtag\n$doc";
     die $exitmsg unless ( lc( $ENV{'COMPUTERNAME'} ) eq lc(`cleartool des -fmt %h vob:$sw_vobtag`) );
 
-    # Enable debug mode if request by switch
+    # Enable debug mode if requested by switch
     $debug = $sw_debug ? defined($sw_debug) : 0;
 
+    # Find required utilities.
+    $utilhome = findutils();
+    $debug && $log->information("Found ClearCase utils at \"$utilhome\"");
+    $credsutil = "$utilhome\\creds.exe";
+    !-e $credsutil && die "Failed locating creds.exe";
+    $fixprot = "$utilhome\\fix_prot.exe";
+    !-e $fixprot && die "Failed locating creds.exe";
+
     # Good to go
-    ##Set up logging
-    preparelog();
+    ##Set up local or detailed logging
+    $locallogpath = preparelog();
     my $locallog = "$locallogpath\\sidswap.log";
     $log = scriptlog->new;
     $log->set_logfile("$locallog");
     $log->enable();
-    $log->information("Preparing to switch primary group for vob $sw_vobtag to $sw_newgroup");
 
-    # Find required utilities.
-    $utilhome = findutils();
+    ## Setup global, summary logging file name.
+    $sum_log = "$sw_logdir\\sidswap_summary.log";
+    if ( -e $sum_log ) {
+        open( LOGFILE, ">> $sum_log" ) || die "can't open $sum_log: $!";
+        printf LOGFILE "\n" . now_formatted . "\tStart processing vobtag $sw_vobtag\n";
+        printf LOGFILE now_formatted . "\t- more information in $locallog\n";
+    } else {
+        open( LOGFILE, ">> $sum_log" ) || die "can't open $sum_log: $!";
+        printf LOGFILE "$Scriptfile  version $VERSION\.$BUILD Summary Logfile\n";
+        printf LOGFILE "\n" . now_formatted . "\tStart processing vobtag $sw_vobtag\n";
+        printf LOGFILE now_formatted . "\t- more information in $locallog\n";
+    }
+
+    $log->information("Preparing to switch primary group for vob $sw_vobtag to $sw_newgroup");
 
 }
 
