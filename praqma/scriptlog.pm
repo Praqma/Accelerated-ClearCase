@@ -428,4 +428,4 @@ See the website for the Accelerated ClearCase project at http://launchpad.net/ac
 This program is distributed under the GNU GPL v3.0 license
 
 =cut
-
+1;

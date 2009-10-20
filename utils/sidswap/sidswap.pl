@@ -48,18 +48,16 @@ use strict;
 use lib "$Scriptdir..//..";
 use praqma::scriptlog;
 use Getopt::Long;
-use Win32::NetAdmin;
 use Win32::TieRegistry( Delimiter => "#", ArrayValues => 0 );
 my $pound = $Registry->Delimiter("/");
 
 # File version
 our $VERSION = "0.1";
-our $BUILD   = "1";
+our $BUILD   = "3";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;    # Set 1 for testing purpose
 my $verbose_mode = 0;
-my $log_enabled  = 1;
 
 # Default setting 0-0-1 (script execution will generate NO output unless explicitly told to, but logs to default location [Temp dir]\view_q.pl.[PID].log
 
@@ -90,9 +88,12 @@ ENDREVISION
 
 # Usage information
 my $usage = <<ENDUSAGE;
-  $Scriptfile -help
-  $Scriptfile -vobtag VOBTAG -newgroup NEWGROUP -logdir LOGFOLDER
+$Scriptfile  version $VERSION\.$BUILD
+
+	$Scriptfile -vobtag VOBTAG -newgroup NEWGROUP -logdir LOGFOLDER
                       [-keepservices] [-no_other] [-dryrun] [-debug]
+
+	$Scriptfile -help
 
 ENDUSAGE
 
@@ -142,9 +143,6 @@ ENDDOC
 
 ### Global variables ###
 my (
-    $utilhome,        # root of Clearcase utils folder, usually %CLEARCASEHOME%\etc\utils
-    $credsutil,       # full path to Clearcase creds.exe
-    $fixprot,         # full path to ClearCase fix_prot.exe
     $sw_debug,        # Enable debugging, default is off
     $sw_dryrun,       # print findings, and suggested command lines, but no execution
     $sw_help,         #
@@ -153,10 +151,18 @@ my (
     $sw_newgroup,     # qualified new group name
     $sw_no_other,     # optional, process all elements and remove group other
     $sw_vobtag,       # required, the vobtag from the command line
+                      #
+    $utilhome,        # root of Clearcase utils folder, usually %CLEARCASEHOME%\etc\utils
+    $credsutil,       # full path to Clearcase creds.exe
+    $fixprot,         # full path to ClearCase fix_prot.exe
+    $sidwalk,         # full path to ClearCase vob_sidwalk.exe
+    $groupsid,        # SID of the new group
     $sum_log,         # The summary log, for each invocation, with the same
                       # logdir, this log will be appended
+
     $log,             # Object for the scriptlogger.
     $locallogpath,    # path to the logging directory for this invocation
+    $vobpath,         # Vob storage path, i.e. d:\vobs\vobtag.vbs
     @allcommands      # All commands to execute, in order
 );
 
@@ -166,8 +172,36 @@ validate_options();    # Check input options
 initialize();          # Setup logging
 createcommands();      # Establish all nessecary commands
 
+foreach (@allcommands) {print "$_\n";}
+
 ################################################################################
 #######                          sub functions                         #########
+
+
+
+sub getgroupsid ($){
+# Use creds.exe to get the group SID.
+# input parameter is the domain group to look for
+# Return 0 if not found, else return the SID
+
+my $group = shift ;
+my $failstring = "No mapping between account names and security IDs was done.";
+my $sid;
+
+foreach (`"$credsutil" -g "$group" 2>&1`){
+	my $val = $_;
+	if (/$failstring/i) {
+    	$sid = 0;
+    	last; # No reason to continue
+	}elsif (/^\s+SID:\s+/) {
+        /(S[0-9\-]+)/;
+        $sid = $1;
+        last;
+    }
+}
+
+return $sid;
+}
 
 sub ccservice ($) {
 
@@ -183,29 +217,33 @@ sub ccservice ($) {
     return    @services;
  }
 
+sub localvobpath{
+    # find vob storage in local file system
+    my $path;
+    my $serverpath = "Vob server access path: ";
+    foreach (`cleartool lsvob -l $sw_vobtag`) {
+        next unless /^$serverpath/;
+        $path = substr $_, length($serverpath);
+    }
+    return $path;
+}
+
 sub createcommands {
 
     # Build all the commands to execute
 
     # stop services before fixprot
     push @allcommands, ccservice("stop") unless ($sw_keep);
+    # fix storage
+    my $cmd = "\"$fixprot\" -r -root -chgrp $sw_newgroup $vobpath";
+	push @allcommands, cmd;
+    # start services after
+    push @allcommands, ccservice("start") unless ($sw_keep);
+    # create SID map
+    $cmd = "\"$sidwalk\" $sw_vobtag $locallogpath\\sidmap1.txt";
+   	push @allcommands, $cmd;
 
-    # find vob storage in local file system
-    my $vobpath;
-    my $serverpath = "Vob server access path: ";
-    foreach (`cleartool lsvob -l $sw_vobtag`) {
-        next unless /^$serverpath/;
-        $vobpath = substr $_, length($serverpath);
-    }
-    my $fixcmd = "$fixprot  -r -root -chgrp $sw_newgroup $vobpath";
-	push @allcommands, $fixcmd;
-
-
-    #
-
-    print "found $vobpath\n";
-
-    push @allcommands, ccservice("start") unless ($sw_keep);}
+ }
 
 sub now_formatted {
 
@@ -221,6 +259,13 @@ sub now_formatted {
     return "$startstamp";
 
 }
+
+sub notsogood {
+# print to summary log
+my $msg = now_formatted . "\tERROR Please investigate the file " . $log->get_logfile . "\n";
+printf LOGFILE  $msg;
+}
+
 
 sub preparelog {
 
@@ -289,18 +334,6 @@ sub initialize {
     # present help if help was requested
     help_mode();
 
-    # Are all required switches defined ?
-    my $exitmsg;
-    $exitmsg = "You must specify a vobtag with the -vobtag switch\n$usage";
-    die $exitmsg unless defined($sw_vobtag);
-    $exitmsg = "You must specify a new vob group with the -newgroup switch\n$usage";
-    die $exitmsg unless defined($sw_newgroup);
-    $exitmsg = "You must specify a logdirectory with the -logdir switch\n$usage";
-    die $exitmsg unless defined($sw_logdir);
-    ## Must be on vob host
-    $exitmsg = "Computer $ENV{'COMPUTERNAME'} is not host for vob $sw_vobtag\n$doc";
-    die $exitmsg unless ( lc( $ENV{'COMPUTERNAME'} ) eq lc(`cleartool des -fmt %h vob:$sw_vobtag`) );
-
     # Enable debug mode if requested by switch
     $debug = $sw_debug ? defined($sw_debug) : 0;
 
@@ -308,11 +341,25 @@ sub initialize {
     $utilhome = findutils();
     $debug && $log->information("Found ClearCase utils at \"$utilhome\"");
     $credsutil = "$utilhome\\creds.exe";
-    !-e $credsutil && die "Failed locating creds.exe";
+    !-e $credsutil && die "Failed locating creds.exe\n";
     $fixprot = "$utilhome\\fix_prot.exe";
-    !-e $fixprot && die "Failed locating creds.exe";
+    !-e $fixprot && die "Failed locating fix_prot.exe\n";
+    $sidwalk  = "$utilhome\\vob_sidwalk.exe";
+    !-e $sidwalk && die "Failed locating vob_sidwalk.exe\n";
 
-    # Good to go
+    # Are all required switches defined ?
+    my $exitmsg;
+    # vobtag is required
+    $exitmsg = "You must specify a vobtag with the -vobtag switch\n$usage";
+    die $exitmsg unless defined($sw_vobtag);
+    # new group is required
+    $exitmsg = "You must specify a new vob group with the -newgroup switch\n$usage";
+    die $exitmsg unless defined($sw_newgroup);
+    # log directory root is required
+    $exitmsg = "You must specify a logdirectory with the -logdir switch\n$usage";
+    die $exitmsg unless defined($sw_logdir);
+
+    # Good to proceed...
     ##Set up local or detailed logging
     $locallogpath = preparelog();
     my $locallog = "$locallogpath\\sidswap.log";
@@ -334,6 +381,45 @@ sub initialize {
     }
 
     $log->information("Preparing to switch primary group for vob $sw_vobtag to $sw_newgroup");
+    $sw_debug && $log->information("Found creds.exe at \"$credsutil\"");
+    $sw_debug &&     $log->information("Found fix_prot.exe at \"$fixprot\"");
+    $sw_debug &&     $log->information("Found vob_sidwalk.exe at \"$sidwalk\"");
+    $sw_debug &&     $log->information("Found SID of group \"$sw_newgroup\" to be $groupsid");
+    # Must be on vob host
+    $exitmsg = "Computer $ENV{'COMPUTERNAME'} is not host for vob $sw_vobtag\n$doc";
+	unless ( lc( $ENV{'COMPUTERNAME'} ) eq lc(`cleartool des -fmt %h vob:$sw_vobtag`) ){
+		$log->error("$exitmsg");
+	    notsogood() ;
+    	die $exitmsg
+    }
+
+    # group must be fully qualified (DOMAIN\group)
+    $exitmsg = "Group must be fully qualified, and we did not find any backslash in the group \"$sw_newgroup\"\n$usage";
+    unless ($sw_newgroup =~ /\\/){
+		$log->error("$exitmsg");
+	    notsogood() ;
+    	die $exitmsg
+    }
+    # Group SID must be retrievable
+    $exitmsg = "Failed getting SID for group $sw_newgroup, check spelling, remember quotes if the name contains white space\"$sw_newgroup\"\n$usage";
+    $groupsid = getgroupsid($sw_newgroup);
+    unless ($groupsid){
+		$log->error("$exitmsg");
+	    notsogood() ;
+    	die $exitmsg
+    }
+    # Must be able to find local vob path
+    $exitmsg = "Failed determining local vob path of vobtag $sw_vobtag\n$usage";
+    $vobpath = localvobpath();
+    unless ($vobpath){
+		$log->error("$exitmsg");
+	    notsogood() ;
+    	die $exitmsg
+    }
+
+
+
+
 
 }
 
