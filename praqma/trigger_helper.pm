@@ -26,7 +26,7 @@ use constant SEMAPHORE_DIR               => '\\semaphores';    # Relative to the
 
 # File version
 $VERSION = "1.0";
-$BUILD   = "3";
+$BUILD   = "4";
 
 our $header = <<ENDHEADER;
 #########################################################################
@@ -174,6 +174,17 @@ ENDUSAGE
     #TODO:Improve
     #see https://praqma.fogbugz.com/?863
 
+    # What is the target vobs of the trigger
+#    $::TRIGGER_INSTALL =~ /vob:.*/;
+#    my @target_vobs = split(',', $1);
+
+#    # What is the VOB type
+#    if (acc::is_adminvob( "vob:" . $sw_vob )) {
+
+
+#   }
+
+   # Old Install helper - To be replaced by above
     #Assert the $TRIGGER_INSTALL string is compliant
     die "ERROR The trigger install string '$::TRIGGER_INSTALL' is not compliant\n"
       unless ( lc($::TRIGGER_INSTALL) =~ /vob:(adminvob|clientvob|both)/ );

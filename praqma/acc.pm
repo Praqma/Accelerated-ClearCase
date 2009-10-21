@@ -7,6 +7,7 @@ our @EXPORT = qw( get_adminvob
   get_to_hlinks
   get_from_hlinks
   is_adminvob
+  is_pvob
   is_clientvob
   split_dir_file
   mkrestriction
@@ -129,7 +130,7 @@ use constant CLEARCASE_ADMINVOB          => 'CLEARCASE_ADMINVOB';             # 
 use constant CLEARCASE_ACCMETADATAVOBVOB => 'CLEARCASE_ACCMETADATAVOB';       # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
 
 # Module version
-$VERSION = "0.1.";
+$VERSION = "1.1.";
 $BUILD   = "7";
 my $header = <<ENDHEADER;
 #########################################################################
@@ -156,6 +157,8 @@ DATE        EDITOR  NOTE
 2008-20-06  Jens Brejner   Stepped to v.l.0.6, don´t know what was changed
                            in v1.0.5. Added 2 constants.
 2009-28-07  Jens Brejner   Removed duplicate declaration.
+2009-21-10  Mikael Jensen  Stepped to v.1.1.7 Added functions:
+                           "is_pvob" and "is_clientorucmvob"
 
 -------------------------------------------------------------------------
 ENDREVISION
@@ -234,11 +237,62 @@ Returns:
 }
 
 ##############################################################################
+
+sub is_pvob {
+
+=head2 is_pvob( $vob )
+
+Takes a vobtag and determins if it is an (UCM) PVOB to other client VOBs.
+
+Parameters:
+
+ $vob              = The VOB to check.
+
+Returns:
+
+ 1    = TRUE: The VOB is a PVOB
+ 0    = FALSE - The VOB is not a PVOB
+
+=cut
+    my $vob = shift;
+    my $cmd     = "cleartool lsvob -l $vob";
+    my $res     = `$cmd`;
+	return 0 unless ($res =~ /Vob registry attributes:.*ucmvob/);
+    return 1;
+ }
+
+##############################################################################
+sub is_clientorucmvob {
+
+=head2 is_clientorucmvob( $vob )
+
+Takes a vobtag and determins if it is a client (UCM) VOB to some PVOB.
+
+Parameters:
+
+ $vob              = The VOB to check.
+
+Returns:
+ 2    = TRUE Cli - This is a normal client VOB (VOBs admin VOB is not UCM)
+ 1    = TRUE UCM - This VOB is a UCM client VOB
+ 0    = FALSE    - This VOB has no AdminVOB hyperlkinks.
+
+=cut
+	my $vob = shift;
+	my @adminvobs = get_hlinks( $vob, "->", "AdminVOB" );
+	foreach (@adminvobs) {
+        s/vob://;
+        if (is_pvob($_))  { return 1};
+	}
+	return 2;
+}
+
+##############################################################################
 sub is_clientvob {
 
 =head2 is_clientvob( $vob )
 
-Takes a vobtag and determins if it is a clinet VOB to some AdminVOB.
+Takes a vobtag and determins if it is a client VOB to some AdminVOB.
 
 Parameters:
 
