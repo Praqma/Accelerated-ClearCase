@@ -48,6 +48,7 @@ use strict;
 use lib "$Scriptdir..//..";
 use praqma::scriptlog;
 use Getopt::Long;
+
 use File::Compare;
 use Win32::TieRegistry( Delimiter => "#", ArrayValues => 0 );
 my $pound = $Registry->Delimiter("/");
@@ -259,7 +260,7 @@ sub createcommands {
     $log->information("Creating sidwalk map file $originalmap");
 
     foreach (`$cmd`) {
-        $log->information("$_");
+        #$log->information("$_");
     }
 
     #modify mapfile
@@ -270,7 +271,7 @@ sub createcommands {
     while (<INFILE>) {
         if ( $_ =~ /^$originalgroup/i ) {
             $_ =~ s/IGNORE,,/$sw_newgroup,GLOBALGROUP,$groupsid/;
-            $log->information("$_");
+            #$log->information("$_");
         }
         printf OUTFILE $_;
     }
@@ -290,27 +291,27 @@ sub createcommands {
     $cmd = "\"$sidwalk\" -map \"$newmap\" -execute $sw_vobtag \"$map_execute\" 2>&1";
 
     $log->information("command to map the objects to the new SIDs:");
-    $log->information("$cmd");
+    #$log->information("$cmd");
     push @allcommands, $cmd;
 
     # prepare Run the vob_sidwalk command to remove the historical SIDs:
-    my $map_delete = "$locallogpath \\map_delete . txt ";
+    my $map_delete = "$locallogpath\\map_delete.txt";
     $cmd = " \"$sidwalk\" -delete_groups $sw_vobtag \"$map_delete\" 2>&1";
     $log->information("command to remove the historical SIDs:");
-    $log->information("$cmd");
+    #$log->information("$cmd");
     push @allcommands, $cmd;
 
     #prepare Run the vob_sidwalk command to update the file system permissions:
-    my $map_recover = "$locallogpath \\map_recover . txt ";
+    my $map_recover = "$locallogpath\\map_recover.txt";
     $cmd = " \"$sidwalk\" -recover_filesystem $sw_vobtag \"$map_recover\" 2>&1";
     $log->information("command to update the file system permissions:");
-    $log->information("$cmd");
+    #$log->information("$cmd");
     push @allcommands, $cmd;
 
     # prepare a describe on the VOB to verify the change:
     $cmd = " cleartool des -l vob : $sw_vobtag 2 > &1 ";
     $log->information(" describe on the VOB to verify the change : ");
-    $log->information("$cmd");
+    #$log->information("$cmd");
     push @allcommands, $cmd;
 
 ###################
@@ -327,8 +328,8 @@ sub now_formatted {
 
     # format it after YYYYMMDDHHmmSS
     my $startstamp = sprintf( "%04d%02d%02d.%02d%02d%02d", $year, $mon, $mday, $hour, $min, $sec );
-    $debug && print " Formatted time is : $startstamp \n ";
-    return "$startstamp ";
+    $debug && print " Formatted time is : $startstamp\n ";
+    return "$startstamp";
 
 }
 
@@ -349,9 +350,9 @@ sub preparelog {
     # strip backslash from vobtag
     ( my $vobname = $sw_vobtag ) =~ s/\\//;
 
-    my $startstamp = " _ " . now_formatted;
-    $debug && print "$vobname$startstamp \n ";
-    $locallogpath = "$sw_logdir \\$vobname$startstamp ";
+    my $startstamp = "_" . now_formatted;
+    $debug && print "$vobname$startstamp\n";
+    $locallogpath = "$sw_logdir\\$vobname$startstamp";
     if ( !-e $locallogpath ) {
         my $cmd = " mkdir \"$locallogpath\"";
         `$cmd`;
