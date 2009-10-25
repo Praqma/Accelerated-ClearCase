@@ -38,7 +38,7 @@ BEGIN {
 
     END {
 
-        # global log file
+        # ensure close of global log file
         close LOGFILE;
     }
 }
@@ -48,14 +48,13 @@ use strict;
 use lib "$Scriptdir..//..";
 use praqma::scriptlog;
 use Getopt::Long;
-
 use File::Compare;
 use Win32::TieRegistry( Delimiter => "#", ArrayValues => 0 );
 my $pound = $Registry->Delimiter("/");
 
 # File version
 our $VERSION = "0.1";
-our $BUILD   = "3";
+our $BUILD   = "5";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;    # Set 1 for testing purpose
@@ -93,7 +92,8 @@ my $usage = <<ENDUSAGE;
 $Scriptfile  version $VERSION\.$BUILD
 
         $Scriptfile -vobtag VOBTAG -newgroup NEWGROUP -logdir LOGFOLDER
-                      [-keepservices] [-no_other] [-dryrun] [-debug]
+                    -workview VIEWTAG [-keepservices] [-no_other] [-dryrun]
+                    [-debug]
 
         $Scriptfile -help
 
@@ -123,6 +123,8 @@ $Scriptfile  version $VERSION\.$BUILD help.
                         will become the new primary group in the vob. If the
                         name includes spaces, the name must be enclosed in
                         quotation marks.
+-workview VIEWTAG       Required. The view tag of the view used to process the
+                        vob. It will be created if it does not exist.
 
 -help                   Get help with the script syntax(you are watching it now)
 
@@ -153,6 +155,7 @@ my (
     $sw_newgroup,     # qualified new group name
     $sw_no_other,     # optional, process all elements and remove group other
     $sw_vobtag,       # required, the vobtag from the command line
+    $sw_workview,     # a view is required
                       #
     $utilhome,        # root of Clearcase utils folder, usually %CLEARCASEHOME%\etc\utils
     $credsutil,       # full path to Clearcase creds.exe
@@ -165,6 +168,7 @@ my (
     $log,             # Object for the scriptlogger.
     $locallogpath,    # path to the logging directory for this invocation
     $vobpath,         # Vob storage path, i.e. d:\vobs\vobtag.vbs
+    $mvfsdrive,       # mvfs mount point
     @allcommands      # All commands to execute, in order
 );
 
@@ -173,11 +177,104 @@ my (
 validate_options();    # Check input options
 initialize();          # Setup logging
 createcommands();      # Establish all nessecary commands
+#execcommands();        # Perform actions
+
+
 
 foreach (@allcommands) { print "$_\n"; }
 
 ################################################################################
 #######                          sub functions                         #########
+
+sub execcommands{
+
+# processing all actions
+
+if ($g_errcount) {
+	# don't do anything, problems logged somewhere, abort,abort,abort...
+	my $quitmsg = "Something is not as expected, ignoring all commands for vob $sw_vobtag";
+	$log->error($quitmsg);
+	printf LOGFILE "$quitmsg\n";
+	die $quitmsg;
+
+}else{
+	$log->information("###########################################");
+   	$log->information("We are ready to change primary group on vob $sw_vobtag to group $sw_newgroup");
+    	$log->information("Here is the list of commands to be executed:");
+    	foreach (@allcommands) {
+            # save command to log file
+			$log->information("\t$_");
+    	}
+        foreach ( @allcommands ) {
+            # do each command, save the output to the log
+        	my @lines = `$_`;
+            # check for errors from command
+        	if ($?/256) {
+                my $msg = "ERROR. Command $_ return value indicates problems!";
+                printf LOGFILE "$msg\n";
+        		$log->error($msg);
+        	}
+            foreach ( @lines ) {  $log->information($_) ; }
+            #
+	        if ($_ =~  /cleartool checkvob/i) {
+	            my $healty = "The VOB's source pools are healthy";
+#                unless (grep {/$healty/i} @lines:)  {
+#                    $msg = "Checkvob healthy message not found, investigate ";
+#                    printf LOGFILE "$msg\n";
+#                    $log->warning($msg);
+#                }
+	        }
+		}
+
+
+   	$log->information("#   ###   ###   ###   ###   ###   #");
+
+
+}
+
+}
+
+sub setview {
+
+    # ensure workview exist and started on host.
+    # return 0 on success else return 1
+
+    #look for view
+    `cleartool lsview -s $sw_workview 2>&1`;
+
+    if ( $? / 256 ) {
+        $log->information("Creating view $sw_workview");
+        foreach (`cleartool mkview -tag $sw_workview -stgloc -auto`) {
+            chomp;
+            $log->information($_);
+        }
+    }
+
+    if ( !-e "$mvfsdrive\\$sw_workview" ) {
+        return 1;
+
+    } else {
+        return 0;
+    }
+
+}
+
+sub getmvfsdrive {
+
+    #Look in registry to find mvfs drive letter
+    #die if we fail else return either a drive letter with colon
+    # or 0 (zero) for error
+
+    my $homekey = 'LMachine/SYSTEM/CurrentControlSet/Services/Mvfs/Parameters//drive';
+    my $home    = $Registry->{"$homekey"}
+      or die "Can't read $homekey key: $^E\n";
+    if ( $home =~ /[A-Za-z]/ ) {
+        return "$home:";
+    } else {
+        return 0;
+    }
+
+}
 
 sub getgroupsid ($) {
 
@@ -214,7 +311,7 @@ sub ccservice ($) {
     #my @services = qw(ALBD LOCKMGR CCCREDMGR);
     my @services;
     foreach (qw(ALBD LOCKMGR CCCREDMGR)) {
-        push @services, "net $action $_";
+        push @services, "net $action $_  2>&1";
     }
     return @services;
 }
@@ -227,6 +324,7 @@ sub localvobpath {
     foreach (`cleartool lsvob -l $sw_vobtag`) {
         next unless /^$serverpath/;
         $path = substr $_, length($serverpath);
+        chomp($path);
     }
     return $path;
 }
@@ -239,7 +337,7 @@ sub createcommands {
     push @allcommands, ccservice("stop") unless ($sw_keep);
 
     # fix storage
-    my $cmd = "\"$fixprot\" -r -root -chgrp $sw_newgroup $vobpath";
+    my $cmd = "\"$fixprot\" -r -root -chgrp $sw_newgroup $vobpath 2>&1";
     push @allcommands, $cmd;
 
     # start services after
@@ -309,13 +407,40 @@ sub createcommands {
     push @allcommands, $cmd;
 
     # prepare a describe on the VOB to verify the change:
-    $cmd = "cleartool des -l vob : $sw_vobtag 2>&1 ";
-    $log->information("command to describe to verify the change : ");
+    $cmd = "cleartool des -l vob:$sw_vobtag 2>&1 ";
+    $log->information("command to describe to verify the change:");
     $log->information($cmd);
     push @allcommands, $cmd;
 
-###################
+    # prepare a start of the workview:
+    $cmd = "cleartool startview -tag $sw_workview 2>&1 ";
+    $log->information("command to start workview:");
+    $log->information($cmd);
+    push @allcommands, $cmd;
 
+    # prepare a mounting the vob:
+    $cmd = "cleartool mount $sw_vobtag 2>&1 ";
+    $log->information("command to mount the vob:");
+    $log->information($cmd);
+    push @allcommands, $cmd;
+
+	my $cpath = "$mvfsdrive\\$sw_workview$sw_vobtag";
+    if ($sw_no_other) {
+	    # prepare to remove access for "other":
+
+	    $cmd = "cleartool protect -chmod 770 $cpath 2>&1 ";
+	    $log->information("command remove permissions for group other:");
+	    $log->information($cmd);
+	    push @allcommands, $cmd;
+    }else{
+        $log->information("Access to vob-root for group \"other\" not modified, not requested");
+    }
+
+    # prepare command for checkvob:
+    $cmd = "cleartool checkvob -view $sw_workview -log \"$locallogpath\\checking\" -data -protections -pool $cpath 2>&1 ";
+    $log->information("command run checkvob:");
+    $log->information($cmd);
+    push @allcommands, $cmd;
 }
 
 sub now_formatted {
@@ -374,6 +499,7 @@ sub validate_options {
         "newgroup=s"    => \$sw_newgroup,    # qualified new group name
         "no_other!"     => \$sw_no_other,    # optional, process all elements and remove group other
         "vobtag=s"      => \$sw_vobtag,      # required, must know which vob to process.
+        "workview=s"    => \$sw_workview,    # required, tag of work view
         "keepservices!" => \$sw_keep
     );
 
@@ -411,6 +537,7 @@ sub initialize {
     # Enable debug mode if requested by switch
     $debug = $sw_debug ? defined($sw_debug) : 0;
 
+    # initialize global error count
     $g_errcount = 0;
 
     # Find required utilities.
@@ -438,15 +565,19 @@ sub initialize {
     $exitmsg = "You must specify a logdirectory with the -logdir switch\n$usage";
     die $exitmsg unless defined($sw_logdir);
 
+    # Work view is required
+    $exitmsg = "You must specify a view tag the job with the -workview switch\n$usage";
+    die $exitmsg unless defined($sw_workview);
+
     # Good to proceed...
     ##Set up local or detailed logging
     $locallogpath = preparelog();
     my $locallog = "$locallogpath\\sidswap.log";
-    # debug setup
-    if ($ENV{'COMPUTERNAME'} eq 'CCCQ7') {
-    $locallog = "$Scriptdir\\sidswap.txt";
-    unlink $locallog;
 
+    # debug setup
+    if ( $ENV{'COMPUTERNAME'} eq 'CCCQ7' ) {
+        $locallog = "$Scriptdir\\sidswap.txt";
+        unlink $locallog;
 
     }
 
@@ -515,7 +646,25 @@ sub initialize {
         notsogood();
         die $exitmsg;
     }
+
+    # Mvfs mount point is needed later, get it now or die
+    $exitmsg   = "Failed determining MVFS drive letter\n$usage";
+    $mvfsdrive = getmvfsdrive();
+    unless ($mvfsdrive) {
+        $log->error("$exitmsg");
+        notsogood();
+        die $exitmsg;
+    }
+
+    # Need view later, verify now.
+    $exitmsg = "Could not find expected view $sw_workview on host\n$usage";
+    if ( setview() ) {
+        $log->error("$exitmsg");
+        notsogood();
+        die $exitmsg;
+    }
 }
+
 1;
 
 ##########################################################################
