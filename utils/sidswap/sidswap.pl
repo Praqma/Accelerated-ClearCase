@@ -260,7 +260,7 @@ sub createcommands {
     $log->information("Creating sidwalk map file $originalmap");
 
     foreach (`$cmd`) {
-        #$log->information("$_");
+        $log->information($_);
     }
 
     #modify mapfile
@@ -271,7 +271,7 @@ sub createcommands {
     while (<INFILE>) {
         if ( $_ =~ /^$originalgroup/i ) {
             $_ =~ s/IGNORE,,/$sw_newgroup,GLOBALGROUP,$groupsid/;
-            #$log->information("$_");
+            $log->information($_);
         }
         printf OUTFILE $_;
     }
@@ -291,27 +291,27 @@ sub createcommands {
     $cmd = "\"$sidwalk\" -map \"$newmap\" -execute $sw_vobtag \"$map_execute\" 2>&1";
 
     $log->information("command to map the objects to the new SIDs:");
-    #$log->information("$cmd");
+    $log->information($cmd);
     push @allcommands, $cmd;
 
     # prepare Run the vob_sidwalk command to remove the historical SIDs:
     my $map_delete = "$locallogpath\\map_delete.txt";
-    $cmd = " \"$sidwalk\" -delete_groups $sw_vobtag \"$map_delete\" 2>&1";
+    $cmd = "\"$sidwalk\" -delete_groups $sw_vobtag \"$map_delete\" 2>&1";
     $log->information("command to remove the historical SIDs:");
-    #$log->information("$cmd");
+    $log->information($cmd);
     push @allcommands, $cmd;
 
     #prepare Run the vob_sidwalk command to update the file system permissions:
     my $map_recover = "$locallogpath\\map_recover.txt";
-    $cmd = " \"$sidwalk\" -recover_filesystem $sw_vobtag \"$map_recover\" 2>&1";
+    $cmd = "\"$sidwalk\" -recover_filesystem $sw_vobtag \"$map_recover\" 2>&1";
     $log->information("command to update the file system permissions:");
-    #$log->information("$cmd");
+    $log->information($cmd);
     push @allcommands, $cmd;
 
     # prepare a describe on the VOB to verify the change:
-    $cmd = " cleartool des -l vob : $sw_vobtag 2 > &1 ";
-    $log->information(" describe on the VOB to verify the change : ");
-    #$log->information("$cmd");
+    $cmd = "cleartool des -l vob : $sw_vobtag 2>&1 ";
+    $log->information("command to describe to verify the change : ");
+    $log->information($cmd);
     push @allcommands, $cmd;
 
 ###################
@@ -442,6 +442,14 @@ sub initialize {
     ##Set up local or detailed logging
     $locallogpath = preparelog();
     my $locallog = "$locallogpath\\sidswap.log";
+    # debug setup
+    if ($ENV{'COMPUTERNAME'} eq 'CCCQ7') {
+    $locallog = "$Scriptdir\\sidswap.txt";
+    unlink $locallog;
+
+
+    }
+
     $log = scriptlog->new;
     $log->set_logfile("$locallog");
     $log->enable();
