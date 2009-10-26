@@ -644,8 +644,9 @@ sub initialize {
         printf LOGFILE "\n" . now_formatted . "\tStart processing vobtag $sw_vobtag\n";
         printf LOGFILE now_formatted . "\t- more information in $locallog\n";
     }
-
-    $log->information("Preparing to switch primary group for vob $sw_vobtag to $sw_newgroup");
+    my $msg = "Preparing to switch primary group for vob $sw_vobtag to $sw_newgroup";
+    print "$msg\n";
+    $log->information($msg);
     $sw_debug && $log->information("Found creds.exe at \"$credsutil\"");
     $sw_debug && $log->information("Found fix_prot.exe at \"$fixprot\"");
     $sw_debug && $log->information("Found vob_sidwalk.exe at \"$sidwalk\"");
