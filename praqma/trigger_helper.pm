@@ -175,30 +175,112 @@ ENDUSAGE
     #see https://praqma.fogbugz.com/?863
 
     # What is the target vobs of the trigger
-#    $::TRIGGER_INSTALL =~ /vob:.*/;
-#    my @target_vobs = split(',', $1);
+    # What is the VOB type
+	my $allowed_vob_context = acc::get_vobtype($sw_vob);
 
-#    # What is the VOB type
-#    if (acc::is_adminvob( "vob:" . $sw_vob )) {
+	$::TRIGGER_INSTALL =~ /vob:(.*)/;
+    my @target_vobs = split(',', $1);
+    "Target VOBs are @target_vobs \n";};
+	my $tentativemsg;
+    my $errormsg;
+    my $install_allowed;
+    foreach my $current_type (@target_vobs) {
+	    # Valid VOB types for installation can be added here following the layedout semantic
+	    # All valid VOBtypes must be matched as "$_ eq ["name"]"
+	    # Note the difference between "must be" VOBtypes (prefixed with "+") which writes directly to $errormsg
+	    # and "could be" VOBtypes which writes to $tentativemsg and only disallows installation if $install_allowed remains unset
+	    #
+	    # Psudo example:
+        # if ($current_type eq [VOBtype to match]) { # Validation of VOBtype
+        #     if ([match clause]) { # what to match
+        #         $install_allowed = 1; # allows installation unless an asserted VOBtype failes
+        #     } else { # What to do if match failes
+        #         $tentativemsg = $tentativemsg."Warning message"
+        #             or
+        #         $errormsg = $errormsg."error message"
+        # NOTE: Writing to errormsg will always result in installtion fail
+        #       Writing to tentativmsg will copy to errormsg, unless VOBtype is matched in another iteration
+        #     } # end of "what to match"
+        #
+        # } elsif { # Next type to match
+
+        if ($current_type eq "both") {
+			if ($allowed_vob_context ge 1) {
+                $install_allowed = 1;
+			} else {
+                $tentativemsg = $tentativemsg."Warning: The specified VOBtype could not be identified (No AdminVOB tag)"
+			}
+
+    	} elsif ($current_type eq "adminvob") {
+			if (($allowed_vob_context == 3) || ($allowed_vob_context == 4)) {
+				$install_allowed = 1;
+			} else {
+            	$tentativemsg = $tentativemsg."Warning: The VOB $sw_vob is not a adminvob\n"
+            }
+
+    	} elsif ($current_type eq "clientvob") {
+            if (($allowed_vob_context == 1) || ($allowed_vob_context == 2)) {
+				$install_allowed = 1;
+			} else {
+             	$tentativemsg = $tentativemsg."Warning: The VOB $sw_vob is not a clientvob)\n"
+           	}
+
+        # Define "MUST BE" VOB types under here
+    	} elsif ($current_type eq "+adminvob") {
+            if (($allowed_vob_context == 3) || ($allowed_vob_context == 4)) {
+				$install_allowed = 1;
+			} else {
+				$errormsg = $errormsg."ERROR: This trigger '$::TRIGGER_NAME' can only be set on AdminVOBs (which $sw_vob is not)\n"
+    		}
+
+    	} elsif ($current_type eq "+clientvob") {
+            if (($allowed_vob_context == 1) || ($allowed_vob_context == 2)) {
+                $install_allowed = 1;
+            } else {
+        		$errormsg = $errormsg."ERROR: This trigger '$::TRIGGER_NAME' can only be set on ClientVOBs (which $sw_vob is not)\n"
+        	}
+
+    	# If $current_type is not known above, it is checked agains the ACC meta type attribute "AccVOBType"
+    	} else {
+    		my $AccVOBType_res = `cleartool desc -aattr AccVOBType vob:$sw_vob`;
+            if ($current_type =~ s/^\+(.*)/$1/) { # identifies and removes the plussign, if any
+                if ($AccVOBType_res =~ /AccVOBType.*$current_type/) {
+                    $install_allowed = 1;
+                } else {
+					$errormsg = $errormsg."ERROR: This trigger '$::TRIGGER_NAME' can only be set on custom VOBtype \"$current_type\" (which $sw_vob is not)\n";
+				} # End if $AccVOBType_res
+			} else {
+	            if ($AccVOBType_res =~ /AccVOBType.*$current_type/) {
+                    $install_allowed = 1;
+                } else {
+					$tentativemsg = $tentativemsg."Warning: AccVOBType \"$current_type\" is not set on $sw_vob\n";
+				} # End if $AccVOBType_res
+	        } # End "case" + match on $current_type
+    	} # End "case" VOBtype
+    } # End foreach VOBtype
+    $errormsg = $errormsg.$tentativemsg."ERROR: No valid VOB type was found\n"
+      unless (($install_allowed == 1) || ($errormsg));
+	#debug defined($sw_preview) && do {print "Errormsg = $errormsg \nInstall allowed?: $install_allowed\ntentativmsg: $tentativemsg\n";};
+    if ($errormsg) {die $errormsg;};
 
 
-#   }
 
-   # Old Install helper - To be replaced by above
-    #Assert the $TRIGGER_INSTALL string is compliant
-    die "ERROR The trigger install string '$::TRIGGER_INSTALL' is not compliant\n"
-      unless ( lc($::TRIGGER_INSTALL) =~ /vob:(adminvob|clientvob|both)/ );
-    my $allowed_vob_context = $1;
 
-    ( $allowed_vob_context eq "adminvob" ) && do {
-        die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on AdminVOBs (which $sw_vob is not)\n"
-          unless acc::is_adminvob( "vob:" . $sw_vob );
-    };
+#   # Old Install helper - To be replaced by above
+#    #Assert the $TRIGGER_INSTALL string is compliant
+#    die "ERROR The trigger install string '$::TRIGGER_INSTALL' is not compliant\n"
+#      unless ( lc($::TRIGGER_INSTALL) =~ /vob:(adminvob|clientvob|both)/ );
+#    my $allowed_vob_context = $1;
 
-    ( $allowed_vob_context eq "clientvob" ) && do {
-        die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on Client VOBs (which $sw_vob is not)\n"
-          unless acc::is_clientvob( "vob:" . $sw_vob );
-    };
+#    ( $allowed_vob_context eq "adminvob" ) && do {
+#        die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on AdminVOBs (which $sw_vob is not)\n"
+#          unless acc::is_adminvob( "vob:" . $sw_vob );
+#    };
+
+#    ( $allowed_vob_context eq "clientvob" ) && do {
+#        die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on Client VOBs (which $sw_vob is not)\n"
+#          unless acc::is_clientvob( "vob:" . $sw_vob );
+#    };
 
     # Check if the trigger is already set (in which case we must use the -replace switch)
     my $trigger_tag = defined($sw_trigger) ? $sw_trigger : $::TRIGGER_NAME;
