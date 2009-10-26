@@ -54,7 +54,7 @@ my $pound = $Registry->Delimiter("/");
 
 # File version
 our $VERSION = "0.1";
-our $BUILD   = "7";
+our $BUILD   = "8";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;    # Set 1 for testing purpose
@@ -383,7 +383,7 @@ sub createcommands {
 
     #create mapfile
     my $originalmap = "$locallogpath\\map_original.txt";
-    my $newmap      = "$locallogpath\\map_original.txt";
+    my $newmap      = "$locallogpath\\map_new.txt";
     $cmd = "\"$sidwalk\" $sw_vobtag \"$originalmap\" 2>&1";
     $log->information("Creating sidwalk map file $originalmap");
 
@@ -410,13 +410,20 @@ sub createcommands {
 
     if ( compare( "$originalmap", "$newmap" ) ) {
 
-        $log->error("Sidwalk mapfile $newmap is not different from the original");
+        $log->error("Sidwalk mapfile $newmap is NOT different from the original");
         notsogood();
     }
 
     # prepare vob_sidwalk command to map the objects to the new SIDs:
+
+    # if vob is replicated we must be ready to answer y at the vob_sidwalk -execute prompt
+    my $yesreply;
+    if ( grep { /^replicated/ } `cleartool des -fmt %[vob_replication]p vob:$sw_vobtag` ) {
+        $yesreply = "echo y| ";
+    }
+
     my $map_execute = "$locallogpath\\map_execute.txt";
-    $cmd = "\"$sidwalk\" -map \"$newmap\" -execute $sw_vobtag \"$map_execute\" 2>&1";
+    $cmd = "$yesreply \"$sidwalk\" -map \"$newmap\" -execute $sw_vobtag \"$map_execute\" 2>&1";
 
     $log->information("command to map the objects to the new SIDs:");
     $log->information($cmd);
