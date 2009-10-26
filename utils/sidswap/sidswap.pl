@@ -54,7 +54,7 @@ my $pound = $Registry->Delimiter("/");
 
 # File version
 our $VERSION = "0.1";
-our $BUILD   = "6";
+our $BUILD   = "7";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;    # Set 1 for testing purpose
