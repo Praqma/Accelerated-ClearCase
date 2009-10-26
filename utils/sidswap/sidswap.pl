@@ -60,9 +60,11 @@ our $BUILD   = "7";
 my $debug        = 0;    # Set 1 for testing purpose
 my $verbose_mode = 0;
 
+# REVIEW LAK: the comment in the next line mentions view_q.pl - but this is sidswap.pl
 # Default setting 0-0-1 (script execution will generate NO output unless explicitly told to, but logs to default location [Temp dir]\view_q.pl.[PID].log
 
 # Header and revision history
+# Review LAK: Added the GNU GPL licence number (v3.0) in the header
 our $header = <<ENDHEADER;
 #########################################################################
 #     $Scriptfile  version $VERSION\.$BUILD
@@ -71,7 +73,7 @@ our $header = <<ENDHEADER;
 #     Date:       2009-09-12
 #     Author:     Jens Brejner, Jens.Brejner\@praqma.net
 #     Copyright:  Praqma A/S, Denmark
-#     License:    GNU General Pulic License
+#     License:    GNU General Pulic License v3.0
 #     Support:    http://launchpad.net/acc
 #########################################################################
 
@@ -87,6 +89,7 @@ DATE        EDITOR  NOTE
 
 ENDREVISION
 
+#REVIEW LAK: We don't normally use UPPERCASE for switch parameters do we? - Well we need some change now and then ;-)
 # Usage information
 my $usage = <<ENDUSAGE;
 $Scriptfile  version $VERSION\.$BUILD
@@ -262,6 +265,7 @@ sub setview {
     #look for view
     `cleartool lsview -s $sw_workview 2>&1`;
 
+# REVIEW LAK: The division by 265 in the next line is unnecessary - same same
     if ( $? / 256 ) {
         $log->information("Creating view $sw_workview");
         foreach (`cleartool mkview -tag $sw_workview -stgloc -auto`) {
@@ -291,6 +295,7 @@ sub getmvfsdrive {
     if ( $home =~ /[A-Za-z]/ ) {
         return "$home:";
     } else {
+# REVIEW LAK: This is an error state isn't it? You should die rather than return 0 if $home isn't vaid
         return 0;
     }
 
@@ -309,6 +314,7 @@ sub getgroupsid ($) {
     foreach (`"$credsutil" -g "$group" 2>&1`) {
         my $val = $_;
         if (/$failstring/i) {
+# REVIEW LAK: Is it OK to continue with $sid=0 ? ...or should you die?
             $sid = 0;
             last;    # No reason to continue
         } elsif (/^\s+SID:\s+/) {
@@ -364,6 +370,7 @@ sub createcommands {
     # get the current vobgroup
     my $originalgroup = `cleartool des -fmt %[group]p vob:$sw_vobtag`;
     $log->information("Vob original group found [$originalgroup]");
+# REVIEW LAK: ...you can use quotemeta() in the next line instead of all the backslashes ;-)
     $originalgroup =~ s/\\/\\\\/g;    # need to double  backslash for the pattern matcn in while to work
 
 
@@ -516,6 +523,7 @@ sub preparelog {
     if ( !-e $locallogpath ) {
         my $cmd = " mkdir \"$locallogpath\"";
         `$cmd`;
+# REVIEW LAK: No need to divide by 256 in the next line, the boolean check remains the same ;-)
         ( $? / 256 ) && die "Trouble creating Local logging directory \"$locallogpath\"\n";
     }
     return $locallogpath;
