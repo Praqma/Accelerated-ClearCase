@@ -251,7 +251,7 @@ sub execcommands {
 
     }
 
-}    #end sub ??
+}
 
 sub setview {
 
@@ -369,7 +369,7 @@ sub createcommands {
     $log->information("Vob original group found [$originalgroup]");
 
     # REVIEW LAK: ...you can use quotemeta() in the next line instead of all the backslashes ;-)
-    $originalgroup =~ s/\\/\\\\/g;    # need to double  backslash for the pattern matcn in while to work
+#    $originalgroup =~ s/\\/\\\\/g;    # need to double  backslash for the pattern match in while to work
 
     # fix storage
     my $cmd = "\"$fixprot\" -force -root -recurse -chown $originalowner -chgrp $sw_newgroup $vobpath 2>&1";
@@ -377,9 +377,6 @@ sub createcommands {
 
     # start services after
     push @allcommands, ccservice("start") unless ($sw_keep);
-
-    # create SID map
-    $cmd = "\"$sidwalk\" $sw_vobtag $locallogpath\\map_original.txt";
 
     #create mapfile
     my $originalmap = "$locallogpath\\map_original.txt";
@@ -393,22 +390,50 @@ sub createcommands {
 
     #modify mapfile
     $log->information("Modifying sidwalk map file, saving results in $newmap");
-    open( INFILE,  " < $originalmap" ) or die "can't open $originalmap : $!";
-    open( OUTFILE, " +> $newmap" )     or die "can't open $newmap : $!";
 
-    while (<INFILE>) {
-        if ( $_ =~ /^$originalgroup/i ) {
-            $_ =~ s/IGNORE,,/$sw_newgroup,GLOBALGROUP,$groupsid/;
-            $log->information($_);
+     open( OUTFILE, " +> $newmap" ) or die "can't open $newmap : $!";
+
+    my @infile      = `type \"$originalmap\"`;
+    my @vobgroups   = grep { /,GROUP,/ } @infile;
+    my $mostobjects = 0;
+    my $thisline;
+
+    # find the group with the most objects
+    foreach (@vobgroups) {
+        /(.*,)(\d+)/;    # last is # of objects
+
+        if ( $2 > $mostobjects ) {
+            $mostobjects = $2;
+            $thisline    = $_;
         }
-        printf OUTFILE $_;
     }
-    close OUTFILE;
-    close INFILE;
+    if ( grep { /^$originalgroup/i } @infile ) {
 
+        # original group actually owns objects
+        foreach (@infile) {
+            if (/^$originalgroup/i) {
+                $_ =~ s/IGNORE,,/$sw_newgroup,GLOBALGROUP,$groupsid/;
+            }
+            printf OUTFILE $_;
+        }
+    } else {
+
+        # use the most common group
+        #chomp(        $thisline);
+        foreach (@infile) {
+            if ( $_ eq $thisline ) {
+
+                $_ =~ s/IGNORE,,/$sw_newgroup,GLOBALGROUP,$groupsid/;
+            }
+            printf OUTFILE $_;
+        }
+
+    }
+
+    close OUTFILE;
     # OUTFILE must be different than the original, File::Compare::compare returns 0 if equal
 
-    if ( compare( "$originalmap", "$newmap" ) ) {
+    unless ( compare( "$originalmap", "$newmap" ) ) {
 
         $log->error("Sidwalk mapfile $newmap is NOT different from the original");
         notsogood();
@@ -630,6 +655,7 @@ sub initialize {
 
     $log = scriptlog->new;
     $log->set_logfile("$locallog");
+    #$log->set_verbose(1);
     $log->enable();
 
     ## Setup global, summary logging file name.
