@@ -7,8 +7,8 @@ our @EXPORT = qw( get_adminvob
   get_to_hlinks
   get_from_hlinks
   is_adminvob
-  is_pvob
   is_clientvob
+  get_vobtype
   split_dir_file
   mkrestriction
   get_composite
@@ -98,12 +98,48 @@ These constants defines environment variables which code may be looking for to o
  CLEARCASE_ADMINVOB          = 'CLEARCASE_ADMINVOB'          # -c "Environment Variable, when set it overrides the default ACC meta Data VOB - obsoletede - use CLEARCASE_ACCMETADATAVOB"
  CLEARCASE_ACCMETADATAVOBVOB = 'CLEARCASE_ACCMETADATAVOB'    # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
 
+=head2 Standart VOBtype definition
+
+ACC has some functions used to identify the VOB type.
+This functions are especially important for
+
+A VOB is defined as one of four types of VOBs, which is PVOB, AdminVOB, UCMVOB and BaseVOB.
+
+=head3 PVOB
+
+A PVOB or ProjectVOB is defined as UCM enabled VOB, which has a hyperlink og type "AdminVOB" pointing towards it.
+
+=head3 AdminVOB
+
+A AdminVOB is defined as a non-UCM enabled VOB, which has a hyperlink og type "AdminVOB" pointing towards it.
+
+=head3 UCMVOB
+
+A UCMVOB is defined as a VOB, that is neither a AdminVOB or a PVOB and has AdminVOB hyperlink pointing towards a VOB, which is a PVOB
+
+=head3 BaseVOB
+
+A BaseVOB is defined as a VOB, that is neither a AdminVOB or a PVOB and has AdminVOB hyperlink pointing towards a VOB, which is a PVOB
+
+=head3 Selfcontained VOBs
+
+Selfcontained VOBs (VOBs with no AdminVOB hyperlink, what so ever) have essitially no ACC'ified VOB type and is currently not supported.
+
+
 =cut
+#rwbi under here
+#head2 Custom VOBtype definition
+#
+#ACC supports custom VOBtypes, defined by a string text in an attribute called AccVOBType set on the VOB it self.
+#This allows you to
+#
+#
 
 ###PRAQMA:INITMETA:BEGIN
 use constant ATTYPE_FROZEN          => 'Frozen';                    # -c "ACC meta type" -vtype string -default \"\"
 use constant ATTYPE_PROMOTION_LEVEL => 'PromotionLevel';            # -c "ACC meta type" -vtype string -enum \"released\",\"tested\",\"built\",\"integrated\"
 use constant ATTYPE_KEYWORDS        => 'Keywords';                  # -c "ACC meta type" -vtype string -default \"\"
+#rwbi use constant ATTYPE_ACCVOBTYPE      => 'AccVOBType';                  # -c "ACC meta type" -vtype string -default \"\"
 use constant ATTYPE_LBTYPE_TEMPLATE => 'LbtypeTemplate';            # -c "ACC meta type" -vtype string -default \"[A-Z][A-Z0-9_-\.]{3,30}\"
 use constant ATTYPE_BRTYPE_TEMPLATE => 'BrtypeTemplate';            # -c "ACC meta type" -vtype string -default \"[a-z][a-z0-9_]{3,30}\"
 use constant ATTYPE_ATTYPE_TEMPLATE => 'AttypeTemplate';            # -c "ACC meta type" -vtype string -default \"[a-zA-Z][a-zA-Z0-9]{3,30}\"
@@ -225,69 +261,20 @@ Returns:
 
     my $vob = shift;
 
-    #my @clients = get_hlinks( $vob, "<-", "AdminVOB");
-    #my $clientcount = scalar @clients;
-    #$clientcount && return $clientcount;
+	my @clients = get_hlinks( $vob, "<-", "AdminVOB");
+	my $clientcount = scalar @clients;
+	$clientcount && return $clientcount;
 
-    my $cmd     = "cleartool desc -s -aattr " . acc::ATTYPE_ACCMETADATA . " $vob";
-    my @res     = `$cmd`;
-    my $isadmin = scalar @res;
-    return $isadmin;
+#    my $cmd     = "cleartool desc -s -aattr " . acc::ATTYPE_ACCMETADATA . " $vob";
+#    my @res     = `$cmd`;
+#    my $isadmin = scalar @res;
+#    return $isadmin;
 
 }
 
 ##############################################################################
 
-sub is_pvob {
 
-=head2 is_pvob( $vob )
-
-Takes a vobtag and determins if it is an (UCM) PVOB to other client VOBs.
-
-Parameters:
-
- $vob              = The VOB to check.
-
-Returns:
-
- 1    = TRUE: The VOB is a PVOB
- 0    = FALSE - The VOB is not a PVOB
-
-=cut
-    my $vob = shift;
-    my $cmd     = "cleartool lsvob -l $vob";
-    my $res     = `$cmd`;
-	return 0 unless ($res =~ /Vob registry attributes:.*ucmvob/);
-    return 1;
- }
-
-##############################################################################
-sub is_clientorucmvob {
-
-=head2 is_clientorucmvob( $vob )
-
-Takes a vobtag and determins if it is a client (UCM) VOB to some PVOB.
-
-Parameters:
-
- $vob              = The VOB to check.
-
-Returns:
- 2    = TRUE Cli - This is a normal client VOB (VOBs admin VOB is not UCM)
- 1    = TRUE UCM - This VOB is a UCM client VOB
- 0    = FALSE    - This VOB has no AdminVOB hyperlkinks.
-
-=cut
-	my $vob = shift;
-	my @adminvobs = get_hlinks( $vob, "->", "AdminVOB" );
-	foreach (@adminvobs) {
-        s/vob://;
-        if (is_pvob($_))  { return 1};
-	}
-	return 2;
-}
-
-##############################################################################
 sub is_clientvob {
 
 =head2 is_clientvob( $vob )
@@ -311,6 +298,91 @@ Returns:
 }
 
 ###############################################################
+sub is_poradminvob {
+
+=head2 is_poradminvob( $vob )
+
+Takes a vobtag and determins if it is an (UCM) PVOB to other client VOBs.
+
+Parameters:
+
+ $vob              = The VOB to check.
+
+Returns:
+
+ 2    = TRUE Base - The VOB is a AdminVOB (base Clearcase)
+ 1    = TRUE UCM  - The VOB is a PVOB (UCM)
+ 0    = FALSE     - The VOB is not a PVOB or adminvob
+
+=cut
+    my $vob = shift;
+    return 0 unless my @adminvobs = get_hlinks("vob:".$vob, "<-", "AdminVOB" );
+    my $cmd     = "cleartool lsvob -l $vob";
+    my $res     = `$cmd`;
+	return 2 unless ($res =~ /Vob registry attributes:.*ucmvob/);
+    return 1;
+ }
+
+##############################################################################
+
+sub is_baseorucmvob {
+
+=head2 is_baseorucmvob( $vob )
+
+Takes a vobtag and determins if it is a client (UCM) VOB to some PVOB.
+
+Parameters:
+
+ $vob              = The VOB to check.
+
+Returns:
+ 2    = TRUE Base - This is a normal client VOB (VOBs AdminVOB is not UCM)
+ 1    = TRUE UCM  - This VOB is a UCM client VOB (VOBs AdminVOB is a PVOB)
+ 0    = FALSE     - This VOB has no AdminVOB hyperlkinks.
+
+=cut
+	my $vob = shift;
+	return 0 unless	my @adminvobs = get_hlinks("vob:".$vob, "->", "AdminVOB" );
+	#print "test - AdminVOBs are: @adminvobs";
+	foreach (@adminvobs) {
+        s/vob://;
+        if (is_poradminvob($_) == 1)  { return 1};
+	}
+	return 2;
+}
+
+##############################################################################
+
+sub get_vobtype {
+
+=head2 get_vobtype( $vob )
+
+Takes a vobtag and determins what kind of vob it is, based on returnlist below.
+
+Parameters:
+
+ $vob              = The VOB to check.
+
+Returns:
+ 4    = BaseCC AdminVOB - This VOB is a normal AdminVOB (not UCM enabled)
+ 3    = UCM PVOB        - This VOB is a UCM PVOB (ucmvob tagged)
+ 2    = BaseCC ClientV  - This VOB is a normal client VOB (VOBs AdminVOB is not UCM)
+ 1    = UCM Client VOB  - This VOB is a UCM client VOB (VOBs AdminVOB is a PVOB)
+ 0    = Not identified  - This VOB could not be identified.
+        This usually means that it is a selfcontained VOB
+        (no AdminVOB hyperlink at all)
+
+=cut
+	my $vob = shift;
+	if (my $ret_val = is_poradminvob($vob)) {
+		$ret_val+=2;
+		return $ret_val;
+	}
+    return is_baseorucmvob($vob);
+
+}
+
+##############################################################################
 
 sub get_restriction($$) {
 
