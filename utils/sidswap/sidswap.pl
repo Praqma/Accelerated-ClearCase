@@ -54,7 +54,7 @@ my $pound = $Registry->Delimiter("/");
 
 # File version
 our $VERSION = "0.1";
-our $BUILD   = "5";
+our $BUILD   = "6";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;    # Set 1 for testing purpose
@@ -177,62 +177,82 @@ my (
 validate_options();    # Check input options
 initialize();          # Setup logging
 createcommands();      # Establish all nessecary commands
-#execcommands();        # Perform actions
+execcommands() unless $sw_dryrun;        # Perform actions
 
+if ($debug) {
+    foreach (@allcommands) { print "$_\n"; }
+}
 
+my $exitval = $log->get_accumulated_errorlevel();
+if ($exitval) {
+    printf LOGFILE "Sidswap processing of $sw_vobtag may not be complete, exit value is $exitval\n";
+    printf LOGFILE "please check the file " . $log->get_logfile() . "\n\n";
+} else {
+    printf LOGFILE "Succesfull Sidswap processing of $sw_vobtag, exit value is $exitval\n\n";
 
-foreach (@allcommands) { print "$_\n"; }
+}
+
+$log->DESTROY();
+close LOGFILE;
+exit $exitval;
+
+# end of main.
 
 ################################################################################
 #######                          sub functions                         #########
 
-sub execcommands{
+sub execcommands {
 
-# processing all actions
+    # processing all actions
 
-if ($g_errcount) {
-	# don't do anything, problems logged somewhere, abort,abort,abort...
-	my $quitmsg = "Something is not as expected, ignoring all commands for vob $sw_vobtag";
-	$log->error($quitmsg);
-	printf LOGFILE "$quitmsg\n";
-	die $quitmsg;
+    if ($g_errcount) {
 
-}else{
-	$log->information("###########################################");
-   	$log->information("We are ready to change primary group on vob $sw_vobtag to group $sw_newgroup");
-    	$log->information("Here is the list of commands to be executed:");
-    	foreach (@allcommands) {
+        # don't do anything, problems logged somewhere, abort,abort,abort...
+        my $quitmsg = "Something is not as expected, ignoring all commands for vob $sw_vobtag";
+        $log->error($quitmsg);
+        printf LOGFILE "$quitmsg\n";
+        die $quitmsg;
+
+    } else {
+        $log->information("###########################################");
+        $log->information("We are ready to change primary group on vob $sw_vobtag to group $sw_newgroup");
+        $log->information("Here is the list of commands to be executed:");
+        foreach (@allcommands) {
+
             # save command to log file
-			$log->information("\t$_");
-    	}
-        foreach ( @allcommands ) {
+            $log->information("\t$_");
+        }
+        foreach (@allcommands) {
+
             # do each command, save the output to the log
-        	my @lines = `$_`;
+            my @lines = `$_`;
+
             # check for errors from command
-        	if ($?/256) {
+            if ( $? / 256 ) {
                 my $msg = "ERROR. Command $_ return value indicates problems!";
                 printf LOGFILE "$msg\n";
-        		$log->error($msg);
-        	}
-            foreach ( @lines ) {  $log->information($_) ; }
+                $log->error($msg);
+            }
+            foreach (@lines) { $log->information($_); }
+
             #
-	        if ($_ =~  /cleartool checkvob/i) {
-	            my $healty = "The VOB's source pools are healthy";
-#                unless (grep {/$healty/i} @lines:)  {
-#                    $msg = "Checkvob healthy message not found, investigate ";
-#                    printf LOGFILE "$msg\n";
-#                    $log->warning($msg);
-#                }
-	        }
-		}
+            if ( $_ =~ /cleartool checkvob/i ) {
+                my $healty = "The VOB's source pools are healthy";
+                my @foundhealthy = grep { /$healty/i } @lines;
+                unless (@foundhealthy) {
+                    my $msg = "Checkvob healthy message not found, investigate ";
+                    printf LOGFILE "$msg\n";
+                    printf LOGFILE "Look in " . $log->get_logfile();
+                    $log->warning($msg);
+                }
+            }
+        }
 
+        $log->information("#   ###   ###   ###   ###   ###   #");
 
-   	$log->information("#   ###   ###   ###   ###   ###   #");
+    }
 
-
-}
-
-}
+}    #end sub ??
 
 sub setview {
 
@@ -336,8 +356,19 @@ sub createcommands {
     # stop services before fixprot
     push @allcommands, ccservice("stop") unless ($sw_keep);
 
+    # get the current vobowner
+    my $originalowner = `cleartool des -fmt %[owner]p vob:$sw_vobtag`;
+    $log->information("Vob original owner found [$originalowner]");
+#    $originalowner =~ s/\\/\\\\/g;    # need to double  backslash for the pattern matcn in while to work
+
+    # get the current vobgroup
+    my $originalgroup = `cleartool des -fmt %[group]p vob:$sw_vobtag`;
+    $log->information("Vob original group found [$originalgroup]");
+    $originalgroup =~ s/\\/\\\\/g;    # need to double  backslash for the pattern matcn in while to work
+
+
     # fix storage
-    my $cmd = "\"$fixprot\" -r -root -chgrp $sw_newgroup $vobpath 2>&1";
+    my $cmd = "\"$fixprot\" -force -root -recurse -chown $originalowner -chgrp $sw_newgroup $vobpath 2>&1";
     push @allcommands, $cmd;
 
     # start services after
@@ -346,10 +377,6 @@ sub createcommands {
     # create SID map
     $cmd = "\"$sidwalk\" $sw_vobtag $locallogpath\\map_original.txt";
 
-    # get the current vobgroup
-    my $originalgroup = `cleartool des -fmt %[group]p vob:$sw_vobtag`;
-    $log->information("Vob original group found [$originalgroup]");
-    $originalgroup =~ s/\\/\\\\/g;    # need to double  backslash for the pattern matcn in while to work
 
     #create mapfile
     my $originalmap = "$locallogpath\\map_original.txt";
@@ -413,7 +440,7 @@ sub createcommands {
     push @allcommands, $cmd;
 
     # prepare a start of the workview:
-    $cmd = "cleartool startview -tag $sw_workview 2>&1 ";
+    $cmd = "cleartool startview $sw_workview 2>&1 ";
     $log->information("command to start workview:");
     $log->information($cmd);
     push @allcommands, $cmd;
@@ -424,15 +451,16 @@ sub createcommands {
     $log->information($cmd);
     push @allcommands, $cmd;
 
-	my $cpath = "$mvfsdrive\\$sw_workview$sw_vobtag";
+    my $cpath = "$mvfsdrive\\$sw_workview$sw_vobtag";
     if ($sw_no_other) {
-	    # prepare to remove access for "other":
 
-	    $cmd = "cleartool protect -chmod 770 $cpath 2>&1 ";
-	    $log->information("command remove permissions for group other:");
-	    $log->information($cmd);
-	    push @allcommands, $cmd;
-    }else{
+        # prepare to remove access for "other":
+
+        $cmd = "cleartool protect -chmod 770 $cpath 2>&1 ";
+        $log->information("command remove permissions for group other:");
+        $log->information($cmd);
+        push @allcommands, $cmd;
+    } else {
         $log->information("Access to vob-root for group \"other\" not modified, not requested");
     }
 
@@ -441,6 +469,13 @@ sub createcommands {
     $log->information("command run checkvob:");
     $log->information($cmd);
     push @allcommands, $cmd;
+
+    # prepare an unmount of the vob:
+    $cmd = "cleartool umount $sw_vobtag 2>&1 ";
+    $log->information("command to unmount the vob:");
+    $log->information($cmd);
+    push @allcommands, $cmd;
+
 }
 
 sub now_formatted {
@@ -575,7 +610,7 @@ sub initialize {
     my $locallog = "$locallogpath\\sidswap.log";
 
     # debug setup
-    if ( $ENV{'COMPUTERNAME'} eq 'CCCQ7' ) {
+    if ( $debug && ( $ENV{'COMPUTERNAME'} eq 'CCCQ7' ) ) {
         $locallog = "$Scriptdir\\sidswap.txt";
         unlink $locallog;
 
