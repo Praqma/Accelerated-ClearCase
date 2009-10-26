@@ -180,7 +180,6 @@ ENDUSAGE
 
 	$::TRIGGER_INSTALL =~ /vob:(.*)/;
     my @target_vobs = split(',', $1);
-    "Target VOBs are @target_vobs \n";};
 	my $tentativemsg;
     my $errormsg;
     my $install_allowed;
