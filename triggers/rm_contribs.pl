@@ -26,8 +26,8 @@ our $TRIGGER_NAME = "ACC_RM_CONTRIBS";
 our $TRIGGER_INSTALL = "mktrtype -element -all -postop uncheckout,checkin vob:clientvob";
 
 # File version
-our $VERSION  = "1.0";
-our $REVISION = "1";
+our $VERSION  = "1.1";
+our $REVISION = "2";
 
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 
@@ -56,7 +56,8 @@ DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
 2005-04-25  Roland Møller  1st release prepared for Novo (no version)
 2009-10-07  Mikael Jensen  ACC'ified (version 1.0.1)
-
+2009-10-27  Mikael Jensen  Version 1.1.2
+                           Added support for whitespaces in file path and name
 -------------------------  ----------------------------------------------
 ENDREVISION
 
@@ -99,16 +100,15 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq "uncheckout") ||  ($ENV{CLEARCASE_OP_KIND} eq 
 	   { exit 0; }
 
 	my $ELEMENT = "$ENV{'CLEARCASE_PN'}";
-
-	my @CONTRIBS = glob("$ELEMENT".".contrib*");
-
+    $ELEMENT =~ s/\\/\//g; # replaces backslash with forwardslash
+    $ELEMENT =~ s/ /\\ /g; # replaces whitespaces with escaped whitespaces ("\ ")
+    my @CONTRIBS = glob("$ELEMENT".".contrib*");
 	foreach my $CONTRIB (@CONTRIBS)
 	{
 	   if ( ("$CONTRIB" =~ /\.contrib$/) or
 	        ("$CONTRIB" =~ /\.contrib\.[0-9]+$/ ))
 	   {
-	      my $ob_type=`cleartool desc -fmt %m $CONTRIB`;
-
+	      my $ob_type=`cleartool desc -fmt %m "$CONTRIB"`;
 	      if ("$ob_type" eq "view private object")
 	      {
 	         ######################################################

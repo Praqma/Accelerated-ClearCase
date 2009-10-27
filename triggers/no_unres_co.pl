@@ -55,7 +55,6 @@ ENDHEADER
 my $revision = <<ENDREVISION;
 DATE        EDITOR  NOTE
 ----------  -------------  ----------------------------------------------
-2006-04-20  Roland Moller  Prepared for Novo Nordisk (no version number)
 2006-10-26  Lars Kruse     1st release preppared for Novo Nordisk
                            (version 1.0.1)
 2009-10-07  Mikael Jensen  ACC'ified (version 1.1.2)
