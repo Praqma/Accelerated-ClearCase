@@ -203,36 +203,65 @@ ENDUSAGE
         #
         # } elsif { # Next type to match
 
-        if ($current_type eq "both") {
+# REVIEW LAK
+# The construction below is an if statement followed by four elseif statements closed with an elese statement:
+# if(){}
+#   elsif(){}
+#     elsif(){}
+#       elsif(){}
+#         elsif(){}
+#         else{}
+# !!!
+# We have to break this up into a case definition
+# This kind of code is almost impossible to maintain
+# The cahanges I made below did nott alter the semantics of the code, I just broke it up into chunks and added
+# some comments to make it resemble a case statement
+
+# REVIEW LAK: As stated in https://praqma.fogbugz.com/?863 the keyword 'both' is not supported anymore!
+      if ($current_type eq "both") { # STATE: KEYWORD 'BOTH' IS DEFINED
+      # REVIEW LAK: Below Use reference to named states - stop throwing  p(l)ain integers around.
 			if ($allowed_vob_context ge 1) {
                 $install_allowed = 1;
 			} else {
                 $tentativemsg = $tentativemsg."Warning: The specified VOBtype could not be identified (No AdminVOB tag)"
 			}
 
-    	} elsif ($current_type eq "adminvob") {
+    	} #END IF STATE: KEYWORD 'BOTH' IS DEFINED
+    	
+    	
+    	elsif ($current_type eq "adminvob") { #STATE: IS_ADMINVOB
 			if (($allowed_vob_context == 3) || ($allowed_vob_context == 4)) {
 				$install_allowed = 1;
 			} else {
             	$tentativemsg = $tentativemsg."Warning: The VOB $sw_vob is not a adminvob\n"
             }
 
-    	} elsif ($current_type eq "clientvob") {
+    	} #END IF STATE: IS_ADMINVOB
+    	
+    	elsif ($current_type eq "clientvob") { #STATE: IS_BCC_CLIENTVOB
             if (($allowed_vob_context == 1) || ($allowed_vob_context == 2)) {
 				$install_allowed = 1;
 			} else {
              	$tentativemsg = $tentativemsg."Warning: The VOB $sw_vob is not a clientvob)\n"
            	}
-
         # Define "MUST BE" VOB types under here
-    	} elsif ($current_type eq "+adminvob") {
+    	} # END STATE: IS_BCC_CLIENTVOB
+    	
+    	# REVIEW LAK: The next state is already checked once - more or less - what's the difference?
+    	# To mee it looks like the only difference is that you assig tto the errormsg scalar rather than the tentativemsg one?
+    	elsif ($current_type eq "+adminvob") { # STATE: MUST_BE_ADMINVOB
             if (($allowed_vob_context == 3) || ($allowed_vob_context == 4)) {
 				$install_allowed = 1;
 			} else {
 				$errormsg = $errormsg."ERROR: This trigger '$::TRIGGER_NAME' can only be set on AdminVOBs (which $sw_vob is not)\n"
     		}
 
-    	} elsif ($current_type eq "+clientvob") {
+    	} # END STATE: MUST_BE_ADMINVOB
+    	
+    	# REVIEW LAK:
+    	# Same commetn as above, nothing new happens here, it the same chunk of code again as 20 lines above
+    	# except for the scalar that is assigned to in case of error.
+    	elsif ($current_type eq "+clientvob") { # STATE: MUST_BE_BCC_CLIENTVOB
             if (($allowed_vob_context == 1) || ($allowed_vob_context == 2)) {
                 $install_allowed = 1;
             } else {
@@ -240,15 +269,26 @@ ENDUSAGE
         	}
 
     	# If $current_type is not known above, it is checked agains the ACC meta type attribute "AccVOBType"
-    	} else {
+    	# REVIEW LAK: But Hey! So far you've checked for the keywords 'both' 'aminvob' '+adminvob' 'clientvob' and '+clientvob'
+    	# It should be possible to identify PVOB ADMINVOB UCM_CLIENT and BCC_CLIENT as generic types - where are the checked?
+    	} # END STATE: MUST_BE_BCC_CLIENTVOB
+    	
+    	else { # STATE: NEITHER_ADMINVOB_NOR_BCC_CLIENTVOB
+    		# REVIEW LAK: You are lookeing for an Attribute type named 'AccVOBType' - It's hard coded in your system call.
+    		# It should be defined as a reference to a global variable or a constant!
     		my $AccVOBType_res = `cleartool desc -aattr AccVOBType vob:$sw_vob`;
+    		    # REVIEW LAK: Below, $current_type =~ s/\+// would hvae done the same.
             if ($current_type =~ s/^\+(.*)/$1/) { # identifies and removes the plussign, if any
+            	  # REVIEW LAK The reg exp below allows a vobtype that PARTLY matches the value of the attribute to be installed
+            	  # E.g. "a" ~ "all"
                 if ($AccVOBType_res =~ /AccVOBType.*$current_type/) {
                     $install_allowed = 1;
                 } else {
 					$errormsg = $errormsg."ERROR: This trigger '$::TRIGGER_NAME' can only be set on custom VOBtype \"$current_type\" (which $sw_vob is not)\n";
 				} # End if $AccVOBType_res
 			} else {
+	            #REVIEW LAK: You are presnting the same code as lines above this time in an else block
+	            #Looks like you insist on executing this code no matter what, why bother putting it in an if-else statement then?
 	            if ($AccVOBType_res =~ /AccVOBType.*$current_type/) {
                     $install_allowed = 1;
                 } else {
