@@ -54,7 +54,7 @@ my $pound = $Registry->Delimiter("/");
 
 # File version
 our $VERSION = "0.1";
-our $BUILD   = "8";
+our $BUILD   = "9";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;    # Set 1 for testing purpose
@@ -679,12 +679,19 @@ sub initialize {
     $sw_debug && $log->information("Found SID of group \"$sw_newgroup\" to be $groupsid");
 
     # Must be on vob host
-    $exitmsg = "Computer $ENV{'COMPUTERNAME'} is not host for vob $sw_vobtag\n$doc";
-    unless ( lc( $ENV{'COMPUTERNAME'} ) eq lc(`cleartool des -fmt %h vob:$sw_vobtag`) ) {
-        $log->error("$exitmsg");
-        notsogood();
-        die $exitmsg;
-    }
+
+## TODO
+## This function is bogus.
+## it turns out that -fmt %h reports the host name of where the the event was created
+## that means that vob that was created on host A, will report host A on the query
+## and that will make us die if the current vob host is B. The below will only work for
+## a vob that was created on computer B
+#    $exitmsg = "Computer $ENV{'COMPUTERNAME'} is not host for vob $sw_vobtag\n$doc";
+#    unless ( lc( $ENV{'COMPUTERNAME'} ) eq lc(`cleartool des -fmt %h vob:$sw_vobtag`) ) {
+#        $log->error("$exitmsg");
+#        notsogood();
+#        die $exitmsg;
+#    }
 
     # group must be fully qualified (DOMAIN\group)
     $exitmsg = "Group must be fully qualified, and we did not find any backslash in the group \"$sw_newgroup\"\n$usage";
