@@ -123,7 +123,7 @@ A BaseVOB is defined as a VOB, that is neither a AdminVOB or a PVOB and has Admi
 
 =head3 Selfcontained VOBs
 
-Selfcontained VOBs (VOBs with no AdminVOB hyperlink, what so ever) have essitially no ACC'ified VOB type and is currently not supported.
+Selfcontained VOBs (VOBs with no AdminVOB hyperlink, what so ever) have essitially no ACCified VOB type and is currently not supported.
 
 
 =cut
@@ -164,6 +164,14 @@ use constant ACC_TEMP_LBTYPE_NAME   =>
 use constant CLEARCASE_FORCE_RESTRICTION => 'CLEARCASE_FORCE_RESTRICTION';    # -c "Environment Variable, when set restrictions can be forced"
 use constant CLEARCASE_ADMINVOB          => 'CLEARCASE_ADMINVOB';             # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
 use constant CLEARCASE_ACCMETADATAVOBVOB => 'CLEARCASE_ACCMETADATAVOB';       # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
+
+#REVIEW LAK
+# These Constants are used to identify VOB types:
+use constant VOBTYPE_PVOB                => 3;       
+use constant VOBTYPE_ADMINVOB            => 4;       
+use constant VOBTYPE_UCM_CLIENT          => 1;       
+use constant VOBTYPE_BCC_CLIENT          => 2;
+
 
 # Module version
 $VERSION = "1.1.";
@@ -299,6 +307,8 @@ Returns:
 
 ###############################################################
 sub is_poradminvob {
+#REVIEW LAK
+# Don't use raw integers, use named states!!!!!
 
 =head2 is_poradminvob( $vob )
 
@@ -317,8 +327,19 @@ Returns:
 =cut
     my $vob = shift;
     return 0 unless my @adminvobs = get_hlinks("vob:".$vob, "<-", "AdminVOB" );
+    #REVIEW LAK: Below try running without the -l in the command below.
+    # You will get a result in the format:
+    #  \PDS_PVOB            APPDKHI013:E:\ClearCaseStorage\VOBs\PDS_PVOB.vbs  (ucmvob)
+    # and you can match against: /\(ucmvob\)$/
+    
     my $cmd     = "cleartool lsvob -l $vob";
     my $res     = `$cmd`;
+    # REVIEW LAK: At this point you chould check the value of $? and handle the potential error-state you are in if $? is true
+    # REVIEW LAK: Below, # Don't use raw integers, use named states!!!!!
+    # The '.*' preceeding 'ucmvob' should be used with caution. I bacically tranlate to "Any number (including zero!) of occurences of anything"'
+    # But you are actually looking for "one or more occurences of white spaces: '\s+' so it should read:
+    # $res =~ /Vob registry attributes:\s+ucmvob/
+    
 	return 2 unless ($res =~ /Vob registry attributes:.*ucmvob/);
     return 1;
  }
@@ -326,7 +347,8 @@ Returns:
 ##############################################################################
 
 sub is_baseorucmvob {
-
+#REVIEW LAK
+# Don't use raw integers, use named states!!!!!	
 =head2 is_baseorucmvob( $vob )
 
 Takes a vobtag and determins if it is a client (UCM) VOB to some PVOB.
@@ -341,11 +363,15 @@ Returns:
  0    = FALSE     - This VOB has no AdminVOB hyperlkinks.
 
 =cut
+
 	my $vob = shift;
 	return 0 unless	my @adminvobs = get_hlinks("vob:".$vob, "->", "AdminVOB" );
+	# REVIEW LAK: Get rid of the debug statement commented out below
 	#print "test - AdminVOBs are: @adminvobs";
 	foreach (@adminvobs) {
         s/vob://;
+        #REVIEW LAK
+        # Don't use raw integers, use named states!!!!!
         if (is_poradminvob($_) == 1)  { return 1};
 	}
 	return 2;
@@ -362,6 +388,12 @@ Takes a vobtag and determins what kind of vob it is, based on returnlist below.
 Parameters:
 
  $vob              = The VOB to check.
+# REVIEW LAK
+# The vob types should be identified as constants rater than just returning integers
+# See the constanct defined line 170-173
+# By definition of the fory types: PVOB, AdminVob, UCM client and Base CC client, a VOB can not be "not idetified"
+# If the VOB isn't either PVOB, AdminVOB or UCM client VOB, then by definition, it is a Base ClearCase client vob
+# thus get_vobtype should never return 0
 
 Returns:
  4    = BaseCC AdminVOB - This VOB is a normal AdminVOB (not UCM enabled)
@@ -374,12 +406,29 @@ Returns:
 
 =cut
 	my $vob = shift;
+	# REVIEW LAK: 
+	# I don't get this construction! is_poradminvob is called to recieve ether 1 or 2
+	# and then it's incremented by 2.
+	# Usually when you create an is_xxx method you would expect it to return a boolean: 0 or 1
+	# It's seldom seen that a boolen function has a built in 'or' clause: PVOB or AdminVOB but
+	# even if it does, then I would expect it to return 1 if the VOB is either PVOB or AdminVOB and 0 
+	# if it's not
+	# I wouldn't excpect a boolean function to return a range of three possible return values (by definition is't not boolean anymore!)
+	# It's dangerous to just stat throwing integeres around is_poradminvob returs raw integers and get_vobtype 
+	# increments them - unconditionnally by 2 - in that case you could argue that is_poradminvob would be 
+	# repsonsible for having retuned either 0, 3 or 4 ...hmm it starts getting nasty!
+	# When states are used, they should be defined as named states (See the suggested constants in line 170-173)
+	# and then the named states should be referenced.
+	# The same - conceptual - commetns goes for is_baseorucmvob to.
+	# Basically the functions is_poradminvob and is_baseorucmvob are both artificial - they shouldn't have been 
+	# seperate functions
+	# The logic they provide should have been here - in get_vobtype
+
 	if (my $ret_val = is_poradminvob($vob)) {
 		$ret_val+=2;
 		return $ret_val;
 	}
     return is_baseorucmvob($vob);
-
 }
 
 ##############################################################################
