@@ -1,26 +1,30 @@
 package scriptlog;
 
-require 5.001;
-require Exporter;
 use strict;
 
-our ($scriptdir, $scriptfile);
-BEGIN{
-	$scriptdir =".\\";$scriptfile = $0;                                # Assume the module is called from 'current directory' (no leading path - $0 is the file)
-	$scriptfile =~/(.*\\)(.*)$/ &&  do{$scriptdir=$1;$scriptfile=$2;}  # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+require 5.001;
+our ( $scriptdir, $scriptfile );
+
+BEGIN {
+    $scriptdir  = ".\\";
+    $scriptfile = $0;      # Assume the module is called from 'current directory' (no leading path - $0 is the file)
+    $scriptfile =~ /(.*\\)(.*)$/
+      && do { $scriptdir = $1; $scriptfile = $2; }    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
-use lib "$scriptdir..";
+
+use Exporter;
+use lib "$scriptdir";
 
 our @ISA    = qw(Exporter);
-our @EXPORT = qw(new);  #Export only the constructor
+our @EXPORT = qw(new);                                #Export only the constructor
 
-my $Info_count = 0;     #Increased by one every time an information is issued
-my $Warn_count = 0;     #Increased by one every time a warning is issued
-my $Err_count  = 0;     #Increased by one every time an error is issued
-my $Enabled    = 0;     #When logging is only done when it's enabled;
-my $Verbose    = 0;     #When verbose is on messages are wittten to console as well as logfile
-my $Logfile    = "";    #Updated with the logfile pname once log is enabled os set manually using set_logfile
-my $LogIsOpen  = 0;     #Flag indicating wether the log is succesfully open or not.
+my $Info_count = 0;                                   #Increased by one every time an information is issued
+my $Warn_count = 0;                                   #Increased by one every time a warning is issued
+my $Err_count  = 0;                                   #Increased by one every time an error is issued
+my $Enabled    = 0;                                   #When logging is only done when it's enabled;
+my $Verbose    = 0;                                   #When verbose is on messages are wittten to console as well as logfile
+my $Logfile    = "";                                  #Updated with the logfile pname once log is enabled os set manually using set_logfile
+my $LogIsOpen  = 0;                                   #Flag indicating wether the log is succesfully open or not.
 
 # Module version
 our $VERSION = "1.0";
@@ -42,9 +46,9 @@ DATE        EDITOR  NOTE
 ----------  -------------  ----------------------------------------------
 2007-08-27  Lars Kruse     1st release prepared for Novo (version 1.0)
                            https://svn.praqma.net/svn/acc/dock revision 76
-2009-07-02  Lars Kruse     Prepared for Novo Nordisk (version 1.0.4)    
-2009-08-19  Lars Kruse     Changed the printing subs (i+w+e) so they only 
-                           print the timestamp to the log - not STDOUT. 
+2009-07-02  Lars Kruse     Prepared for Novo Nordisk (version 1.0.4)
+2009-08-19  Lars Kruse     Changed the printing subs (i+w+e) so they only
+                           print the timestamp to the log - not STDOUT.
                            Added information_always() (version 1.0.5)
 -------------------------------------------------------------------------
 ENDREVISION
@@ -67,12 +71,12 @@ sub get_accumulated_errorlevel { return ($Err_count) ? 2 : ($Warn_count) ? 1 : 0
 
 sub set_verbose() {
     my $self = shift;
-    $Verbose = shift; # boolean
+    $Verbose = shift;    # boolean
 }
 
 sub set_logfile() {
     my $self = shift;
-    $Logfile = shift; # valid path+file
+    $Logfile = shift;    # valid path+file
 }
 
 ####### Methods #############
@@ -98,10 +102,10 @@ sub disable {
 
 sub information() {
     ( $Enabled || $Verbose ) && do {
-        my $self = shift;
-        my $msg  = shift;
-        my $prefix  = $self->timestamp . " [I]:\t";
-        $Enabled && print LOGFILE $prefix.indent_msg($msg);
+        my $self   = shift;
+        my $msg    = shift;
+        my $prefix = $self->timestamp . " [I]:\t";
+        $Enabled && print LOGFILE $prefix . indent_msg($msg);
         $Verbose && print STDOUT $msg;
         $Info_count++;
         return $Verbose;
@@ -109,22 +113,21 @@ sub information() {
 }
 
 sub information_always() {
-   my $self = shift;
-   my $msg  = shift;
-   my $prefix  = $self->timestamp . " [I]:\t";
-   $Enabled && print LOGFILE $prefix.indent_msg($msg);
-   print STDERR $msg; #unconditional print
-   $Info_count++;
-   return $Verbose;
+    my $self   = shift;
+    my $msg    = shift;
+    my $prefix = $self->timestamp . " [I]:\t";
+    $Enabled && print LOGFILE $prefix . indent_msg($msg);
+    print STDERR $msg;    #unconditional print
+    $Info_count++;
+    return $Verbose;
 }
-
 
 sub warning($) {
     ( $Enabled || $Verbose ) && do {
-        my $self = shift;
-        my $msg  = shift;
-        my $prefix  = $self->timestamp . " [W]:\t";
-        $Enabled && print LOGFILE $prefix.indent_msg($msg);
+        my $self   = shift;
+        my $msg    = shift;
+        my $prefix = $self->timestamp . " [W]:\t";
+        $Enabled && print LOGFILE $prefix . indent_msg($msg);
         $Verbose && print STDERR $msg;
         $Warn_count++;
         return $Verbose;
@@ -133,28 +136,28 @@ sub warning($) {
 
 sub error($) {
     ( $Enabled || $Verbose ) && do {
-        my $self = shift;
-        my $msg  = shift;
-        my $prefix  = $self->timestamp . " [E]:\t";
-        $Enabled && print LOGFILE $prefix.indent_msg($msg);
+        my $self   = shift;
+        my $msg    = shift;
+        my $prefix = $self->timestamp . " [E]:\t";
+        $Enabled && print LOGFILE $prefix . indent_msg($msg);
         $Verbose && print STDERR $msg;
         $Err_count++;
         return $Verbose;
       }
 }
 
-sub indent_msg(){
-	my $msg = shift;
-	chomp($msg);
-	$msg =~ s/\n/\n\t\t/g;
-	return $msg."\n";
+sub indent_msg() {
+    my $msg = shift;
+    chomp($msg);
+    $msg =~ s/\n/\n\t\t/g;
+    return $msg . "\n";
 }
 
 sub assertion_failed($) {
-    my $self = shift;
-        my $msg  = shift;
-        my $prefix  = $self->timestamp . " [ASSERTION FAILED]:\n";
-    $LogIsOpen && print LOGFILE $prefix.$msg;
+    my $self   = shift;
+    my $msg    = shift;
+    my $prefix = $self->timestamp . " [ASSERTION FAILED]:\n";
+    $LogIsOpen && print LOGFILE $prefix . $msg;
     die $msg;
 }
 
@@ -197,11 +200,11 @@ sub timestamp {
 
     # my $mon_name = $mon_names[$mon];
     $mon++;
-    if ( $mon  < 10 )  { $mon  = "0" . $mon }
-    if ( $mday < 10 )  { $mday = "0$mday" }
-    if ( $hour < 10 )  { $hour = "0$hour" }
-    if ( $min  < 10 )  { $min  = "0$min" }
-    if ( $sec  < 10 )  { $sec  = "0$sec" }
+    if ( $mon < 10 )  { $mon  = "0" . $mon }
+    if ( $mday < 10 ) { $mday = "0$mday" }
+    if ( $hour < 10 ) { $hour = "0$hour" }
+    if ( $min < 10 )  { $min  = "0$min" }
+    if ( $sec < 10 )  { $sec  = "0$sec" }
     return "$hour.$min:$sec";
 }
 
@@ -224,10 +227,15 @@ sub openlog() {
     open LOGFILE, ">>$Logfile" or assertion_failed("Couldn't open \"$Logfile\"\n");
     $LogIsOpen = 1;
     print LOGFILE "\n#######################################################\n"
-      . "This log is created (or appended) on ".datestamp()." \@ ".timestamp()."\n"
-      . "Executing script:\t".     $scriptfile . "\n"
-      . "Process ID (PID):\t".     $$ . "\n"
-      . "Executing user:  \t".     $ENV{USERNAME} . "\n\n";
+      . "This log is created (or appended) on "
+      . datestamp() . " \@ "
+      . timestamp() . "\n"
+      . "Executing script:\t"
+      . $scriptfile . "\n"
+      . "Process ID (PID):\t"
+      . $$ . "\n"
+      . "Executing user:  \t"
+      . $ENV{USERNAME} . "\n\n";
     print STDOUT "Log of execution:\"$Logfile\"\n";
 }
 
@@ -361,9 +369,9 @@ inform of the information level:
   10.43:35 [I]:   Hey - again!
   10.43:35 [W]:   Watch out!
   10.43:35 [E]:   WRONG!!!!
-  
+
 If the Log is in verbose mode, then the informations will be printet to STDOUT (informations and warnings)
-or STDOUT (errors) as well (but without the timestamp prefix). 
+or STDOUT (errors) as well (but without the timestamp prefix).
 
 information_always() will always print to STDOUT - even if the log isn't in verbose mode. It's convenient
 when you want to provide a 'service outut' regardless if the user chose verbose mode or not.
@@ -420,5 +428,4 @@ See the website for the Accelerated ClearCase project at http://launchpad.net/ac
 This program is distributed under the GNU GPL v3.0 license
 
 =cut
-
-
+1;
