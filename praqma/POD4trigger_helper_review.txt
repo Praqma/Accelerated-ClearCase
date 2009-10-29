@@ -1,18 +1,23 @@
-TO DO in trigger_helper
 
-Array of allowed VOB types
-Function get_vobtypes returns VOBtype in array
-match arrays
+=pod
 
-=head1 for revision as trigger_helper POD
+=head1 NAME
+
+ACC - trigger utility module
 
 =head1 DESCRIPTION
+
+package: C<trigger_helper>
+
+Module:  C<trigger_helper.pm>
+
 The trigger_utils package contains various functions that will come in handy when you write ClearCase triggers.
 
-It enables you to make triggers that doesn't execute if semaphores have been set, and it makes you triggers install
+it enables you to make triggers that doesn't execute if semaphores have been set, and it makes you triggers install
 automatically.
 
-=head1 Implementation
+=head1 SYNOPSIS
+
 To ease the use of the trigger_helper.pm module it's recommended that you keep your scripts and trigger_helper.pm
 close together and include the directory that contains the trigger_utils.pm module using a relative path.
 
@@ -29,125 +34,261 @@ In order to use a relative path, you'll obviously need to determine the location
  use lib $Scriptdir."..";
  use praqma::trigger_helper;
 
-To utilize the functionallity from the trigger helper
+Finally, to utilize all the functionallity from the trigger helper you need:
+
  our $thelp=trigger_helper->new;          # Instantiates the trigger helper
- $thelp->enable_install(%install_params); # See more under "Installation helper"
+ $thelp->enable_install(%install_params); # See more under "enable_install"
  $thelp->require_trigger_context;         # Simple check, that exits if the script is not called as a trigger
- $thelp->enable_semaphore_backdoor;       # See more under enable_semaphore_backdoor
+ $thelp->enable_semaphore_backdoor;       # See more under "enable_semaphore_backdoor"
+
+When all this is in order, your trigger can be installed by calling the script (using Fully-Qualified PathName) with minimum parameters "-install" and "-vob [targetVOB]"
+Because of this, it is vitaly important that the trigger does not use or modify the parameters of the scriptcall, so they can be passed untouched to the trigger_helper.
 
 trigger_helper requires access to acc.pm, the ACC perl utility library, as it uses subs and constants from it!
 
-=head2 enable_install
-To utilize the install helper to install the trigger, you need to create a hash in your triggerscript with the following format
 
-  my %install_params = (
-	acc::ACC_TRIGGER_NAME     => 'ACC_STOP_TWIN', 
-	acc::ACC_TRIGGER_INSTALL  => 'mktrtype -preop lnname -element -all',
-	acc::ACC_ALLOWED_VOBTYPES => [acc::VOBTYPE_UCM_CLIENT, acc::VOBTYPE_BCC_CLIENT, 'custom_vob_type']); # note, this is an array inside the hash
+=head2 Installing your trigger using trigger_helper
 
-Above is an example of the install_params hashtable as written in the triggerscript.
-It will install the trigger as a all element triggertype named ACC_STOP_TWIN, for "preop on lnname" execution.
-On top of that, it will only allow it self to be installed on VOBs which are either UCM ClientVOB, Base ClearCase ClientVOB or of the custom vob type labelled 'custom_vob_type' (read more on "VOB types" later in this document).
+YourScriptName.pl -install -vob vob_tag [-script script_pname]
+            [-trigger trigger_name] [-preview]
+
+ -install                Required to run the script in install mode
+ -vob vob_tag            The VOB where the trigger should be installed
+ -script script_pname    The fully qualified path to the script (must be a
+                         UNC path or a drive that is mapped).
+                         If this is omitted then script pname will be the one
+                         used to execute it (this too must be a fully qualified
+                         path either using UNC or a mapped drive).
+                         If the script pname does not exist the trigger installation
+                         fails.
+ -trigger trigger_name   The name of the trigger. This is only used if you wish to
+                         override the triggers default name (which is already cached
+                         in the script).
+ -preview                Displays the cleartool command that installs the trigger,
+                         but does not actually execute it. This switch allows you to
+                         run the script even if you are not the VOB owner
+
+
+=head2 Limitations
+
+Trigger helper can only install triggers that are installed on VOBs!
+
+The trigger_helper uses the scriptcall parameters, therfor it is vitaly important that the trigger does not use or modify these, so they can be passed untouched to the trigger_helper.
+
+=head1 Functionallity
+
+=head2 enable_install (%install_params)
+
+my %install_params = (
+	acc::ACC_TRIGGER_NAME		=> 'TRIGGER_NAME', 				# string - no whitespaces
+	acc::ACC_TRIGGER_INSTALL	=> 'INSTALL STRING', 				# string - with whitespaces
+	acc::ACC_ALLOWED_VOBTYPES	=> [acc::VOBTYPE_constant, 'Some_string']); 	# Array of constants and/or strings
 
 =head3 acc::ACC_TRIGGER_NAME 
-Is of cause, the triggers or triggertypes name in ClearCase after installation.
+
+Is the triggers or triggertypes name in ClearCase after installation.
+
+If another trigger exsists with the same name, it will be overwritten.
 
 =head3 acc::ACC_TRIGGER_INSTALL
+
 Is the installation string for the trigger, except for the "-exec" and "-c" parameter, aswell as the type-selector.
+
 The comment will always be: "Created using the -install switch of the scriptfile: $::Scriptfile\""
+
 The required execute string is deducted based on the script execution (which is why it must be a Fully-Qualified PathName).
+
 The type-selector is deducted from the "-vob" parameter which is required when using trigger_helper to install the trigger and the triggername defined in the %install_params
 
 The typical install string with consist of:
+
  {cleartool creation command} Only "mktrtype" is fully supported, but others with same syntax, will probably work.
  {-element | -type | -ucmobject} based on triggertype
  {-preop | -postop} {opkind} base on when the trigger is supposed to execute
 
 =head3 acc::ACC_ALLOWED_VOBTYPES
+
 Is an array of VOB types that the trigger is allowed to install on.
-acc::VOBTYPE_UCM_CLIENT, acc::VOBTYPE_BCC_CLIENT, acc::VOBTYPE_PVOB and acc::VOBTYPE_ADMINVOB are predefined and the VOB type is deducted from the VOBs context and metadata (read more on "predefined VOB types" later in this document)
-Custom VOB types are based on an attribute type defined in the ACC perl module (read more on "custom VOB types" later in this document)
 
-When all this is in order, your trigger can be installed by calling the script (using Fully-Qualified PathName) with minimum parameters "-install" and "-vob [targetVOB]"
-Because of this, it is vitaly important that the trigger does not use or modify the parameters of the scriptcall, so they can be passed untouched to the trigger_helper.
+One element in the array matches one VOB type, that the trigger is allowed to install on
 
-=head3 installing the trigger
-YourScriptName.pl -install -vob vob_tag [-script script_pname]
-            [-trigger trigger_name] [-preview]
+Allowed elements are
 
--install                Required to run the script in install mode
--vob vob_tag            The VOB where the trigger should be installed
--script script_pname    The fully qualified path to the script (must be a
-                        UNC path or a drive that is mapped).
-                        If this is omitted then script pname will be the one
-                        used to execute it (this too must be a fully qualified
-                        path either using UNC or a mapped drive).
-                        If the script pname does not exist the trigger installation
-                        fails.
--trigger trigger_name   The name of the trigger. This is only used if you wish to
-                        override the triggers default name (which is already cached
-                        in the script).
--preview                Displays the cleartool command that installs the trigger,
-                        but does not actually execute it. This switch allows you to
-                        run the script even if you are not the VOB owner
+=over
 
-=head3 Limitations
-Trigger helper can only install triggers that are installed on VOBs
+=item *
+
+Constants (defined in ACC) which are predefined VOB types and deducted from the VOBs metadata (read more in "predefined VOB types" under "Concepts" -> "VOB types")
+
+=item *
+
+Custom VOB types labels are based on an ClearCase attribute type defined by the constant acc::ATTYPE_ACCVOBTYPE (read more in "custom VOB types" under "Concepts" -> "VOB types")
+
+=back
 
 =head2 enable_semaphore_backdoor
 
-POD for semaphore_backdoor
+Checks for the existence of a valid semaphore.
 
-=head1 VOB types
-The trigger_helper uses a set of predefined vob type and allows the use of custom VOBtype.
-The concept of VOB types is deducted from ClearCase terminology, but is unique for trigger_helper and the ACC project.
-Understanding the concept of vobtypes and ACCs implementation of it, is vital for the trigger installer to work as intended.
+The semaphore enables triggers to exit silently and let the ClearCase event processed - as if the trigger had
+not been executed at all.
 
-All VOB types are case insensitive (the casing below is just for show).
+To create a valid semaphore for a trigger script the following conditions will have to be met:
 
-=head2 Predefined VOB types
-Any VOB can be defined as one (and only one) of the predefined types below
+=over
 
-=head3 acc::VOBTYPE_PVOB
-An PVOB_AdminVOB (commonly called Project VOB or PVOB) is defined as a VOB that is created as an UCM Project VOB.
+=item *
 
-=head3 acc::VOBTYPE_ADMINVOB
-An AdminVOB is a base ClearCase VOB that acts as an AdminVOB for other VOBs, defined as it has AdminVOB Hyperlinks pointing towards it.
+A semaphore file must be created, The semaphore file must be named after the user account - no file extension (e.g lsku, g91551, ycd)
 
-=head3 acc::VOBTYPE_UCM_CLIENT
-An UCM_ClientVOB is a VOB that has an AdminVOB which is an PVOB_AdminVOB
+=item *
 
-=head3 acc::VOBTYPE_BCC_CLIENT
-All VOB that are not defined by the above definitions, will be defined as a base ClearCase client, regardless if they are selfcontained or has an (non UCM) AdminVOB.
+The semaphore file must be located in a subfolder of the actual trigger loctaion named "semaphores" (defined by a constant in the module)
 
-=head2 Custom VOB types
-Custom VOB types are defined by an attribute set on the VOB in question. 
-The attributetype is defined by the constant acc::ATTYPE_ACCVOBTYPE
-As opposed to the predefined VOB types, a VOB can have several custom VOB types, by applying several acc::ATTYPE_ACCVOBTYPE attributes to the VOB.
+=item *
 
+The semaphore file must have been created (not accessed, or updated, but CREATED) within the last 4 hours (defined by a constant in the module)
 
-=head1 for revision as ACC source documentation
+=item *
 
-=head2 (for ACC.pm) get_VOBtype( $vob )
+The semaphore file must contain a line stating the name of the perl script it is supposed to detronize (eg. no_rmelem_rmver.pl), the
+same semaphore file can list many scritps.
 
-Takes a vobtag and determins what kind of predefined VOB it is and if it has any custom types and returns the result in an array
+=back
+If a valid semaphore exist the trigger execution is canceled.
+
+The location of the C<semaphores> directory can tweak by setting the constant C<trigger_utils::SEMAPHORE_DIR>.
+
+Note that the semaphore files are ignored (doesn't stop the trigger) if they are more then 4 hrs old.
+
+This setting can be tweaked by setting the constant C<trigger_utils::MAX_SEMAPHORE_FILE_AGE_DAYS>.
+
+One hour is apx 0.042 days, thus 0.168 ~ 4 hrs.
+
+=head2 get_versiontree_below_version( $cc_pn, \@result_array )
+
+This function returns a version tree below a certain version. The point is that
+A version tree is normally retrived for an element, not a particular version of
+an element. The function retrives the version tree of the element and starts
+shifting the version in the list until it finds the $cc_pn version - and then returns
+the rest.
 
 Parameters:
 
- $vob              = The VOB to check.
+ $cc_pn                = The version to use as off-set standard version extended syntax:
+                         element-pname@@branch-id
+ $result_array         = The result
 
-Returns an array where first element is one of the following:
- acc::VOBTYPE_ADMINVOB    - This VOB is a normal AdminVOB (not UCM enabled)
- acc::VOBTYPE_PVOB        - This VOB is a UCM PVOB (ucmvob tagged)
- acc::VOBTYPE_BCC_CLIENT  - This VOB is a normal client VOB (VOBs AdminVOB is not UCM)
- acc::VOBTYPE_UCM_CLIENT  - This VOB is a UCM client VOB (VOBs AdminVOB is a PVOB)
+Returns:
+  1 = Success
+  0 = Some error occured - content of @result_array is not to be trusted.
 
-For each VOB type found by searching for the acc::ATTYPE_ACCVOBTYPE, an element is added to the return array
+=head1 Concepts of trigger_helper
 
-=head1 Suggestions & Questions
+This Section will help you understand some of the concepts, that are used by trigger_helper and which are nessisary to utilize the full potential of the trigger_helper
 
-Keyword Both is no longer used and should throw a specific error ?
+=head2 Constants
 
-the -script parameter is dangoures and fairly unnessisary as the pname is already given in the scriptcall. It allows to install a trigger with name, settings and VOB allowance based on the executed script file, to actually execute an entierly diffrent script, when the trigger is triggered. Why?
+The module defines the following constants which you might consider to give different values:
+
+C<MAX_SEMAPHORE_FILE_AGE_DAYS>        = C<0.168>
+
+Tha value  of C<MAX_SEMAPHORE_FILE_AGE_DAYS> determins how long time a semaphore file is valid. The value is given
+as number of days (1 hr ~ 0.042 --> 4 hrs ~ 0.168).
+
+C<SEMAPHORE_DIR>                      = C<'./semaphores'>
+
+The value of C<SEMAPHORE_DIR> is the relative to the script location directory where the semaphore file will be
+searched for.
+
+=head3 Imported constants  
+
+ acc::ATTYPE_ACCVOBTYPE
+ acc::VOBTYPE_PVOB
+ acc::VOBTYPE_ADMINVOB
+ acc::VOBTYPE_UCM_CLIENT
+ acc::VOBTYPE_BCC_CLIENT
+ acc::ACC_TRIGGER_NAME
+ acc::ACC_TRIGGER_INSTALL
+ acc::ACC_ALLOWED_VOBTYPES
+
+Are included from the ACC module
+
+=head2 VOB types
+
+The trigger_helper uses a set of predefined vob type and allows the use of custom VOBtype.
+
+The concept of VOB types is deducted from ClearCase terminology, but is unique for trigger_helper and the ACC project.
+
+Understanding the concept of vobtypes and ACCs implementation of it, is vital for the trigger installer to work as intended.
+
+B<All constants are casesensitive, but VOB types are case insensitive>
+
+=head3 Predefined VOB types
+
+Any VOB can be defined as one (and only one) of the predefined types below
+
+=head4 acc::VOBTYPE_PVOB
+
+An PVOB_AdminVOB (commonly called Project VOB or PVOB) is defined as a VOB that is created as an UCM Project VOB.
+
+=head4 acc::VOBTYPE_ADMINVOB
+
+An AdminVOB is a base ClearCase VOB that acts as an AdminVOB for other VOBs, defined as it has AdminVOB Hyperlinks pointing towards it.
+
+=head4 acc::VOBTYPE_UCM_CLIENT
+
+An UCM_ClientVOB is a VOB that has an AdminVOB which is an PVOB_AdminVOB
+
+=head4 acc::VOBTYPE_BCC_CLIENT
+
+All VOB that are not defined by the above definitions, will be defined as a base ClearCase client, regardless if they are selfcontained or has an (non UCM) AdminVOB.
+
+=head3 Custom VOB types
+
+Custom VOB types are defined by an attribute set on the VOB in question. 
+
+The attributetype is defined by the constant acc::ATTYPE_ACCVOBTYPE
+
+As opposed to the predefined VOB types, a VOB can have several custom VOB types, by applying several acc::ATTYPE_ACCVOBTYPE attributes to the VOB.
+
+=head1 EXAMPLES
+
+=head2 Constructing the %install_params array
+
+To utilize the install helper to install the trigger, you need to create a hash in your triggerscript with the following format
+
+  my %install_params = (
+	acc::ACC_TRIGGER_NAME     => 'ACC_STOP_TWIN', 
+	acc::ACC_TRIGGER_INSTALL  => 'mktrtype -preop lnname -element -all',
+	acc::ACC_ALLOWED_VOBTYPES => [acc::VOBTYPE_UCM_CLIENT, acc::VOBTYPE_BCC_CLIENT, 'custom_vob_type']);
 
 
+Above is an example of the install_params hashtable as written in the triggerscript.
+It will install the trigger as a all element triggertype named ACC_STOP_TWIN, for "preop on lnname" execution.
+On top of that, it will only allow it self to be installed on VOBs which are either UCM ClientVOB, Base ClearCase ClientVOB or of the custom vob type labelled 'custom_vob_type' (read more on "VOB types" later in this document).
+
+=head2 Installing your trigger
+
+ ratlperl \\CCserver\triggers\YourScriptName.pl -install -vob documents -preview
+
+This will display the trigger install command as it would have been send til ClearCase without the -preview param, unless there is an error or exception.
+
+The script should  defined in YourScriptName.pl on the VOB "documents"
+
+=head1 AUTHOR
+
+Lars Kruse, E<lt>lak@praqma.netE<gt>.
+
+=head1 BUGS
+
+See the Accelerated ClearCase project on Launchpad.net
+
+=for html <a href="http://launchpad.net/acc">Accelerated ClearCase</a>
+
+
+=head1 COPYRIGHT
+
+This program is distributed under GNU GPL v3.0
+
+=cut
