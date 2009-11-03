@@ -222,7 +222,7 @@ The concept of VOB types is deducted from ClearCase terminology, but is unique f
 
 Understanding the concept of vobtypes and ACCs implementation of it, is vital for the trigger installer to work as intended.
 
-B<All constants are casesensitive, but VOB types are case insensitive>
+I<All constants are casesensitive, but VOB types are case insensitive>
 
 =head3 Predefined VOB types
 
@@ -256,19 +256,44 @@ As opposed to the predefined VOB types, a VOB can have several custom VOB types,
 
 =head2 Constructing the %install_params array
 
-To utilize the install helper to install the trigger, you need to create a hash in your triggerscript with the following format
+To utilize the install helper to install the trigger, you need to create a hash in your triggerscript and call the enable_install function with it.
+
+=head3 ACC_STOP_TWIN example
 
   my %install_params = (
 	acc::ACC_TRIGGER_NAME     => 'ACC_STOP_TWIN', 
 	acc::ACC_TRIGGER_INSTALL  => 'mktrtype -preop lnname -element -all',
 	acc::ACC_ALLOWED_VOBTYPES => [acc::VOBTYPE_UCM_CLIENT, acc::VOBTYPE_BCC_CLIENT, 'custom_vob_type']);
 
+  I<our $thelp=trigger_helper->new;>       # Instantiates the trigger helper
+  $thelp->enable_install(%install_params); # See more under "enable_install"  
 
-Above is an example of the install_params hashtable as written in the triggerscript.
-It will install the trigger as a all element triggertype named ACC_STOP_TWIN, for "preop on lnname" execution.
+This example is taken from the acc_stop_twin.pl file and makes it so the the trigger is installed as an all element triggertype named ACC_STOP_TWIN, for "preop on lnname" execution.
 On top of that, it will only allow it self to be installed on VOBs which are either UCM ClientVOB, Base ClearCase ClientVOB or of the custom vob type labelled 'custom_vob_type' (read more on "VOB types" later in this document).
 
+=head3 ACC_NAMED_BRTYPES_ONLY example
+
+  my %some_random_name = (
+	acc::ACC_TRIGGER_NAME     => 'ACC_NAMED_BRTYPES_ONLY', 
+	acc::ACC_TRIGGER_INSTALL  => 'mktrtype -element -all -preop mkbranch',
+	acc::ACC_ALLOWED_VOBTYPES => [	acc::VOBTYPE_UCM_CLIENT, 
+					acc::VOBTYPE_BCC_CLIENT, 
+					acc::VOBTYPE_ADMINVOB, 
+					acc::VOBTYPE_PVOB ]);
+
+  I<our $triggerobj=trigger_helper->new;>       # Instantiates the trigger helper
+  $triggerobj->enable_install(%some_random_name); # See more under "enable_install"  
+
+This example is taken from the acc_named_brtypes_only.pl file and makes it so the the trigger is installed as an all element triggertype named ACC_NAMED_BRTYPES_ONLY, for "preop on mkbranch" execution.
+
+Please note the slightly changed formatting and that both the install parameters hash and the trigger_helper object have changed names. 
+Feel free to use any name that suite your standarts, as long as the trigger_helper object is working and the hash is formatted correctly and passed to the enable_install, it will work.
+
+Also note that, since the trigger is allowed to install on all predefined VOB types, it will never need or use, custom VOB types, as every VOB will still be match by one of the predefined types.
+
 =head2 Installing your trigger
+
+=head3 Generel example
 
  ratlperl \\CCserver\triggers\YourScriptName.pl -install -vob documents -preview
 
