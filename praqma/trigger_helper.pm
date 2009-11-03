@@ -175,6 +175,45 @@ ENDUSAGE
     #see https://praqma.fogbugz.com/?863
 
     # What is the target vobs of the trigger
+<<<<<<< TREE
+    # What is the VOB type
+	my $allowed_vob_context = acc::get_vobtype($sw_vob);
+    defined($sw_preview) && do print $allowed_vob_context;
+
+	$::TRIGGER_INSTALL =~ /vob:(.*)/;
+    my @target_vobs = split(',', $1);
+    foreach (@target_vobs) {
+        if ($_ == "both") {
+			die "ERROR: The specified VOB could not be identified"
+    		  unless ($allowed_vob_context ge 1);
+    	} elsif ($_ == "adminvob") {
+			die "ERROR: This trigger '$::TRIGGER_NAME' can only be set on AdminVOBs (which $sw_vob is not)\n"
+    		  unless ($allowed_vob_context == 2) || ($allowed_vob_context == 4);
+    	} elsif ($_ == "clientvob") {
+        	die "ERROR: This trigger '$::TRIGGER_NAME' can only be set on ClientVOBs (which $sw_vob is not)\n"
+    		  unless ($allowed_vob_context == 1) || ($allowed_vob_context == 3);
+    	}
+    }
+
+
+
+
+#   # Old Install helper - To be replaced by above
+#    #Assert the $TRIGGER_INSTALL string is compliant
+#    die "ERROR The trigger install string '$::TRIGGER_INSTALL' is not compliant\n"
+#      unless ( lc($::TRIGGER_INSTALL) =~ /vob:(adminvob|clientvob|both)/ );
+#    my $allowed_vob_context = $1;
+
+#    ( $allowed_vob_context eq "adminvob" ) && do {
+#        die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on AdminVOBs (which $sw_vob is not)\n"
+#          unless acc::is_adminvob( "vob:" . $sw_vob );
+#    };
+
+#    ( $allowed_vob_context eq "clientvob" ) && do {
+#        die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on Client VOBs (which $sw_vob is not)\n"
+#          unless acc::is_clientvob( "vob:" . $sw_vob );
+#    };
+=======
     # What is the VOB type
 	my $allowed_vob_context = acc::get_vobtype($sw_vob);
 
@@ -320,6 +359,7 @@ ENDUSAGE
 #        die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on Client VOBs (which $sw_vob is not)\n"
 #          unless acc::is_clientvob( "vob:" . $sw_vob );
 #    };
+>>>>>>> MERGE-SOURCE
 
     # Check if the trigger is already set (in which case we must use the -replace switch)
     my $trigger_tag = defined($sw_trigger) ? $sw_trigger : $::TRIGGER_NAME;
