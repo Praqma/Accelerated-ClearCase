@@ -77,17 +77,9 @@ $log->conditional_enable();
 $log->set_verbose($verbose_mode);
 
 our $logfile = $log->get_logfile;
-($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
+($logfile) && $log->information_always("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
-
-
-my $debug = 0;  # Write more messages to the log file
-
-
-if ($ENV{'CLEARCASE_TRIGGER_DEBUG'}) {
-    $debug = 1;
-}
-($debug) && $log->dump_ccvars; # Dumps Clearcase variables if debug is defined
+$log->dump_ccvars; # Dumps Clearcase variables if debug is defined
 
 
 # End of standard stuff
@@ -108,7 +100,8 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq "uncheckout") ||  ($ENV{CLEARCASE_OP_KIND} eq 
 	   if ( ("$CONTRIB" =~ /\.contrib$/) or
 	        ("$CONTRIB" =~ /\.contrib\.[0-9]+$/ ))
 	   {
-	      my $ob_type=`cleartool desc -fmt %m "$CONTRIB"`;
+	      $log->error("Could not get objecttype for $CONTRIB")
+	        unless my $ob_type=`cleartool desc -fmt %m "$CONTRIB"`;
 	      if ("$ob_type" eq "view private object")
 	      {
 	         ######################################################

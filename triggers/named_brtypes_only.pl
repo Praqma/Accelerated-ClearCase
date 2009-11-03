@@ -75,35 +75,23 @@ $log->conditional_enable();
 $log->set_verbose($verbose_mode);
 
 our $logfile = $log->get_logfile;
-($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
+($logfile) && $log->information_always("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
 
-
-my $debug = 0; # Write more messages to the log file
-
-
-if ($ENV{'CLEARCASE_TRIGGER_DEBUG'}) {
-    $debug = 1;
-}
-($debug) && $log->dump_ccvars; # Dumps Clearcase variables if debug is defined
+$log->dump_ccvars; # Dumps Clearcase variables if debug or verbose is defined
 
 # End of standard stuff
 # ------------------------------------
 # Here starts the actual trigger code.
 if ( ( $ENV{CLEARCASE_OP_KIND} eq "mkbranch") ) { #Check that the events that fired the trigger are the ones we support
 	my $regexp = "main"; # list of branches that are allowed to create "brtype|brtype|..."
-	unless ($ENV{'CLEARCASE_BRTYPE'}=~/$regexp/){
-	    my $opkind =lc($ENV{'CLEARCASE_OP_KIND'});
-	    my $brtype =  $ENV{'CLEARCASE_BRTYPE'};
-	    my $errormsg =
-	        "ERROR \n...triggered by a [$opkind $brtype] event.\n\n".
-	        "You are about to create a branch that is not approved\n".
-	        "The config spec of your view might be wrong!\n\n".
-	        "Contact the Configuration Manager \n".
-	        "or ClearCase Admin to get help!";
-	    print STDERR $errormsg;
-	    $log->error($errormsg);
-            exit 1;
+    my $brtype =  $ENV{'CLEARCASE_BRTYPE'};
+	unless ($brtype=~/$regexp/){
+	    $log->error("ERROR \n...triggered by a [mkbranch $brtype] event.\n\n".
+        "You are about to create a branch that is not approved\n".
+        "The config spec of your view might be wrong!\n\n".
+        "Contact the Configuration Manager or ClearCase Admin to get help!");
+        exit 1;
 	}
 }
 exit 0;

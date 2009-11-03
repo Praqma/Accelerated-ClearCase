@@ -34,18 +34,18 @@ my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging 
 # Header and revision history
 my $header = <<ENDHEADER;
 #########################################################################
-#     $Scriptfile  version $VERSION\.$REVISION				
-#     This script is intended as ClearCase trigger script for the       
-#     $TRIGGER_NAME trigger.                                            
-#                                                                       
-#     This script is intended as trigger script (element -all)          
-#     on the checkkout and unreserve events.                            
-#     It disables the use of unreserved checkouts.                      
-#                                                                       
-#     Date:       2009-10-07                                            
-#     Author:     Mikael Jensen, mij\@praqma.net              		
-#     License:    GNU General Public License v3.0                       
-#     Support:    http://launchpad.net/acc                   		
+#     $Scriptfile  version $VERSION\.$REVISION
+#     This script is intended as ClearCase trigger script for the
+#     $TRIGGER_NAME trigger.
+#
+#     This script is intended as trigger script (element -all)
+#     on the checkkout and unreserve events.
+#     It disables the use of unreserved checkouts.
+#
+#     Date:       2009-10-07
+#     Author:     Mikael Jensen, mij\@praqma.net
+#     License:    GNU General Public License v3.0
+#     Support:    http://launchpad.net/acc
 #########################################################################
 ENDHEADER
 
@@ -57,7 +57,7 @@ DATE        EDITOR  NOTE
 ----------  -------------  ----------------------------------------------
 2006-10-26  Lars Kruse     1st release preppared for Novo Nordisk
                            (version 1.0.1)
-2009-10-07  Mikael Jensen  ACC'ified (version 1.1.2)
+2009-10-07  Mikael Jensen  ACCified (version 1.1.2)
 -------------------------------------------------------------------------
 ENDREVISION
 
@@ -77,35 +77,20 @@ $log->conditional_enable();
 $log->set_verbose($verbose_mode);
 
 our $logfile = $log->get_logfile;
-($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
+($logfile) && $log->information_always("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
 
-
-my $debug = 0;  # Write more messages to the log file
-
-
-if ($ENV{'CLEARCASE_TRIGGER_DEBUG'}) {
-    $debug = 1;
-}
-($debug) && $log->dump_ccvars; # Dumps Clearcase variables if debug is defined
-
+$log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
 
 # End of standard stuff
 # ------------------------------------
 # Here starts the actual trigger code.
 
 ################# The trigger action begins here ##########################
-my $reserve_state = lc($ENV{CLEARCASE_RESERVED}); # Only available if the opkind is "checkout"
-if ( ( $ENV{CLEARCASE_OP_KIND} eq "checkout" && $reserve_state eq "0") ||  ($ENV{CLEARCASE_OP_KIND} eq "unreserve") ) { #Check that the events that fired the trigger are the ones we support
-	my $opkind= lc($ENV{CLEARCASE_OP_KIND}); # unreserve|checkout
-	my $errormsg = 
-	"ERROR \n...triggered by a [-$opkind] event.\n\n".
-        "You are about to make an unreserved checkout\n".
-        "That is not allowed!\n\n".
-        "Contact the Configuration Manager\n".
-        "or ClearCase Admin to get help!";
-	print STDERR $errormsg;
-    	$log->error($errormsg);
+if ( ( ($ENV{CLEARCASE_OP_KIND} eq "checkout") && ($ENV{CLEARCASE_RESERVED} eq "0") ) ||  ($ENV{CLEARCASE_OP_KIND} eq "unreserve") ) { #Check that the events that fired the trigger are the ones we support
+   	$log->error("ERROR: You are about to make an unreserved checkout\n".
+    "That is not allowed!\n\n".
+    "Contact the Configuration Manager or ClearCase Admin to get help!");
     exit 1;
 }
 exit 0;

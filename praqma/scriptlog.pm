@@ -42,9 +42,9 @@ DATE        EDITOR  NOTE
 ----------  -------------  ----------------------------------------------
 2007-08-27  Lars Kruse     1st release prepared for Novo (version 1.0)
                            https://svn.praqma.net/svn/acc/dock revision 76
-2009-07-02  Lars Kruse     Prepared for Novo Nordisk (version 1.0.4)    
-2009-08-19  Lars Kruse     Changed the printing subs (i+w+e) so they only 
-                           print the timestamp to the log - not STDOUT. 
+2009-07-02  Lars Kruse     Prepared for Novo Nordisk (version 1.0.4)
+2009-08-19  Lars Kruse     Changed the printing subs (i+w+e) so they only
+                           print the timestamp to the log - not STDOUT.
                            Added information_always() (version 1.0.5)
 -------------------------------------------------------------------------
 ENDREVISION
@@ -132,15 +132,14 @@ sub warning($) {
 }
 
 sub error($) {
-    ( $Enabled || $Verbose ) && do {
-        my $self = shift;
-        my $msg  = shift;
-        my $prefix  = $self->timestamp . " [E]:\t";
-        $Enabled && print LOGFILE $prefix.indent_msg($msg);
-        $Verbose && print STDERR $msg;
-        $Err_count++;
-        return $Verbose;
-      }
+    my $self = shift;
+    my $msg  = shift;
+    my $prefix  = $self->timestamp . " [E]:\t";
+    $Enabled && print LOGFILE $prefix.indent_msg($msg);
+    print STDERR $msg;
+    $Err_count++;
+    return $Verbose;
+
 }
 
 sub indent_msg(){
@@ -361,9 +360,9 @@ inform of the information level:
   10.43:35 [I]:   Hey - again!
   10.43:35 [W]:   Watch out!
   10.43:35 [E]:   WRONG!!!!
-  
+
 If the Log is in verbose mode, then the informations will be printet to STDOUT (informations and warnings)
-or STDOUT (errors) as well (but without the timestamp prefix). 
+or STDOUT (errors) as well (but without the timestamp prefix).
 
 information_always() will always print to STDOUT - even if the log isn't in verbose mode. It's convenient
 when you want to provide a 'service outut' regardless if the user chose verbose mode or not.
