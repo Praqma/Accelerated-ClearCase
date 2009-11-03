@@ -57,7 +57,7 @@ DATE        EDITOR  NOTE
 ----------  -------------  ----------------------------------------------
 2006-10-26  Lars Kruse     1st release preppared for Novo Nordisk
                            (version 1.0.1)
-2009-10-07  Mikael Jensen  ACC'ified (version 1.1.2)
+2009-10-07  Mikael Jensen  ACCified (version 1.1.2)
 -------------------------------------------------------------------------
 ENDREVISION
 
@@ -77,17 +77,22 @@ $log->conditional_enable();
 $log->set_verbose($verbose_mode);
 
 our $logfile = $log->get_logfile;
-($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
+# REVIEW - LAK:
+# Make sure the location of the log file is always printet to user - even id verbose mode i false - use informationn_always() 
+($logfile) && $log->information_always("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
 
+# REVIEW - LAK: Just dump the ccvars using the sub function on the log
+# The log is already conditionally enabled (dump_ccvars knows what to do!)
+$log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
 
-my $debug = 0;  # Write more messages to the log file
-
-
-if ($ENV{'CLEARCASE_TRIGGER_DEBUG'}) {
-    $debug = 1;
-}
-($debug) && $log->dump_ccvars; # Dumps Clearcase variables if debug is defined
+#  my $debug = 0;  # Write more messages to the log file
+#
+#
+#if ($ENV{'CLEARCASE_TRIGGER_DEBUG'}) {
+#    $debug = 1;
+#}
+#($debug) && $log->dump_ccvars; # Dumps Clearcase variables if debug is defined
 
 
 # End of standard stuff
@@ -95,8 +100,12 @@ if ($ENV{'CLEARCASE_TRIGGER_DEBUG'}) {
 # Here starts the actual trigger code.
 
 ################# The trigger action begins here ##########################
-my $reserve_state = lc($ENV{CLEARCASE_RESERVED}); # Only available if the opkind is "checkout"
-if ( ( $ENV{CLEARCASE_OP_KIND} eq "checkout" && $reserve_state eq "0") ||  ($ENV{CLEARCASE_OP_KIND} eq "unreserve") ) { #Check that the events that fired the trigger are the ones we support
+# REVIEW - LAK
+# You can check the status of $ENV{CLEARCASE_RESERVED inside the if-check
+# That way you dont have to query the environment variable unless you have too
+#my $reserve_state = lc($ENV{CLEARCASE_RESERVED}); # Only available if the opkind is "checkout"
+#if ( ( $ENV{CLEARCASE_OP_KIND} eq "checkout" && $reserve_state eq "0") ||  ($ENV{CLEARCASE_OP_KIND} eq "unreserve") ) { #Check that the events that fired the trigger are the ones we support
+if ( ( ($ENV{CLEARCASE_OP_KIND} eq "checkout") && ($ENV{CLEARCASE_RESERVED} eq "0") ) ||  ($ENV{CLEARCASE_OP_KIND} eq "unreserve") ) { #Check that the events that fired the trigger are the ones we support
 	my $opkind= lc($ENV{CLEARCASE_OP_KIND}); # unreserve|checkout
 	my $errormsg = 
 	"ERROR \n...triggered by a [-$opkind] event.\n\n".
@@ -104,6 +113,13 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq "checkout" && $reserve_state eq "0") ||  ($ENV
         "That is not allowed!\n\n".
         "Contact the Configuration Manager\n".
         "or ClearCase Admin to get help!";
+	
+	# REVIEW - LAK
+	# The message is printet to STDERR by the error print sub on the log object if the verbose mode is on
+	# So you could only print if the vorebode-mode is off
+	# ....hmmm This is the equvivalent of and the error_always() which you should conside implementing or maybe the error sub sould
+	# always print - unconditionally - so you could fix the error sub rather than inventing the error_always sub
+	# ... you dig ;-) ?
 	print STDERR $errormsg;
     	$log->error($errormsg);
     exit 1;
