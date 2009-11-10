@@ -9,15 +9,17 @@ use lib $Scriptdir."..";
 use praqma::scriptlog;
 use praqma::trigger_helper;
 
-#Required if you call trigger_helper->enable_install
-our $TRIGGER_NAME="ACC_RMEMPTYBR";                                             
-our $TRIGGER_INSTALL="mktrtype -element -all -postop uncheckout,rmbranch,rmver vob:clientvob";   # vob: is on of clientvob | adminvob | both
+our $TRIGGER_NAME="ACC_RMEMPTYBR"; # The Trigger name is cached to it can be referenced in the header.
+
+our %install_params = (
+  "name"        => $TRIGGER_NAME,                                         # The name og the trigger
+  "mktrtype"    => "-element -all -postop uncheckout,rmbranch,rmver ",    # The stripped-down mktrtype command
+  "supports"    => "bccvob,ucmvob",                                       # csv list of generic and/or custom VOB types (case insensetive)
+);
 
 # File version
-our $VERSION = "1.0"; 
-our $REVISION = "1";
-
-my $verbose_mode=0; # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
+our $VERSION = "1.1"; 
+our $REVISION = "2";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -47,24 +49,12 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR  NOTE
 ----------  -------------  ---------------------------------------------------
 2009-06-24  Lars Kruse     1st release prepared for Novo Nordisk (version 1.0.1)
+2009-11-09  Lars Kruse     Making it compliant with the new trigger_helper
+                           (version 1.1.2)
 ------------------------------------------------------------------------------
 ENDREVISION
-
-#Enable the features in trigger_helper
-our $thelp=trigger_helper->new;
-$thelp->enable_install;
-$thelp->require_trigger_context;
-our $semaphore_status = $thelp->enable_semaphore_backdoor;
-
-#Enable the features in scriptlog
-our $log = scriptlog->new;
-$log->conditional_enable(); #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
-$log->set_verbose($verbose_mode);
-our $logfile=$log->get_logfile;
-($logfile) && $log->information("logfile is: $logfile\n"); # Logfile is null if logging isn't enabled.
-$log->information($semaphore_status);
-
-$log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
+fs
+##################
 snap_load();
 
 ######### CHECK IF BRANCH IS EMPTY AND REMOVE IF NECESSARY ##############
@@ -168,13 +158,13 @@ rmemptybr - ClearCase trigger
 
 Script:        F<rmemptybr.pl>
 
-Trigger name:  C<CC_RMEMPTYBR>
+Trigger name:  C<ACC_RMEMPTYBR>
 
 Used as a trigger to remove empty branches if necessary after versions or branches has been removed.
 
 =head1 SYNOPSIS
 
-Runs as ClearCase trigger script installed on basevobs and ucmvobs (not adminvobs or pvobs)
+Runs as ClearCase trigger script installed on VOBs that hold elements (everything but AdminVOBs and PVOBs)
 
 The scripts installs itself correctly when executed outside a trigger context using:
 
@@ -183,6 +173,8 @@ The scripts installs itself correctly when executed outside a trigger context us
 To learn the full syntax simply execute the the script without the -vob switch:
 
   rmemptybr.pl -install
+  
+(...or consult the POD documentation for praqma::trigger_helper).
 
 =head2 Restrictions
 
@@ -191,26 +183,22 @@ The script will fail if that is not the case.
 
 An exception is if you execute it in -preview mode
 
-To bypass the script you must create the appropriate semaphor file first 
+To bypass (diable witoput uninstalling) the script the admin must create the appropriate semaphore file first 
 (see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
-
-It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure 
-that triggers are executed - and semaphore files ar looked-up - at locations where common users only 
-have read access. ...There! I said it anyway!
 
 =head1 DESCRIPTION
 
 When a version is removed from a branch or a checkout is undone, then the predecessor becomes the new LATEST. 
 But if the removed version is the only one on the branch except the zero version it means that the branch is 
 left empty and it really ought to be removed.
-
+    
 Another situation that can lead to dangeling empty branches is if a config spec is set up to create "cascading 
 branches". Then you have intentionally empty branches with no other purpose than to hold other branches coming 
 off from it - but if the leaf branches are removed - then so should the in-between branches.
 
-The trigger is designed to fires post-op which enables it to re-load the versions of the element caused the trigger.
-This deals with the unpleasant side-effect that if you remove a version from a snapshot view then the element will 
-have the status [not loaded]. This triggers settles it too.
+The trigger is fires post-op and in case og snapshort views it deals with the unpleasant side-effect that if 
+you remove a version from a snapshot view then the element will have the status [not loaded]. This triggers 
+will re-load the element.
 
 =head1 AUTHOR
 

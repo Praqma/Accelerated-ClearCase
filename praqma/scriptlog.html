@@ -1,181 +1,223 @@
-<HTML>
-<HEAD>
-<TITLE>Scriptlog - logging module for ClearCase scripts</TITLE>
-<LINK REV="made" HREF="mailto:">
-</HEAD>
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Scriptlog - logging module for ClearCase scripts</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:" />
+</head>
 
-<BODY>
+<body style="background-color: white">
 
-<A NAME="__index__"></A>
+
 <!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
 
-<UL>
+<ul>
 
-	<LI><A HREF="#name">NAME</A></LI>
-	<LI><A HREF="#synopsis">SYNOPSIS</A></LI>
-	<UL>
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<ul>
 
-		<LI><A HREF="#setters">Setters</A></LI>
-		<LI><A HREF="#getters">Getters</A></LI>
-		<LI><A HREF="#methods">Methods</A></LI>
-	</UL>
+		<li><a href="#setters">Setters</a></li>
+		<li><a href="#getters">Getters</a></li>
+		<li><a href="#methods">Methods</a></li>
+	</ul>
 
-	<LI><A HREF="#description">DESCRIPTION</A></LI>
-	<LI><A HREF="#author">AUTHOR</A></LI>
-	<LI><A HREF="#bugs">BUGS</A></LI>
-	<LI><A HREF="#support">SUPPORT</A></LI>
-	<LI><A HREF="#copyright">COPYRIGHT</A></LI>
-</UL>
+	<li><a href="#description">DESCRIPTION</a></li>
+	<li><a href="#author">AUTHOR</a></li>
+	<li><a href="#bugs">BUGS</a></li>
+	<li><a href="#support">SUPPORT</a></li>
+	<li><a href="#copyright">COPYRIGHT</a></li>
+</ul>
+
+<hr name="index" />
+</div>
 <!-- INDEX END -->
 
-<HR>
-<P>
-<HR>
-<H1><A NAME="name">NAME</A></H1>
-<P>Scriptlog - logging module for ClearCase scripts</P>
-<PRE>
+<p>
+</p>
+<hr />
+<h1><a name="name">NAME</a></h1>
+<p>Scriptlog - logging module for ClearCase scripts</p>
+<pre>
  Package: scriptlog
  Class:   scriptlog
- Module:  scriptlog.pm</PRE>
-<P>
-<HR>
-<H1><A NAME="synopsis">SYNOPSIS</A></H1>
-<P>Used to ease the logging of perl scripts.
-...With some sugar added to those who writes ClearCase triggers</P>
-<P>
-<H2><A NAME="setters">Setters</A></H2>
-<PRE>
+ Module:  scriptlog.pm</pre>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>Used to ease the logging of perl scripts.
+...With some sugar added to those who writes ClearCase triggers</p>
+<p>
+</p>
+<h2><a name="setters">Setters</a></h2>
+<pre>
  set_logfile(pname)
- set_verbose(0|1)</PRE>
-<P>
-<H2><A NAME="getters">Getters</A></H2>
-<PRE>
+ set_verbose(0|1)  (reads environment variables SCRIPTLOG_VERBOSE and CLEARCASE_TRIGGER_VERBOSE)</pre>
+<p>
+</p>
+<h2><a name="getters">Getters</a></h2>
+<pre>
  get_information_count
  get_accumulated_errorlevel
  get_warning_count
  get_error_count
- get_logfile</PRE>
-<P>
-<H2><A NAME="methods">Methods</A></H2>
-<PRE>
+ get_logfile</pre>
+<p>
+</p>
+<h2><a name="methods">Methods</a></h2>
+<pre>
  enable
- conditional_enable([flag])
+ conditional_enable([boolean]) (reads environment variables SCRIPTLOG_ENABLE and CLEARCASE_TRIGGER_DEBUG)
  disable
  information(msg)
+ information_always(msg)
  warning(msg)
  error(msg)
  assertion_failed(msg)
  dump_array(array)
  dump_ccvars
- get_accumulated_errorlevel</PRE>
-<P>
-<HR>
-<H1><A NAME="description">DESCRIPTION</A></H1>
-<P>Creating the log object is straight forward:</P>
-<PRE>
-  our $log = scriptlog-&gt;new;</PRE>
-<P>The log is not enabled directly upon creation, you need to
-make a call to the enable metode first:</P>
-<PRE>
-  $log-&gt;enable;</PRE>
-<P>Using the class like this will generate the logfile automatically.
+ get_accumulated_errorlevel</pre>
+<p>
+</p>
+<hr />
+<h1><a name="description">DESCRIPTION</a></h1>
+<p>Creating the log object is straight forward:</p>
+<pre>
+  <span class="keyword">our</span> <span class="variable">$log</span> <span class="operator">=</span> <span class="variable">scriptlog</span><span class="operator">-&gt;</span><span class="variable">new</span><span class="operator">;</span>
+</pre>
+<p>The log is not enabled directly upon creation, you need to
+make a call to the enable metode first:</p>
+<pre>
+  <span class="variable">$log</span><span class="operator">-&gt;</span><span class="variable">enable</span><span class="operator">;</span>
+</pre>
+<p>Using the class like this will generate the logfile automatically.
 the log file will be in the directory of your TEMP environment variable
 and named after the executing perl script suffixed with the process ID
-of the  running process and a .log extention</P>
-<P>Sample:</P>
-<P><EM>maintainfrozen.pl</EM> ...will create a log file: <EM>c:\temp\maintainforzen.pl.PID2354.log</EM></P>
-<P>The logfile is always opened in concatenate mode.</P>
-<P>If you want to control the location of the log file youself you simply
-make a call to the set_logfile method before you enable it:</P>
-<PRE>
-  $log-&gt;set_logfile(&quot;c:\\mydir\\test.log&quot;);
-  $log-&gt;enable;</PRE>
-<P>Be aware that the logfile class is not very forgiven on no-good
+of the  running process and a .log extention</p>
+<p>Sample:</p>
+<p><em class="file">maintainfrozen.pl</em> ...will create a log file: <em class="file">c:\temp\maintainforzen.pl.PID2354.log</em></p>
+<p>The logfile is always opened in concatenate mode.</p>
+<p>If you want to control the location of the log file youself you simply
+make a call to the set_logfile method before you enable it:</p>
+<pre>
+  <span class="variable">$log</span><span class="operator">-&gt;</span><span class="variable">set_logfile</span><span class="operator">(</span><span class="string">"c:\\mydir\\test.log"</span><span class="operator">);</span>
+  <span class="variable">$log</span><span class="operator">-&gt;</span><span class="variable">enable</span><span class="operator">;</span>
+</pre>
+<p>Be aware that the logfile class is not very forgiven on no-good
 file pathnames - The assumption is that if you are using the scriptlog
 class it's because you want a log to be created. Thus if the log
-creation fails then the executing script is dragged into the fall - and dies!</P>
-<P>There is and alternative enable method you can use. It's called conditional_enable</P>
-<PRE>
-  $log-&gt;conditional_enable</PRE>
-<P>It enables the log if one of the following conditions apply:</P>
-<DL>
-<DT><STRONG><A NAME="item_Parameter_controlled">Parameter controlled</A></STRONG><BR>
-<DD>
-The method can be called with an optional parameter, if so it will be
-be evaluated in a boolean context and if TRUE logging is enabled
-<P></P>
-<DT><STRONG><A NAME="item_TRACE_SUBSYS">TRACE_SUBSYS</A></STRONG><BR>
-<DD>
-An environment variable named TRACE_SUBSYS contains the name of the
-executing perlscript
-<P>E.g. TRACE_SUBSYS=maintainfrozen.pl;evil_twin.pl
-will turn on logging in maintainfrozen.pl and evil_twin.pl</P>
-<P></P>
-<DT><STRONG><A NAME="item_SCRIPTLOG_ENABLE">SCRIPTLOG_ENABLE</A></STRONG><BR>
-<DD>
-An Environment variable SCRIPTLOG_ENABLE is defined
-This will effectively turn on logging in all executing script that used conditional_enable
-<P></P>
-<DT><STRONG><A NAME="item_CLEARCASE_TRIGGER_DEBUG">CLEARCASE_TRIGGER_DEBUG</A></STRONG><BR>
-<DD>
-An environment variable named CLEARCASE_TRIGGER_DEBUG is defined
+creation fails then the executing script is dragged into the fall - and dies!</p>
+<p>There is and alternative enable method you can use. It's called <code>conditional_enable</code></p>
+<pre>
+  $log-&gt;conditional_enable</pre>
+<p>It enables the log if one of the following conditions apply:</p>
+<dl>
+<dt><strong><a name="parameter_controlled" class="item">Parameter controlled</a></strong>
+
+<dd>
+<p>The method can be called with an optional parameter, if so it will be
+be evaluated in a boolean context and if TRUE logging is enabled</p>
+</dd>
+</li>
+<dt><strong><a name="trace_subsys" class="item">TRACE_SUBSYS</a></strong>
+
+<dd>
+<p>An environment variable named TRACE_SUBSYS contains the name of the
+executing perlscript</p>
+</dd>
+<dd>
+<p>E.g. TRACE_SUBSYS=maintainfrozen.pl;evil_twin.pl
+will turn on logging in maintainfrozen.pl and evil_twin.pl</p>
+</dd>
+</li>
+<dt><strong><a name="scriptlog_enable" class="item">SCRIPTLOG_ENABLE</a></strong>
+
+<dd>
+<p>An Environment variable SCRIPTLOG_ENABLE is defined
+This will effectively turn on logging in all executing script that used conditional_enable</p>
+</dd>
+</li>
+<dt><strong><a name="clearcase_trigger_debug" class="item">CLEARCASE_TRIGGER_DEBUG</a></strong>
+
+<dd>
+<p>An environment variable named CLEARCASE_TRIGGER_DEBUG is defined
 This has the exact same effect as define the variable SCRIPTLOG_ENABLE, it's only
-added as a twist of syntactical sugar for the Clearcase trigger programmers
-<P></P></DL>
-<P>Writing to to log is done through one of the three methods information, warning or error</P>
-<PRE>
-  $log-&gt;information(&quot;Hey!\n&quot;);
-  $log-&gt;warning(&quot;Watch out!\n&quot;);
-  $log-&gt;error(&quot;WRONG!!!!\n&quot;);</PRE>
-<P>These loggings will turn up in the log prefixed with the a time stamp and a letter code to
-inform of the information level:</P>
-<PRE>
+added as a twist of syntactical sugar for the Clearcase trigger programmers</p>
+</dd>
+</li>
+</dl>
+<p>Writing to to log is done through one of the four methods:</p>
+<pre>
+  <span class="variable">$log</span><span class="operator">-&gt;</span><span class="variable">information</span><span class="operator">(</span><span class="string">"Hey!\n"</span><span class="operator">);</span>
+  <span class="variable">$log</span><span class="operator">-&gt;</span><span class="variable">information_always</span><span class="operator">(</span><span class="string">"Hey - again!\n"</span><span class="operator">);</span>
+  <span class="variable">$log</span><span class="operator">-&gt;</span><span class="variable">warning</span><span class="operator">(</span><span class="string">"Watch out!\n"</span><span class="operator">);</span>
+  <span class="variable">$log</span><span class="operator">-&gt;</span><span class="variable">error</span><span class="operator">(</span><span class="string">"WRONG!!!!\n"</span><span class="operator">);</span>
+</pre>
+<p>These loggings will turn up in the log prefixed with the a time stamp and a letter code to
+inform of the information level:</p>
+<pre>
   10.43:35 [I]:   Hey!
+  10.43:35 [I]:   Hey - again!
   10.43:35 [W]:   Watch out!
-  10.43:35 [E]:   WRONG!!!!</PRE>
-<P>Dumping arrays or CLEARCASE_* environment variables is alwas done at the information level:</P>
-<PRE>
-  $log-&gt;dump_ccvars</PRE>
-<P>Will produce a log entry like:</P>
-<PRE>
+  10.43:35 [E]:   WRONG!!!!</pre>
+<p>If the Log is in verbose mode, then the informations will be printet to STDOUT (informations and warnings)
+or STDOUT (errors) as well (but without the timestamp prefix).</p>
+<p><code>information_always()</code> will always print to STDOUT - even if the log isn't in verbose mode. It's convenient
+when you want to provide a 'service outut' regardless if the user chose verbose mode or not.</p>
+<p>Dumping arrays or CLEARCASE_* environment variables is alwas done at the information level:</p>
+<pre>
+  $log-&gt;dump_ccvars</pre>
+<p>Will produce a log entry like:</p>
+<pre>
   10.43:35 [I]:   Dumping CLEARCASE environment variables:
-          CLEARCASE_PRIMARY_GROUP=CHM_Users</PRE>
-<P>The assertion_failed method will be the death of the executing script!!!
-The message is printed to the log before the kill:</P>
-<PRE>
-  $_ = `cleartool describe vob:\ThePVOB`;
-  $? &amp;&amp; $log-&gt;assertion_failed(&quot;where's the PVOB? Can't live without it! ...Arrrrrrgh!\n&quot;);</PRE>
-<P>The information,warning and error counts come in handy if you want to exit you scripts
-based on the severity level;</P>
-<PRE>
-  $retval = ($log-&gt;get_error_count)?2:($log-&gt;get_warning_count)?1:0;</PRE>
-<P>Actually, if you go with the idea of the following exit codes</P>
-<PRE>
+          CLEARCASE_PRIMARY_GROUP=CHM_Users</pre>
+<p>The assertion_failed method will be the death of the executing script!!!
+The message is printed to the log before the kill:</p>
+<pre>
+  <span class="variable">$_</span> <span class="operator">=</span> <span class="string">`cleartool describe vob:\ThePVOB`</span><span class="operator">;</span>
+  <span class="variable">$?</span> <span class="operator">&amp;&amp;</span> <span class="variable">$log</span><span class="operator">-&gt;</span><span class="variable">assertion_failed</span><span class="operator">(</span><span class="string">"where's the PVOB? Can't live without it! ...Arrrrrrgh!\n"</span><span class="operator">);</span>
+</pre>
+<p>The information,warning and error counts come in handy if you want to exit you scripts
+based on the severity level;</p>
+<pre>
+  <span class="variable">$retval</span> <span class="operator">=</span> <span class="operator">(</span><span class="variable">$log</span><span class="operator">-&gt;</span><span class="variable">get_error_count</span><span class="operator">)?</span><span class="number">2</span><span class="operator">:(</span><span class="variable">$log</span><span class="operator">-&gt;</span><span class="variable">get_warning_count</span><span class="operator">)?</span><span class="number">1</span><span class="operator">:</span><span class="number">0</span><span class="operator">;</span>
+</pre>
+<p>Actually, if you go with the idea of the following exit codes</p>
+<pre>
  2=You have logged errors
  1=You have logged warnings
- 0=You have only logged informations or nothing at all</PRE>
-<P>The you can use the get_accumulated_errorlevel method:</P>
-<PRE>
-  exit $log-&gt;get_accumulated_errorlevel;</PRE>
-<P>The verbose mode is turned off at class instantiation if you enable it, the messages are also
-written to STDOUT (informations) or STDERR (warnings, errors and assertion_fails)</P>
-<P>
-<HR>
-<H1><A NAME="author">AUTHOR</A></H1>
-<P>Lars Kruse, &lt;<A HREF="mailto:lak@praqma.net">lak@praqma.net</A>&gt;.</P>
-<P>
-<HR>
-<H1><A NAME="bugs">BUGS</A></H1>
-<P>No known bugs.</P>
-<P>
-<HR>
-<H1><A NAME="support">SUPPORT</A></H1>
-<P>See the website for the Accelerated ClearCase project at <A HREF="http://launchpad.net/acc">http://launchpad.net/acc</A></P>
-<a href="http://launchpad.net/acc">Accelerated ClearCase</a><P>
-<HR>
-<H1><A NAME="copyright">COPYRIGHT</A></H1>
-<P>This program is distributed under the GNU GPL v3.0 license</P>
+ 0=You have only logged informations or nothing at all</pre>
+<p>The you can use the get_accumulated_errorlevel method:</p>
+<pre>
+  <span class="keyword">exit</span> <span class="variable">$log</span><span class="operator">-&gt;</span><span class="variable">get_accumulated_errorlevel</span><span class="operator">;</span>
+</pre>
+<p>The verbose mode is turned off at class instantiation if you enable it, the messages are also
+written to STDOUT (informations) or STDERR (warnings, errors and assertion_fails)</p>
+<p>
+</p>
+<hr />
+<h1><a name="author">AUTHOR</a></h1>
+<p>Lars Kruse, &lt;<a href="mailto:lak@praqma.net">lak@praqma.net</a>&gt;.</p>
+<p>
+</p>
+<hr />
+<h1><a name="bugs">BUGS</a></h1>
+<p>No known bugs.</p>
+<p>
+</p>
+<hr />
+<h1><a name="support">SUPPORT</a></h1>
+<p>See the website for the Accelerated ClearCase project at <a href="http://launchpad.net/acc">http://launchpad.net/acc</a></p>
+<a href="http://launchpad.net/acc">Accelerated ClearCase</a><p>
+</p>
+<hr />
+<h1><a name="copyright">COPYRIGHT</a></h1>
+<p>This program is distributed under the GNU GPL v3.0 license</p>
 
-</BODY>
+</body>
 
-</HTML>
+</html>

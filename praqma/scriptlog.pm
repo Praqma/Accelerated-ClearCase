@@ -24,7 +24,7 @@ my $LogIsOpen  = 0;     #Flag indicating wether the log is succesfully open or n
 
 # Module version
 our $VERSION = "1.0";
-our $BUILD   = "5";
+our $BUILD   = "6";
 our $header  = <<ENDHEADER;
 #########################################################################
 #     This module contains a class which enables easy script logging
@@ -46,6 +46,10 @@ DATE        EDITOR  NOTE
 2009-08-19  Lars Kruse     Changed the printing subs (i+w+e) so they only
                            print the timestamp to the log - not STDOUT.
                            Added information_always() (version 1.0.5)
+2009-11-10  Lars Kruse     Changed the behaviour of the set_verbose.
+                           It now check for environment variables
+                           SCRIPTLOG_VERBOSE or CLEARCASE_TRIGGER_VERBOSE
+                           (version 1.0.6)
 -------------------------------------------------------------------------
 ENDREVISION
 
@@ -68,6 +72,8 @@ sub get_accumulated_errorlevel { return ($Err_count) ? 2 : ($Warn_count) ? 1 : 0
 sub set_verbose() {
     my $self = shift;
     $Verbose = shift; # boolean
+    $Verbose && return;
+    if ( defined( $ENV{SCRIPTLOG_VERBOSE} ) || defined( $ENV{CLEARCASE_TRIGGER_VERBOSE} ) ) { $Verbose = 1; }
 }
 
 sub set_logfile() {
@@ -176,13 +182,7 @@ sub dump_ccvars {
         @_ = `set CLEARCASE`;
         $self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
         $self->dump_array( \@_ );
-
-        #$Enabled && $self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
-        #$Enabled && $self->dump_array( \@_ );
-
-        #$Verbose && $self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
-        #$Verbose && $self->dump_array( \@_ );
-      }
+     }
 }
 
 ######## (...designed to be) Private ###########
@@ -255,7 +255,7 @@ Used to ease the logging of perl scripts.
 =head2 Setters
 
  set_logfile(pname)
- set_verbose(0|1)
+ set_verbose(0|1)  (reads environment variables SCRIPTLOG_VERBOSE and CLEARCASE_TRIGGER_VERBOSE)
 
 =head2 Getters
 
@@ -268,7 +268,7 @@ Used to ease the logging of perl scripts.
 =head2 Methods
 
  enable
- conditional_enable([flag])
+ conditional_enable([boolean]) (reads environment variables SCRIPTLOG_ENABLE and CLEARCASE_TRIGGER_DEBUG)
  disable
  information(msg)
  information_always(msg)
@@ -312,7 +312,7 @@ file pathnames - The assumption is that if you are using the scriptlog
 class it's because you want a log to be created. Thus if the log
 creation fails then the executing script is dragged into the fall - and dies!
 
-There is and alternative enable method you can use. It's called conditional_enable
+There is and alternative enable method you can use. It's called C<conditional_enable>
 
   $log->conditional_enable
 
