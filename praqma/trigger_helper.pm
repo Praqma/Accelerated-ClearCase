@@ -100,7 +100,7 @@ sub enable_semaphore_backdoor($) {
     return $msg;
 }
 
-sub enable_install() {
+sub enable_install($$) {
   my ( $sw_install, $sw_vob, $sw_script, $sw_trigger, $sw_preview );
   my %options = (
       "install"   => \$sw_install,
@@ -110,6 +110,7 @@ sub enable_install() {
       "preview"   => \$sw_preview,
   );
   GetOptions(%options);
+  
   return 0 unless defined($sw_install);
 
   my $usage = <<ENDUSAGE;
@@ -134,20 +135,20 @@ sub enable_install() {
   -preview                Displays the cleartool command that installs the trigger,
                           but does not actually execute it. This switch allows you to
                           run the script even if you are not the VOB owner
-  
-  ENDUSAGE
-  
+ENDUSAGE
+
   my $self = shift;
-  my %installopt=shift;
+  my $installopt_ref=shift;
+  my %installopt = %$installopt_ref;
 
   my $key_name = 'name';
   my $key_support = 'supports';
-  my key_mktrtype = 'mktrtype';
-  our ($trigger_name, $trigger_support, $trigger_mktrtype);
+  my $key_mktrtype = 'mktrtype';
+  my ($trigger_name, $trigger_support, $trigger_mktrtype);
 
-  $trigger_name = $installopt{'$key_name'};
-  $trigger_support = $installopt{'$key_name'};
-  $trigger_mktrtype = $installopt{'$key_name'};
+  $trigger_name = $installopt{$key_name};
+  $trigger_support = $installopt{$key_support};
+  $trigger_mktrtype = $installopt{$key_mktrtype};
   
 
   die "The trigger name should have been passed in a key named '$key_name' but it wasn't\n"
@@ -184,63 +185,39 @@ sub enable_install() {
   die "The script '$trigger_pname' is not accessible\n\n$usage\n"
     unless ( -e $trigger_pname );
 
-##### <<<<<<< TREE
-
 	my @vobtypes = acc::get_vobtypes($sw_vob);
 	my @allowed_vob_context = split(',', $trigger_support);
-	# NEXT: The two list must be crossmapped for any matcheed, and trigger installed upon match	
-	die;
-	
-    defined($sw_preview) && do print $allowed_vob_context;
 
-#	$::TRIGGER_INSTALL =~ /vob:(.*)/;
-#    my @target_vobs = split(',', $1);
-#    foreach (@target_vobs) {
-#        if ($_ == "both") {
-#			die "ERROR: The specified VOB could not be identified"
-#    		  unless ($allowed_vob_context ge 1);
-#    	} elsif ($_ == "adminvob") {
-#			die "ERROR: This trigger '$::TRIGGER_NAME' can only be set on AdminVOBs (which $sw_vob is not)\n"
-#    		  unless ($allowed_vob_context == 2) || ($allowed_vob_context == 4);
-#    	} elsif ($_ == "clientvob") {
-#        	die "ERROR: This trigger '$::TRIGGER_NAME' can only be set on ClientVOBs (which $sw_vob is not)\n"
-#    		  unless ($allowed_vob_context == 1) || ($allowed_vob_context == 3);
-#    	}
-#    }
-#
-#
-#
-#
-#
-#    #Assert the $TRIGGER_INSTALL string is compliant
-#    die "ERROR The trigger install string '$::TRIGGER_INSTALL' is not compliant\n"
-#      unless ( lc($::TRIGGER_INSTALL) =~ /vob:(adminvob|clientvob|both)/ );
-#    my $allowed_vob_context = $1;
-
-#    ( $allowed_vob_context eq "adminvob" ) && do {
-#        die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on AdminVOBs (which $sw_vob is not)\n"
-#          unless acc::is_adminvob( "vob:" . $sw_vob );
-#    };
-
-#    ( $allowed_vob_context eq "clientvob" ) && do {
-#        die "WARNING: This trigger '$::TRIGGER_NAME' can only be set on Client VOBs (which $sw_vob is not)\n"
-#          unless acc::is_clientvob( "vob:" . $sw_vob );
-#    };
->>>>>>> MERGE-SOURCE
-
+  # match the two arrays against each other - get out as soon as a batchi is found
+  my $match;
+  foreach my $vt (@vobtypes){
+  	$match && last;
+  	foreach my $avc(@allowed_vob_context){
+  		(lc($vt) eq lc($avc)) && do {$match=$vt; last}
+  	}
+  }
+  
+  $match || do {
+  	my $vtlist;
+  	foreach(@vobtypes){$vtlist=$vtlist.$_.",";}
+  	chop($vtlist);
+  	print "Skipping installation of trigger '$trigger_name' on VOB '$sw_vob' ($vtlist). It does not qualify.\n";
+  	exit 0;
+  };
+  
+  print "VOB '$sw_vob' fulfills the roles as [$match] and therefore qualifies for installation of the trigger '$trigger_name'\n";
+  
     # Check if the trigger is already set (in which case we must use the -replace switch)
-    my $trigger_tag = defined($sw_trigger) ? $sw_trigger : $::TRIGGER_NAME;
-
+    my $trigger_tag = defined($sw_trigger) ? $sw_trigger : $trigger_name;
     my $cmd     = "cleartool desc trtype:$trigger_tag\@$sw_vob 2>&1";
     my $cmdexec = `$cmd`;
-    my $replace = ( $? / 256 ) ? "" : " -replace";
+    my $replace = ( $? / 256 ) ? "" : "-replace ";
+    
 
     #Compile the trigger installation command
-    my $trig_inst_com           = "\"Created using the -install switch of the scriptfile: $::Scriptfile\"";
-    my $current_trigger_install = "cleartool " . $::TRIGGER_INSTALL;
-    my $subst_str               = "-c $trig_inst_com -exec \"" . acc::TRIGGER_PERL . " $trigger_pname\" $trigger_tag\@$sw_vob";
-    $current_trigger_install =~ s/vob:(adminvob|clientvob|both)/$subst_str /;
-    $current_trigger_install =~ s/mktrtype/mktrtype$replace/;
+    my $trig_inst_com           = "\"Created using the -install switch of $::Scriptfile\"";
+    my $current_trigger_install = "cleartool" . " mktrtype $replace". $trigger_mktrtype .
+                                  " -c $trig_inst_com -exec \"" . acc::TRIGGER_PERL . " $trigger_pname\" $trigger_tag\@$sw_vob";
 
     #If all the uses wanted was a preview it's time to get out
     defined($sw_preview) && do {
