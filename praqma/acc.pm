@@ -103,7 +103,7 @@ These constants defines environment variables which code may be looking for to o
 ACC has some functions used to identify the VOB type.
 This functions are especially important for
 
-A VOB is defined as one of four types of VOBs, which is PVOB, AdminVOB, UCMVOB and BaseVOB.
+A VOB is defined as one of four types of VOBs, which is PVOB, AdminVOB, Ucmvob and BaseVOB.
 
 =head3 PVOB
 
@@ -170,7 +170,7 @@ use constant VOBTYPE_PVOB                => 'pvob';
 use constant VOBTYPE_ADMINVOB            => 'adminvob';       
 use constant VOBTYPE_UCM_CLIENT          => 'ucmvob';       
 use constant VOBTYPE_BCC_CLIENT          => 'bccvob';
-use constant ATTYPE_CUSTOM_VOBTYPE       => 'ACC_VOBType';
+use constant ATTYPE_CUSTOM_VOBTYPE       => 'ACC_VOBType';                     # -vtype string -c "Used to define Custom VOB types to be used be the trigger_helper module"
 
 
 # Module version
@@ -201,9 +201,8 @@ DATE        EDITOR  NOTE
 2008-20-06  Jens Brejner   Stepped to v.l.0.6, don´t know what was changed
                            in v1.0.5. Added 2 constants.
 2009-28-07  Jens Brejner   Removed duplicate declaration.
-2009-21-10  Mikael Jensen  Stepped to v.1.1.7 Added functions:
-                           "is_pvob" and "is_clientorucmvob"
-
+2009-11-10  Lars Kruse     Added the get_vobtypes sub and the necessary 
+                           support for that (v1.0.7)
 -------------------------------------------------------------------------
 ENDREVISION
 my $self = {};    #Reference to an anonymous hash, Will be blessed later
@@ -227,26 +226,66 @@ sub get_adminvob($) {
 
 =head2 get_adminvob( $vob )
 
-Takes a vobtag and returns the top-level AdminVOB in the chain of AdminVOB hyperlinks.
+Takes a vobtag and returns the AdminVOB.
 
 Parameters:
 
  $vob              = The VOB to check.
+                     It can be aither a vob tag or a vob object. 
+                     Both examples are legal;
+                       get_adminvob("\TheVob");
+                       get_adminvob("vob:\TheVob");
 
 Returns:
 
- The top most AdminVOB in the chain of AdminVOB hyperlinks. if the VOB has no AdminVOB hyperlinks it returns $vob (self).
+ The AdminVOB. If the VOB has no AdminVOB hyperlinks it returns the vob-tag of the $vob.
 
 =cut
 
-    my $vob = shift;
+    my $vob = "vob:".shift;
+    $vob =~ s/vob:vob:/vob:/;
     my $retval = join "", get_hlinks( $vob, "->", "AdminVOB" );
     if ( $retval eq "" ) {
+        $vob =~ s/vob://;
         return $vob;
     } else {
-        return &get_adminvob($retval);
+        $retval =~ s/vob://;
+        return $retval;
     }
 }
+
+sub get_top_adminvob($) {
+
+=head2 get_adminvob( $vob )
+
+Takes a vob and returns the top-level AdminVOB in the chain of AdminVOB hyperlinks.
+
+Parameters:
+
+ $vob              = The VOB to check.
+                     It can be aither a vob tag or a vob object. 
+                     Both examples are legal;
+                       get_adminvob("\TheVob");
+                       get_adminvob("vob:\TheVob");
+
+Returns:
+
+ The top most AdminVOB in the chain of AdminVOB hyperlinks. if the VOB has no AdminVOB hyperlinks it returns the vobtag of $vob (self).
+
+=cut
+
+    my $vob = "vob:".shift;
+    $vob =~s/vob:vob:/vob:/;
+    
+    my $retval = join "", get_hlinks( $vob, "->", "AdminVOB" );
+    if ( $retval eq "" ) {
+        $vob =~ s/vob://;
+        return $vob;
+    } else {
+        return &get_top_adminvob($retval);
+    }
+}
+
 
 ##############################################################################
 
@@ -267,22 +306,18 @@ Returns:
 
 =cut
 
-    my $vob = shift;
+    my $vob = "vob:".shift;    # Prefix the vob tag to make it a vob object
+    $vob =~ s/vob:vob:/vob:/;  # Clean up if vob: object prefix is now doubbled
 
 	my @clients = get_hlinks( $vob, "<-", "AdminVOB");
 	my $clientcount = scalar @clients;
 	$clientcount && return $clientcount;
-
-#    my $cmd     = "cleartool desc -s -aattr " . acc::ATTYPE_ACCMETADATA . " $vob";
-#    my @res     = `$cmd`;
-#    my $isadmin = scalar @res;
-#    return $isadmin;
-
 }
 
 ##############################################################################
 
 
+## is_clientvob  is deprecated
 sub is_clientvob {
 
 =head2 is_clientvob( $vob )
@@ -305,7 +340,7 @@ Returns:
     return ( scalar @adminvobs ) ? 0 : 1;
 }
 
-###############################################################
+## is_poradminvob is deprecated
 sub is_poradminvob {
 #REVIEW LAK
 # Don't use raw integers, use named states!!!!!
@@ -346,6 +381,7 @@ Returns:
 
 ##############################################################################
 
+## is_baseorucmvob is deprecated
 sub is_baseorucmvob {
 #REVIEW LAK
 # Don't use raw integers, use named states!!!!!	
@@ -379,6 +415,17 @@ Returns:
 
 ##############################################################################
 
+sub is_pvob($){
+# When you lsvob a PVOB it will list the (ucmvob) keyword in the end:
+# cleratool lsvob  \PDS_PVOB
+#   \PDS_PVOB            APPDKHI013:E:\ClearCaseStorage\VOBs\PDS_PVOB.vbs  (ucmvob)
+	my $vob = shift;
+	my $retval = `cleartool lsvob $vob`;
+	if ($retval =~ /\(ucmvob\)$/){return 1};
+	return 0;
+}
+
+## get_vobtype is deprecated
 sub get_vobtype {
 
 =head2 get_vobtype( $vob )
@@ -432,6 +479,52 @@ Returns:
 }
 
 ##############################################################################
+
+sub get_vobtypes{
+	my $vob = shift;
+	
+	# Get the ACC_VOBType attribute: a csv list of supported custom vob type
+	my $cmd = "cleartool desc -s -aattr ".ATTYPE_CUSTOM_VOBTYPE." vob:$vob";
+	my $raw_vobtypeattr = `$cmd`;
+  $? && die "Execution of: [$cmd] failed\n"; # assert success
+	chomp($raw_vobtypeattr); 
+	$raw_vobtypeattr =~ s/\"//g; # get rid of the 'required' quotes in CC string attributes
+	my @result = split(',', $raw_vobtypeattr); # feed it to the result
+  
+	# Determine the generic VOB type
+	
+	# Is it a PVOB?
+	is_pvob($vob) && do{
+		push @result, VOBTYPE_PVOB;
+		return @result;
+	};
+	
+	# Is it an AdminVOB
+	is_adminvob($vob) && do{
+		push @result, VOBTYPE_ADMINVOB;
+		return @result;
+	};
+	
+	#Is it a Base ClearCase VOB (one without an AdminVOB hyperlink?
+	my $adminvob = get_adminvob($vob);
+	($adminvob eq $vob) && do {
+		push @result, VOBTYPE_BCC_CLIENT; # The Vob is self-contained - it has No AdminVOB
+		return @result;
+  };
+  
+  # Is it an UCM vob
+	(is_pvob($adminvob)) && do {
+  	push @result, VOBTYPE_UCM_CLIENT; # The VOB has an AdminVOB hlink pointin to a PVOB
+		return @result;
+	};
+  
+  # OK The is't a Base ClearCase VOB (one with a hlink to a regular AdminVOB )
+ 	push @result, VOBTYPE_BCC_CLIENT; # The VOB has an AdminVOB hlink pointin to a PVOB
+	return @result;
+}
+
+##############################################################################
+
 
 sub get_restriction($$) {
 
@@ -656,7 +749,7 @@ Parameters:
 Returns:
 
  1     =  Restriction is either created or existed already
- 0     =  ERROR the restriction couldn't be created.
+ 0     =  ERROR the restriction couldn´t be created.
 
 =cut
 
@@ -680,7 +773,7 @@ Returns:
     my @restlist;
     if ( get_from_hlinks( \$full_lb, \acc::HLTYPE_RESTRICTED, \@restlist ) && grep $full_br, @restlist ) {
         print "WARNING:\n" . "$full_lb already has a restriction to \n$full_br\n";
-        return 1;    # Return true even though we didn't do anything
+        return 1;    # Return true even though we didn´t do anything
     }
 
     if ( ( lc( $ENV{acc::CLEARCASE_FORCE_RESTRICTION} ) ne "true" ) && get_to_hlinks( \$full_lb, \"GlobalDefinition", \@_ ) ) {
@@ -810,7 +903,7 @@ sub mkattr_unique($$) {
 
 =head2 mkattr_unique(  \$attype, \$obj )
 
-creates an attribute using the attypes default value it doesn't  already exist. Will not create it if it's already there.
+creates an attribute using the attypes default value it doesn´t  already exist. Will not create it if it´s already there.
 
 Parameters:
 
@@ -820,7 +913,7 @@ Parameters:
 Returns:
 
  1     =  Succes - created the attribute or validated that it already existed.
- 0     =  ERROR - attribute doesn't exist and couldn't be created.
+ 0     =  ERROR - attribute doesn´t exist and couldn´t be created.
 
 =cut
 
@@ -865,7 +958,7 @@ Parameters:
 Returns:
 
  1     =  Succes - removed all hyperlinks or validated that no one existed.
- 0     =  ERROR -  Couldn't remove all hyperlinks.
+ 0     =  ERROR -  Couldn´t remove all hyperlinks.
 
 =cut
 
