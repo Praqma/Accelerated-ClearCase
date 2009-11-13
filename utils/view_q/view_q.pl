@@ -76,20 +76,21 @@ BEGIN {
         $Scriptdir  = $1;
         $Scriptfile = $2;
     } else {
-        $Scriptdir  = ".";
+        $Scriptdir  = "";
         $Scriptfile = $0;
     }
 }
 
-use lib "$Scriptdir\\..\\..";
-
+# Use clauses
+use strict;
+use lib "$Scriptdir..//..";
 use Getopt::Long;
 use praqma::scriptlog;
 
 # File version
 #rw2 What version are we on now?
-our $VERSION = "0.4.0";
-our $BUILD   = "4";
+our $VERSION = "0.5";
+our $BUILD   = "5";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;    # Set 1 for testing purpose
@@ -252,7 +253,7 @@ Returns:
 
 =cut
 
-sub validate_options() {
+sub validate_options () {
     my %options = (
         "autoquarantine" => \$sw_autoquarantine,
         "lsquarantine"   => \$sw_lsquarantine,
@@ -275,7 +276,7 @@ sub validate_options() {
     GetOptions(%options);
 }
 
-=head3 enable_log( )
+=head3 enable_log ()
 
 
 The sub-function overwrites the default settings for log, debug and verbose if set manually and enables the functionality in the logger.
@@ -314,7 +315,7 @@ exit:
 
 =cut
 
-sub enable_log() {
+sub enable_log () {
 
     # Overwrites the default logging setting, if set manually
     defined($sw_debug) && do { $debug = $sw_debug }
@@ -367,7 +368,7 @@ sub enable_log() {
     $log->information( "Called with " . $argstring . "\n" );
 }
 
-=head3 xxx_mode( )
+=head3 xxx_mode ()
 
 The sub-functions named xxx_mode all work as switches.
 
@@ -393,11 +394,11 @@ Will force the entire script to exit with 0 or 1
 
 =cut
 
-sub help_mode() {
+sub help_mode () {
     defined($sw_help) && do { print $header. $revision . $usage . $doc; exit 0; };
 }
 
-sub recover_mode() {
+sub recover_mode () {
     defined($sw_recover) && do {
         $log->information("recover\n");
         if (   defined($sw_lsquarantine)
@@ -422,7 +423,7 @@ sub recover_mode() {
     };
 }
 
-sub lsquarantine_mode() {
+sub lsquarantine_mode () {
     defined($sw_lsquarantine) && do {
         $log->information("lsquarantine\n");
         ( defined($sw_purge) || defined($sw_nasince) || defined($sw_quarantine) || defined(@sw_ignore) || defined($sw_autoquarantine) || defined($sw_region) )
@@ -446,7 +447,7 @@ sub lsquarantine_mode() {
     };
 }
 
-sub purge_mode() {
+sub purge_mode () {
     defined($sw_purge) && do {
         $log->information("purge\n");
         (        defined($sw_nasince)
@@ -462,7 +463,7 @@ sub purge_mode() {
     };
 }
 
-sub nasince_mode() {
+sub nasince_mode () {
     defined($sw_nasince) && do {
         $log->information("nasince\n");
         ( defined($sw_quarantine) || defined(@sw_ignore) || defined($sw_autopurge) || defined($sw_region) || defined($sw_autorecover) )
@@ -485,7 +486,7 @@ sub nasince_mode() {
     };
 }
 
-sub quarantine_mode() {
+sub quarantine_mode () {
     defined($sw_quarantine) && do {
         $log->information("quarantine\n");
         ( defined(@sw_ignore) || defined($sw_autoquarantine) || defined($sw_autopurge) || defined($sw_region) || defined($sw_autorecover) )
@@ -499,7 +500,7 @@ sub quarantine_mode() {
     };
 }
 
-sub ignore_mode() {
+sub ignore_mode () {
     defined(@sw_ignore) && do {
         ( defined(@sw_noignore) || defined($sw_autoquarantine) || defined($sw_autopurge) || defined($sw_autorecover) )
           && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
@@ -553,7 +554,7 @@ sub ignore_mode() {
 
 #######################################
 
-=head3 lsquarantined( )
+=head3 lsquarantined ()
 
 NOTE: This function will only run on ClearCase registry servers!!!
 
@@ -574,7 +575,7 @@ Returns:
 
 =cut
 
-sub lsquarantined( ) {
+sub lsquarantined () {
     my @result;
     foreach ( grep( /-local_path/, `rgy_check -views 2>&1` ) ) {
         /-local_path = \"(\S*)?\"/;
@@ -583,7 +584,7 @@ sub lsquarantined( ) {
     return @result;
 }
 
-=head3 recover_stg( $stg )
+=head3 recover_stg ($stg)
 
 This function recovers a view storage.
 
@@ -601,7 +602,7 @@ Returns:
 
 =cut
 
-sub recover_stg( $ ) {
+sub recover_stg ($) {
     my $stg = shift;
     chomp($stg);
     my $view_q_file_loc = "$stg\\admin\\$view_q_file";
@@ -619,7 +620,7 @@ sub recover_stg( $ ) {
     return 1;
 }
 
-=head3 purge_stg( $stg )
+=head3 purge_stg ($stg)
 
 This function purges a view storage.
 
@@ -639,7 +640,7 @@ Returns:
 
 =cut
 
-sub purge_stg($) {
+sub purge_stg ($) {
     my $stg = shift;
     chomp($stg);    # Stg can be local or global so we only use it
     my $view_q_file_loc = "$stg\\admin\\$view_q_file";
@@ -689,7 +690,7 @@ sub purge_stg($) {
             $log->information("VIEW_Q_TEMP_TAG was not found, continuing\n");
         } else {
             $log->error("VIEW_Q_TEMP_TAG found, removing it now\n");
-            `cleartool rmtag -view VIEW_Q_TEMP_TAG`;
+            `cleartool rmtag -all -view VIEW_Q_TEMP_TAG`;
         }
     } else {
         $log->information("Remove view successful\n");
@@ -698,7 +699,7 @@ sub purge_stg($) {
     return 1;
 }
 
-=head3 quarantine_stg( $stg )
+=head3 quarantine_stg ($stg)
 
 This function quarantines a view storage.
 
@@ -717,7 +718,7 @@ Returns:
 
 =cut
 
-sub quarantine_stg( $ ) {
+sub quarantine_stg ($) {
     my $stg = shift;
     chomp($stg);
     prepare_stg_directory();
@@ -736,17 +737,26 @@ sub quarantine_stg( $ ) {
 
     if ( grep { /^Properties+.*dynamic/ } `cleartool lsview -pro -full $_` ) {
         $log->information("View \"$stg\" is a dynamic view\n");
-    } else {
-        $log->error("The view \"$stg\" is a snapshot view.\nSnapshotviews are currently not supported by view_q.pl\n");
-        return 0;
     }
+
+# JBR DEBIUG
+
+    #     else {
+    #        $log->error("The view \"$stg\" is a snapshot view.\nSnapshotviews are currently not supported by view_q.pl\n");
+    #        return 0;
+    #    }
+
+    if ( grep { /^Properties+.*snapshot/ } `cleartool lsview -pro -full $_` ) {
+        $log->information("View \"$stg\" is a snapshot view\n");
+    }
+# JBR DEBIUG
 
     my @rmtags;
     my @mktags;
     foreach ( split( /;/, $stg_directory{"$stg"} ) ) {
         push( @mktags, "cleartool mktag -view " . $_ . " " . $stg . "\n" );
-        s/-tag//;    # strip the -tag switch which isn't used in rmtag
-        push( @rmtags, "cleartool rmtag -view " . $_ );
+        s/-region.*-tag //;    # strip the -tag -region NNN switch which isn't used in rmtag
+        push( @rmtags, "cleartool rmtag -view -all " . $_ );
     }
     my $view_q_file_loc = $stg . "\\admin\\" . $view_q_file;
     open VIEW_Q_FILE, ">$view_q_file_loc" or $log->assertion_failed("Couldn't open '$view_q_file_loc'\n");
@@ -756,7 +766,7 @@ sub quarantine_stg( $ ) {
     return 1;
 }
 
-=head3 vwsstgs_nasince( $cut_date, \@result )
+=head3 vwsstgs_nasince ( $cut_date, \@result )
 
 This function pushes (global) view storage locations onto the result array
 handed into the sub as a reference if they haven't been accessed since $cut_date.
@@ -779,7 +789,7 @@ Returns:
 
 =cut
 
-sub vwsstgs_nasince($$) {
+sub vwsstgs_nasince ($$) {
     my $cut_date = shift;
     my $result   = shift;
     return 0 unless ( $cut_date =~ /(\d\d\d\d-\d\d-\d\d)/ );
@@ -792,12 +802,16 @@ sub vwsstgs_nasince($$) {
         $_ = $_[1];                                        # Grab the second line (where the relevant timestamp is listed)
         /(\d\d\d\d-\d\d-\d\d)/;                            # Get the date in the format YYYY-MM-DD
 
-        push( @$result, $1 . "\t" . $stg . "\n" ) if $1 le $cut_date;    #If the last accessed date is prior to the cut_date, push it onto the result.
+        if ($1 ne "" ) { # for snapshot views we can't tell the age if .access_info was removed by view_timestamp.pl
+    	       push( @$result, $1 . "\t" . $stg . "\n" ) if $1 le $cut_date;    #If the last accessed date is prior to the cut_date, push it onto the result.
+    	} else {
+	    	push( @$result, "0000-00-00" . "\t" . $stg . "\n" ) if $1 le $cut_date;    #If the last accessed date is prior to the cut_date, push it onto the result.
+    	}
     }
     return 1;
 }
 
-=head3 sub prepare_stg_directory( )
+=head3 sub prepare_stg_directory ( )
 
 This function is related to the global hash: %stg_directory.
 
@@ -826,7 +840,7 @@ Returns:
 
 =cut
 
-sub prepare_stg_directory() {
+sub prepare_stg_directory () {
     return 0 if keys(%stg_directory);    # Someone else already prepared the directory, reuse it! Let's get out.
     foreach my $region (`cleartool lsregion`) {
         chomp($region);
