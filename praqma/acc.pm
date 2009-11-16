@@ -163,11 +163,12 @@ use constant VOBTYPE_ADMINVOB            => 'adminvob';
 use constant VOBTYPE_UCM_CLIENT          => 'ucmvob';       
 use constant VOBTYPE_BCC_CLIENT          => 'bccvob';
 use constant ATTYPE_CUSTOM_VOBTYPE       => 'ACC_VOBType';                     # -vtype string -c "Used to define Custom VOB types to be used be the trigger_helper module"
+use constant ATTYPE_TRIGGER_BLACKLIST    => 'ACC_TriggerBlacklist';            # -vtype string -c "Used to blacklist explicit triggers on VOBs when istalled by the trigger_helper module"
 
 
 # Module version
 $VERSION = "1.0.";
-$BUILD   = "7";
+$BUILD   = "8";
 my $header = <<ENDHEADER;
 #########################################################################
 #     This module contains a class which is a helper-module for         #
@@ -195,6 +196,8 @@ DATE        EDITOR  NOTE
 2009-28-07  Jens Brejner   Removed duplicate declaration.
 2009-11-10  Lars Kruse     Added the get_vobtypes sub and the necessary 
                            support for that (v1.0.7)
+2009-11-16  Lars Kruse     Added constant def ATTYPE_TRIGGER_BLACKLIST
+                           (v1.0.8)                        
 -------------------------------------------------------------------------
 ENDREVISION
 my $self = {};    #Reference to an anonymous hash, Will be blessed later

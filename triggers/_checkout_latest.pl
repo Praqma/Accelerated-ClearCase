@@ -21,15 +21,15 @@ use praqma::trigger_helper;
 #Required if you call trigger_helper->enable_install
 our $TRIGGER_NAME = "ACC_CHECKOUT_LATEST";
 
-
-# vob: is on of clientvob | adminvob | both
-our $TRIGGER_INSTALL = "mktrtype -preop checkout -element -all vob:clientvob";
+our %install_params = (
+  "name"        => $TRIGGER_NAME,                                         # The name og the trigger
+  "mktrtype"    => "-preop checkout -element -all ",                      # The stripped-down mktrtype command
+  "supports"    => "",                                                    # csv list of generic and/or custom VOB types (case insensetive)
+);
 
 # File version
-our $VERSION  = "0.1";
+our $VERSION  = "1.0";
 our $REVISION = "1";
-
-my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -64,40 +64,21 @@ DATE        EDITOR         NOTE
 ENDREVISION
 
 #Enable the features in trigger_helper
-our $thelp = trigger_helper->new;
-$thelp->enable_install;
+our $thelp=trigger_helper->new;
+$thelp->enable_install(\%install_params);  #Pass a reference to the install-options
 $thelp->require_trigger_context;
-
 our $semaphore_status = $thelp->enable_semaphore_backdoor;
 
 #Enable the features in scriptlog
 our $log = scriptlog->new;
-
-# Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or
-# SCRIPTLOG_ENABLE=1 to start logging
-$log->enable();
-
-
-#$log->conditional_enable();
-#$log->set_verbose($verbose_mode);
-$log->set_verbose(1);
-our $logfile = $log->get_logfile;
-($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
+$log->conditional_enable(); #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->set_verbose;          #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
+our $logfile=$log->get_logfile;
+($logfile) && $log->information("logfile is: $logfile\n"); # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
+$log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
 
 
-my $debug = 0;                                                # Write more messages to the log file
-
-#mij HMM virker ikke overbevisende - hold øje...
-
-
-if ($ENV{'CLEARCASE_TRIGGER_DEBUG'}) {
-    $debug = 1;
-    $log->dump_ccvars;                                        # Run this statement to have the trigger dump the CLEARCASE variables
-}
-
-# End of standard stuff
-# ------------------------------------
 # Here starts the actual trigger code.
 my $cmd = "cleartool find \"$ENV{CLEARCASE_PN}\" -version version(\\$ENV{CLEARCASE_BRTYPE}\\LATEST) -print";
 my $latest = `$cmd`;

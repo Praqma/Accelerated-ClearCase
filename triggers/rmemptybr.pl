@@ -53,7 +53,22 @@ DATE        EDITOR  NOTE
                            (version 1.1.2)
 ------------------------------------------------------------------------------
 ENDREVISION
-fs
+
+#Enable the features in trigger_helper
+our $thelp=trigger_helper->new;
+$thelp->enable_install(\%install_params);  #Pass a reference to the install-options
+$thelp->require_trigger_context;
+our $semaphore_status = $thelp->enable_semaphore_backdoor;
+
+#Enable the features in scriptlog
+our $log = scriptlog->new;
+$log->conditional_enable(); #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->set_verbose;          #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
+our $logfile=$log->get_logfile;
+($logfile) && $log->information("logfile is: $logfile\n"); # Logfile is null if logging isn't enabled.
+$log->information($semaphore_status);
+$log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
+
 ##################
 snap_load();
 

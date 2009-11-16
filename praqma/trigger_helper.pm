@@ -202,18 +202,39 @@ ENDUSAGE
   	my $vtlist;
   	foreach(@vobtypes){$vtlist=$vtlist.$_.",";}
   	chop($vtlist);
-  	print "Skipping installation of trigger '$trigger_name' on VOB '$sw_vob' ($vtlist). It does not qualify.\n";
+  	print "[-]\t$trigger_name' does not qualify for VOB '$sw_vob' ($vtlist)\n";
+  	uninstall_trtype($trigger_name, $sw_vob);
   	exit 0;
   };
   
-  print "VOB '$sw_vob' fulfills the roles as [$match] and therefore qualifies for installation of the trigger '$trigger_name'\n";
+  # Check if there is a blacklist disqualifying the installation  
+  # Get the ACC_TriggerBlacklist attribute: a csv list of blacklisted trigger names
   
+	my $cmd = "cleartool desc -s -aattr ".acc::ATTYPE_TRIGGER_BLACKLIST." vob:$sw_vob";
+	my $raw_triggerblattr = `$cmd`;
+  $? && die "Execution of: [$cmd] failed\n"; # assert success
+	chomp($raw_triggerblattr); 
+	$raw_triggerblattr =~ s/\"//g; # get rid of the 'required' quotes in CC string attributes
+	my @blacklist = split(',', $raw_triggerblattr); # make a list;
+	
+	my $bl_match=0;
+	foreach my $bl (@blacklist){
+		$bl_match = (lc($bl) eq lc($trigger_name));
+		$bl_match && last;		
+	}
+	
+	
+	$bl_match && do {
+    print "[-]\t$trigger_name' match the role as [$match] but the trigger is blacklisted on VOB '$sw_vob'.\n";
+		uninstall_trtype($trigger_name, $sw_vob);
+    exit 0;
+	};
+
+	print "[+]\t$trigger_name' match the role as [$match] on VOB '$sw_vob'.\n";
     # Check if the trigger is already set (in which case we must use the -replace switch)
     my $trigger_tag = defined($sw_trigger) ? $sw_trigger : $trigger_name;
-    my $cmd     = "cleartool desc trtype:$trigger_tag\@$sw_vob 2>&1";
-    my $cmdexec = `$cmd`;
-    my $replace = ( $? / 256 ) ? "" : "-replace ";
-    
+
+    my $replace = ( has_trtype($trigger_tag,$sw_vob) )? "-replace " : "";
 
     #Compile the trigger installation command
     my $trig_inst_com           = "\"Created using the -install switch of $::Scriptfile\"";
@@ -228,6 +249,36 @@ ENDUSAGE
 
     #Else you do your thing
     exit system($current_trigger_install);
+}
+
+sub has_trtype($$){
+	my $trtype = shift;
+	my $vob = shift;
+  # Check if the trigger is already set (in which case we must use the -replace switch)
+  my $cmd     = "cleartool desc trtype:$trtype\@$vob 2>&1";
+  my $cmdexec = `$cmd`;
+  #scalar_dump(\$cmd);
+  $? && return 0;
+  return 1;
+}
+
+sub uninstall_trtype($$){
+	my $trtype = shift;
+	my $vob = shift;
+	has_trtype($trtype,$vob)&& do {
+    my $cmd     = "cleartool rmtype trtype:$trtype\@$vob 2>&1";
+    my $cmdexec = `$cmd`;
+    $? && do {
+    	print STDERR "ERROR: Failed to remove trigger:\n".
+                   "[Command:]\n$cmd\n".
+                   "[Returned:]\n$cmdexec\n";
+      die;
+    };
+    
+    print "The trigger '$trtype' was uninstalled from the VOB $vob\n";
+	};
+	
+	
 }
 
 sub scalar_dump($) {
