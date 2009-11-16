@@ -226,13 +226,18 @@ to exactly one of the types. These generic types are:</p>
   pvob               = A UCM Project VOB
   adminvob           = The definition is a VOB pointed to by one or more AdminVOB hyperlinks and which is not an UCM Project VOB
   ucmvob             = A Vob containing UCM components, defined as a VOB pointing to a UCM Project VOB with an AdminVOB hyperlink
-  bccvob   = All VOBs that doesn't fall into one of the above categories</pre>
+  bccvob             = All VOBs that doesn't fall into one of the above categories</pre>
 <p>If your world of VOB types is more sophisticated than the four generic types above then you can simpy define your own VOB types by 
 attaching the VOB type name you have invented to the VOB object by use of the <code>attype:ACC_VOBType</code> - like this:</p>
 <pre>
   cleartool mkattr ACC_VOBType &quot;\&quot;documentvob\&quot;&quot; vob:\MyDocVob
   
-Once you have done that, you are free to refer to the self-invented VOB type 'documentvob' in your I&lt;supports&gt; list</pre>
+Once you have done that, you are free to refer to the self-invented VOB type 'documentvob' in your I&lt;supports&gt; list.</pre>
+<p>The <em>supports</em> list implicitly includes the trigger name itself, that meant, if a VOB has included a trigger name in the c&lt;ACC_VOBType&gt; attribute
+then that particular trigger will install. like this:</p>
+<pre>
+  cleartool mkattr ACC_VOBType &quot;\&quot;ACC_RMEMPTYBR,ACC_CHOW_ON_MKELEM\&quot;&quot; vob:\MyVob</pre>
+<p>Will enable then installation of two triggers triggers on \MyVob.</p>
 <p>If a trigger is supporting more than one type of VOBs (e.g remove empty branch trigger) then you simply add all types to the list. Just make a not that the trigger 
 installs if it maps to <em>any</em> of the listed types. So if you have invented your own VOB types as described above, you might want to consider
 using those as your only references in the trigger install prodecures.</p>

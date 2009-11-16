@@ -187,6 +187,7 @@ ENDUSAGE
 
 	my @vobtypes = acc::get_vobtypes($sw_vob);
 	my @allowed_vob_context = split(',', $trigger_support);
+	push @allowed_vob_context, lc($trigger_name);
 
   # match the two arrays against each other - get out as soon as a batchi is found
   my $match;
@@ -475,14 +476,22 @@ to exactly one of the types. These generic types are:
   pvob               = A UCM Project VOB
   adminvob           = The definition is a VOB pointed to by one or more AdminVOB hyperlinks and which is not an UCM Project VOB
   ucmvob             = A Vob containing UCM components, defined as a VOB pointing to a UCM Project VOB with an AdminVOB hyperlink
-  bccvob   = All VOBs that doesn't fall into one of the above categories
+  bccvob             = All VOBs that doesn't fall into one of the above categories
 
 If your world of VOB types is more sophisticated than the four generic types above then you can simpy define your own VOB types by 
 attaching the VOB type name you have invented to the VOB object by use of the C<attype:ACC_VOBType> - like this:
 
   cleartool mkattr ACC_VOBType "\"documentvob\"" vob:\MyDocVob
   
-Once you have done that, you are free to refer to the self-invented VOB type 'documentvob' in your I<supports> list
+Once you have done that, you are free to refer to the self-invented VOB type 'documentvob' in your I<supports> list.
+
+The I<supports> list implicitly includes the trigger name itself, that meant, if a VOB has included a trigger name in the c<ACC_VOBType> attribute
+then that particular trigger will install. like this:
+
+  cleartool mkattr ACC_VOBType "\"ACC_RMEMPTYBR,ACC_CHOW_ON_MKELEM\"" vob:\MyVob
+
+Will enable then installation of two triggers triggers on \MyVob.
+
 
 If a trigger is supporting more than one type of VOBs (e.g remove empty branch trigger) then you simply add all types to the list. Just make a not that the trigger 
 installs if it maps to I<any> of the listed types. So if you have invented your own VOB types as described above, you might want to consider
@@ -545,11 +554,6 @@ This time span defining how long time a sempahore file is valid can be tweaked b
 =head1 EXAMPLES
 
 You could investigate some of the triggers in the Accelerated ClearCase Open Source Project to see some real-life examples
-
-
-
-
-
 
 
 =for comnment the section above should probably be deleted
