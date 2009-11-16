@@ -38,7 +38,7 @@ and views put into quarantine by view_q.pl is the file called
 
   .view_quarantine
 
-which view_q.pl created in the in the 'admin' subfolder in the view storage. This file contains the history
+which view_q.pl creates in the the 'admin' subfolder in the view storage. This file contains the history
 of tags in all regions from where they were deleted. and enables a complete restore of which can be done from
 any machine with ClearCase installed.
 
@@ -53,9 +53,8 @@ When listing the quarantined views you can either automatically purge or recover
 
 Views can also be purged or recovered individually.
 
-When view_q.pl purges a view it simply re-creates an intermediate view tag and runs a regular
-
-  cleartool remove view
+When view_q.pl purges a view it runs the sequence, rmtag, unregister, rmview by uuid, and it will attempt to
+delete the view storage too.
 
 When a view is recovered by view_q.pl it simply restores all tags in all the regions where it was removed from.
 
@@ -88,9 +87,8 @@ use Getopt::Long;
 use praqma::scriptlog;
 
 # File version
-#rw2 What version are we on now?
 our $VERSION = "0.5";
-our $BUILD   = "5";
+our $BUILD   = "6";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;    # Set 1 for testing purpose
@@ -99,7 +97,7 @@ my $log_enabled  = 1;
 
 # Default setting 0-0-1 (script executio9n will generate NO output unless explicitly told to, but logs to default location [Temp dir]\view_q.pl.[PID].log
 
-# Header and revision history
+# Header history
 our $header = <<ENDHEADER;
 #########################################################################
 #     $Scriptfile  version $VERSION\.$BUILD
@@ -135,7 +133,7 @@ DATE        EDITOR  NOTE
                            Perl module required praqma::scriptlog
 2009-09-21  Jens Brejner   Chg. use lib statement to match reorganized module locations
                            Source formatting, minor syntax changes weeding out some warnings.
-
+2009-11-16  Jens Brejner   Version 0.5.6: Add support for snapshot views
 
 -------------------------------------------------------------------------
 
@@ -515,15 +513,14 @@ sub ignore_mode () {
             $? && $log->error( $? . $_ . "\nCould not find view $viewtag to ignore\n" );
             /^[\s\*]*(\S*)\s*(\S*)$/
               ; # Any number of whitespaces or * (if the view is started) followed by non-whitespace chars (the view tag) followed by some whitespaces and tne another set of non-whitespace chars (the view storage)
-            print $2;    #rw2 debug??
             my $stg = $2;
 
             my $ignore_file_loc = $2 . "\\admin\\" . $view_q_ignore_file;
 
             open VIEW_Q_IGNORE_FILE, ">$ignore_file_loc" or $log->assertion_failed("Couldn't open '$ignore_file_loc'\n");
-            print VIEW_Q_IGNORE_FILE "This view storage is ignored by $Scriptfile\nDelete this file to ";
+            print VIEW_Q_IGNORE_FILE "This view storage is ignored by $Scriptfile\nDelete this file to reenable this storage for view_q.pl considerations\n";
             close VIEW_Q_IGNORE_FILE or $log->error("Couldn't close '$ignore_file_loc'\n");
-            $log->information("Viewtag '$viewtag' has been set to ignored\n");
+            $log->information("Storage '$2' has been set to ignored\n");
         }    # end foreach
         exit 0;
     };    # end ignore
@@ -551,8 +548,6 @@ sub ignore_mode () {
         exit 0;
     };    # end noignore
 }
-
-#######################################
 
 =head3 lsquarantined ()
 
@@ -615,7 +610,7 @@ sub recover_stg ($) {
     # I have to keep trying - I'll give it 40 shots and then I'll bail out
     # ...Need to improve this bit whne i get the time!
     $_ = 0;
-    while ( $_ < 40 && !unlink $view_q_file_loc ) { $_++; }
+    while ( $_ < 10 && !unlink $view_q_file_loc ) { sleep 1; $_++; }
 
     return 1;
 }
@@ -661,39 +656,87 @@ sub purge_stg ($) {
     $_ = $_[0];    # Cache the first entry (we really just need the global storage, so any entry will do)
     /\s(\S*)$/;    # The stg is the last part (whitespace separated) of the stream;
 
-    my $mktagcmd   = "cleartool mktag -view -tag VIEW_Q_TEMP_TAG $1";
-    my $endviewcmd = "cleartool endview -server VIEW_Q_TEMP_TAG";
-    my $rmviewcmd  = "cleartool rmview $1";
+    my $temptag = "VIEW_Q_TEMP_TAG";
+    my $mktagcmd   = "cleartool mktag -view -nstart -tag $temptag $1";
+    my $endviewcmd = "cleartool endview -server $temptag";
+    my $rmtagcmd   = "cleartool rmtag -view $temptag";
 
+    # create temptag so we can get view's properties
     $log->information("$mktagcmd\n");
     system("$mktagcmd");
     if ($?) {
-        $log->error( "Make tag failed with exitcode: " . ( $? / 256 ) . "\n" );    #/ #rw2 EPIC syntax highlight fixer
+        $log->error( "Make tag failed with exitcode: " . ( $? / 256 ) . "\n" );
     } else {
         $log->information("Make tag successful\n");
     }
 
+    # get view properties into hash
+    my %viewprops;
+    foreach (`cleartool lsview -l $temptag`) {
+        /^(.*):\s(.*)$/;
+        $viewprops{$1} = $2;
+    }
+
+    # end the view again
     $log->information("$endviewcmd\n");
     system("$endviewcmd");
     if ($?) {
-        $log->error( "End view failed with exitcode: " . ( $? / 256 ) . "\n" );    #/ #rw2 EPIC syntax highlight fixer
+        $log->error( "End view failed with exitcode: " . ( $? / 256 ) . "\n" );
     } else {
         $log->information("End view successful\n");
     }
 
+    # remove the temp tag again
+    $log->information("$rmtagcmd\n");
+    system("$rmtagcmd");
+    if ($?) {
+        $log->error( "Removal of temp tag failed with exitcode: " . ( $? / 256 ) . "\n" );
+        $log->information( "Search for temptag $temptag returns " . `cleartool lsview -s $temptag` . "\n" );
+        if ($?) {
+            $log->information("$temptag was not found, continuing\n");
+        } else {
+            $log->error("$temptag found, removing it now\n");
+            `cleartool rmtag -all -view $temptag`;
+        }
+    } else {
+        $log->information("Remove temp tag successful\n");
+    }
+
+    # using the properties we found, unregister the view by uuid
+    my $viewuuid = $viewprops{"View uuid"};
+    my $unregcmd = "cleartool unregister -view -uuid $viewuuid 2>&1";
+    system("$unregcmd");
+    if ($?) {
+        $log->error( "Unregister view failed with exitcode: " . ( $? / 256 ) . "\n" );
+    } else {
+        $log->information("Unregister view successful\n");
+    }
+
+    # rmview by UUID
+    my $rmviewcmd = "cleartool rmview -force -all -uuid $viewuuid 2>&1";
     $log->information("$rmviewcmd\n");
     system("$rmviewcmd");
     if ($?) {
-        $log->error( "Remove view failed with exitcode: " . ( $? / 256 ) . "\n" );    #/ #rw2 EPIC syntax highlight fixer
-        $log->information( "Search for temptag VIEW_Q_TEMP_TAG returns " . `cleartool lsview -s VIEW_Q_TEMP_TAG` . "\n" );
-        if ($?) {
-            $log->information("VIEW_Q_TEMP_TAG was not found, continuing\n");
-        } else {
-            $log->error("VIEW_Q_TEMP_TAG found, removing it now\n");
-            `cleartool rmtag -all -view VIEW_Q_TEMP_TAG`;
+        $log->error( "Remove view failed with exitcode: " . ( $? / 256 ) . "\n" );
         }
-    } else {
+         else
+          {
         $log->information("Remove view successful\n");
+    }
+
+    # something is holding on the old storage, wait a bit before continuing
+    sleep 2;
+
+    # attempt to kill the storage
+    my $localstorage = $viewprops{"View server access path"};
+    my $rmstgcmd     = "rmdir /s /q \"$localstorage\"";
+    if ( -e $localstorage ) {
+        system("$rmstgcmd");
+        if ($?) {
+            $log->error( "Removal of old view storage at $localstorage failed with exitcode: " . ( $? / 256 ) . "\n" );
+        } else {
+            $log->information("Removal of old view storage at $localstorage successful\n");
+        }
     }
 
     return 1;
@@ -730,7 +773,6 @@ sub quarantine_stg ($) {
         return 0;
     };
 
-    # Only permit dynamic views
     @_ = split( /;/, $stg_directory{"$stg"} );            # Turn the semi-colon seprated list of tags into an array
     $_ = $_[0];                                           # Get a region/tag pair (anyone will do, so we just grab the first)
     s/-tag//;                                             # strip the -tag switch, it's not used in lsview
@@ -739,24 +781,16 @@ sub quarantine_stg ($) {
         $log->information("View \"$stg\" is a dynamic view\n");
     }
 
-# JBR DEBIUG
-
-    #     else {
-    #        $log->error("The view \"$stg\" is a snapshot view.\nSnapshotviews are currently not supported by view_q.pl\n");
-    #        return 0;
-    #    }
-
     if ( grep { /^Properties+.*snapshot/ } `cleartool lsview -pro -full $_` ) {
         $log->information("View \"$stg\" is a snapshot view\n");
     }
-# JBR DEBIUG
 
     my @rmtags;
     my @mktags;
     foreach ( split( /;/, $stg_directory{"$stg"} ) ) {
         push( @mktags, "cleartool mktag -view " . $_ . " " . $stg . "\n" );
-        s/-region.*-tag //;    # strip the -tag -region NNN switch which isn't used in rmtag
-        push( @rmtags, "cleartool rmtag -view -all " . $_ );
+        s/-tag //;    # strip the -tag which isn't used in rmtag
+        push( @rmtags, "cleartool rmtag -view " . $_ );
     }
     my $view_q_file_loc = $stg . "\\admin\\" . $view_q_file;
     open VIEW_Q_FILE, ">$view_q_file_loc" or $log->assertion_failed("Couldn't open '$view_q_file_loc'\n");
@@ -802,11 +836,12 @@ sub vwsstgs_nasince ($$) {
         $_ = $_[1];                                        # Grab the second line (where the relevant timestamp is listed)
         /(\d\d\d\d-\d\d-\d\d)/;                            # Get the date in the format YYYY-MM-DD
 
-        if ($1 ne "" ) { # for snapshot views we can't tell the age if .access_info was removed by view_timestamp.pl
-    	       push( @$result, $1 . "\t" . $stg . "\n" ) if $1 le $cut_date;    #If the last accessed date is prior to the cut_date, push it onto the result.
-    	} else {
-	    	push( @$result, "0000-00-00" . "\t" . $stg . "\n" ) if $1 le $cut_date;    #If the last accessed date is prior to the cut_date, push it onto the result.
-    	}
+        if ( $1 ne "" ) {                                  # for snapshot views we can't tell the age if .access_info was removed by view_timestamp.pl
+            push( @$result, $1 . "\t" . $stg . "\n" ) if $1 le $cut_date;    #If the last accessed date is prior to the cut_date, push it onto the result.
+        } else {
+            push( @$result, "0000-00-00" . "\t" . $stg . "\n" )
+              if $1 le $cut_date;                                            #If the last accessed date is prior to the cut_date, push it onto the result.
+        }
     }
     return 1;
 }
