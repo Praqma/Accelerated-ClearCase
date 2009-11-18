@@ -11,10 +11,15 @@ use praqma::trigger_helper;
 
 #Required if you call trigger_helper->enable_install
 our $TRIGGER_NAME="ACC_NO_RMELEM_RMVER";                                             
-our $TRIGGER_INSTALL="mktrtype -element -all -preop rmver,rmelem vob:clientvob";   # vob: is on of clientvob | adminvob | both
+
+our %install_params = (
+  "name"        => $TRIGGER_NAME,                                         # The name og the trigger
+  "mktrtype"    => "-element -all -preop rmver,rmelem",                   # The stripped-down mktrtype command
+  "supports"    => "bccvob,ucmvob",                                       # csv list of generic and/or custom VOB types (case insensetive)
+);
 
 # File version
-our $VERSION = "1.0"; 
+our $VERSION = "1.1"; 
 our $REVISION = "1";
 
 my $verbose_mode=1;
@@ -44,24 +49,24 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR  NOTE
 ----------  -------------  ---------------------------------------------------
 2009-06-24  Lars Kruse     1st release prepared for Novo Nordisk (version 1.0.1)
+2009-11-16  Lars Kruse     Now supporting the new enable_install method
 ------------------------------------------------------------------------------
 ENDREVISION
 
 #Enable the features in trigger_helper
 our $thelp=trigger_helper->new;
-$thelp->enable_install;
+$thelp->enable_install(\%install_params);  #Pass a reference to the install-options
 $thelp->require_trigger_context;
-our $semaphore_file = $thelp->enable_semaphore_backdoor;
+our $semaphore_status = $thelp->enable_semaphore_backdoor;
 
 #Enable the features in scriptlog
 our $log = scriptlog->new;
 $log->conditional_enable(); #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
-$log->set_verbose($verbose_mode);
+$log->set_verbose;          #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
 our $logfile=$log->get_logfile;
-($logfile) && $log->information("logfile is: $logfile\n");
-$log->information("Searching valid semaphore file at '$semaphore_file'\n\t\t...but couldn't find any!\n");
-
-#$log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
+($logfile) && $log->information("logfile is: $logfile\n"); # Logfile is null if logging isn't enabled.
+$log->information($semaphore_status);
+$log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
 
 # Cache the vobowner
 our ($domain, $vobowner) = split /\\/, `cleartool desc -fmt \"\%\[owner\]p\" vob:$ENV{CLEARCASE_VOB_PN}`;
@@ -81,9 +86,7 @@ unless ( lc($vobowner) eq lc($ENV{CLEARCASE_USER}) ){ # Do nothing if user is th
   $log->warning("This script is triggered by an event which it was not originally designed to handle\t\tMaybe it's not installed correct?");
 }
 
-
-exit 0; #Comment out this statement when debugging, and let the next take over
-print "OK, since you are the vobwoner!, but exit=1 in debug mode to prevent destruction of element/version during test\n"; exit 1;
+exit 0;
 __END__
 
 ######################## DOCUMENTATION ##############################

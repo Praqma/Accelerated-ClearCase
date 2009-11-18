@@ -4,13 +4,13 @@ use strict;
 our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
-    $Scriptdir  = ".\\";
-    $Scriptfile = $0;      # Assume the script is called from 'current directory' (no leading path - $0 is the file)
-    $Scriptfile =~ /(.*\\)(.*)$/
-      && do {
-        $Scriptdir  = $1;
-        $Scriptfile = $2;
-      }                    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+  $Scriptdir  = ".\\";
+  $Scriptfile = $0;      # Assume the script is called from 'current directory' (no leading path - $0 is the file)
+  $Scriptfile =~ /(.*\\)(.*)$/
+  && do {
+    $Scriptdir  = $1;
+    $Scriptfile = $2;
+  }                    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
 
 use lib $Scriptdir. "..";
@@ -19,16 +19,17 @@ use praqma::scriptlog;
 use praqma::trigger_helper;
 
 #Required if you call trigger_helper->enable_install
-our $TRIGGER_NAME = "ACC_NAMED_BRTYPES_ONLY";
+our $TRIGGER_NAME="ACC_NAMED_BRTYPES_ONLY";
 
-# vob: is on of clientvob | adminvob | both
-our $TRIGGER_INSTALL = "mktrtype -element -all -preop mkbranch vob:both";
+our %install_params = (
+  "name"        => $TRIGGER_NAME,                                         # The name og the trigger
+  "mktrtype"    => "-element -all -preop mkbranch",                       # The stripped-down mktrtype command
+  "supports"    => "NovoNordiskDocVOB",                                   # csv list of generic and/or custom VOB types (case insensetive)
+);
 
 # File version
 our $VERSION  = "1.1";
-our $REVISION = "3";
-
-my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
+our $REVISION = "2";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -39,9 +40,9 @@ our $header = <<ENDHEADER;
 #
 #     This script is intended as trigger script (element -all)
 #     on the mkbranch event. It monitors a list of approved branches
-#     and requires that no branches are created except these.           #
+#     and requires that no branches are created except these.           
 #     Date:       2009-10-07
-#     Author:     Mikael Jensen, mij\@praqma.net
+#     Author:     Lars Kruse, lak\@praqma.net
 #     License:    GNU General Pulic License v3.0
 #     Support:    http://launchpad.net/acc
 #########################################################################
@@ -55,34 +56,28 @@ DATE        EDITOR  NOTE
 ----------  -------------  ----------------------------------------------
 2006-10-26  Lars Kruse     1st release prepared for Novo Nordisk
                            (version 1.0.1)
-2009-10-07  Mikael Jensen  ACC'ified (version 1.1.2)
+2009-11-12  Mikael Jensen+  
+            Lars Kruse     ACC-ified (version 1.1.2)
 -------------------------------------------------------------------------
 ENDREVISION
 
 #Enable the features in trigger_helper
-our $thelp = trigger_helper->new;
-$thelp->enable_install;
+our $thelp=trigger_helper->new;
+$thelp->enable_install(\%install_params);  #Pass a reference to the install-options
 $thelp->require_trigger_context;
-
 our $semaphore_status = $thelp->enable_semaphore_backdoor;
 
 #Enable the features in scriptlog
 our $log = scriptlog->new;
-
-# Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or
-# SCRIPTLOG_ENABLE=1 to start logging
-$log->conditional_enable();
-$log->set_verbose($verbose_mode);
-
-our $logfile = $log->get_logfile;
-($logfile) && $log->information_always("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
+$log->conditional_enable(); #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->set_verbose();        #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
+our $logfile=$log->get_logfile;
+($logfile) && $log->information("logfile is: $logfile\n"); # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
+$log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
 
-$log->dump_ccvars; # Dumps Clearcase variables if debug or verbose is defined
 
-# End of standard stuff
-# ------------------------------------
-# Here starts the actual trigger code.
+### Allow CHECKOUTS ON CERTAIN BRANCHES ONLY ###
 if ( ( $ENV{CLEARCASE_OP_KIND} eq "mkbranch") ) { #Check that the events that fired the trigger are the ones we support
 	my $regexp = "main"; # list of branches that are allowed to create "brtype|brtype|..."
     my $brtype =  $ENV{'CLEARCASE_BRTYPE'};
@@ -95,9 +90,6 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq "mkbranch") ) { #Check that the events that fi
 	}
 }
 exit 0;
-
-#################### sub functions #######################
-
 
 __END__
 
@@ -115,7 +107,7 @@ Trigger name:  C<ACC_NAMED_BRTYPES_ONLY>
 
 =head1 SYNOPSIS
 
-Runs as ClearCase trigger script installed on all vobtypes and is supposed to run on mkbranch operations.
+Runs as ClearCase trigger script installed on special VOB types ("NovoNordiskDocVOB")
 
 The scripts installs itself correctly when executed outside a trigger context using:
 
@@ -134,20 +126,18 @@ An exception is if you execute it in -preview mode
 
 =head1 DESCRIPTION
 
-The triggerscript monitors a list of approved branches and requires that no branches are created except those listed in the $regexp variable. It supports several matchstrings seperated by "|" (vertical bar aka "or" in regex's), but the match pattern is hardcoded (currently as "main").
+The triggerscript monitors a list of approved branches and requires that no branches are created except 
+those listed in the $regexp variable within the script itself. In the version released for NovoNordiskDocVOB 
+types it only supports "main".
 
 =head2 Bypassing the trigger.
 
 To bypass the script you must create the appropriate semaphore file first
 (see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
 
-It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
-that triggers are executed - and semaphore files ar looked-up - at locations where common users only
-have read access.
-
 =head1 AUTHOR
 
-Mikael Jensen, E<lt>mij@praqma.netE<gt>.
+Lars Kruse E<lt>lak@praqma.netE<gt>.
 
 =head1 BUGS
 
@@ -162,4 +152,3 @@ Support:    http://launchpad.net/acc
 =for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
 
 =cut
-

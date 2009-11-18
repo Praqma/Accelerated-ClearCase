@@ -33,11 +33,12 @@ use praqma::trigger_helper;
 #Required if you call trigger_helper->enable_install
 our $TRIGGER_NAME = "ACC_STOP_TWIN";
 
-# REV lak: The trygger isn't needed on AdminVOBs, what about using:
-# our $TRIGGER_INSTALL = "mktrtype -preop lnname -element -all vob:client";
+our %install_params = (
+  "name"        => $TRIGGER_NAME,                                         # The name og the trigger
+  "mktrtype"    => "-preop lnname -element -all",                         # The stripped-down mktrtype command
+  "supports"    => "bccvob,ucmvob",                                       # csv list of generic and/or custom VOB types (case insensetive)
+);
 
-# vob: is on of clientvob | adminvob | both
-our $TRIGGER_INSTALL = "mktrtype -preop lnname -element -all vob:both";
 
 # File version
 our $VERSION  = "1.0";
@@ -79,30 +80,19 @@ DATE        EDITOR         NOTE
 ENDREVISION
 
 #Enable the features in trigger_helper
-our $thelp = trigger_helper->new;
-$thelp->enable_install;
+our $thelp=trigger_helper->new;
+$thelp->enable_install(\%install_params);  #Pass a reference to the install-options
 $thelp->require_trigger_context;
-
 our $semaphore_status = $thelp->enable_semaphore_backdoor;
 
 #Enable the features in scriptlog
 our $log = scriptlog->new;
-
-# Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or
-# SCRIPTLOG_ENABLE=1 to start logging
-$log->conditional_enable();
-$log->set_verbose($verbose_mode);
-our $logfile = $log->get_logfile;
-($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
+$log->conditional_enable(); #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->set_verbose;          #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
+our $logfile=$log->get_logfile;
+($logfile) && $log->information("logfile is: $logfile\n"); # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
-
-my $debug = 0;                                                # Write more messages to the log file
-$ENV{'CLEARCASE_TRIGGER_DEBUG'} && do {
-    $debug = 1;
-    $log->dump_ccvars;                                        # Run this statement to have the trigger dump the CLEARCASE variables
-};
-
-# End of standard stuff
+$log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
 
 # Here starts the actual trigger code.
 my $case_sensitive = 1;                                       # 0 means Case IN-Sensitive name matching
@@ -141,7 +131,7 @@ if ( exists( $ENV{'CLEARCASE_VIEW_KIND'} )
     $snapview = !-e "$parent$sfx/main" && !-e "$parent/$sfx/main";
 }
 
-$debug && $log->information("Snapview ? $snapview\n");
+$log->information("Snapview ? $snapview\n");
 
 my $found = 0;
 my $pattern;    # Casesensitive search pattern - or not
@@ -235,8 +225,7 @@ if ( $pop_kind eq "mkelem" ) {
     # From a "ln", "ln -s" or "mv" command
     if ( !$pop_kind || ( $pop_kind eq "rmname" ) || ( $pop_kind eq "mkslink" ) ) {
 
-        $debug
-          && $log->information( "DEBUG\tLine " . __LINE__ . " Operation is not mkelem, but $pop_kind\n" );
+        $log->information( "DEBUG\tLine " . __LINE__ . " Operation is not mkelem, but $pop_kind\n" );
         $prompt = "$prompt The element name [$element]\\n";
 
     }
