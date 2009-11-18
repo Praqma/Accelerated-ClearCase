@@ -12,6 +12,7 @@ our @EXPORT = qw( get_adminvob
   mkrestriction
   get_composite
   validate_lbtype
+  is_cclt
 );
 
 =head1 NAME
@@ -121,16 +122,21 @@ use constant GLOBAL_SCOPE => 'global';                              # -c "Keywor
 
 use constant LOCAL_TYPE_PREFIX      => '^[Ll][Oo][Cc][Aa][Ll]_';             # -c "RegExp which defines local types prefix (local types must have this prefix)"
 use constant REGEXP_METADATADEFAULT => '<:AccMetaDataDefault::\\(/s*):>';    # -c "RegExp which determins the AccMetaDateDefault VOB within a region"
-use constant ACC_TEMP_LBTYPE_NAME   =>
+use constant ACC_TEMP_LBTYPE_NAME =>
   '^_\._\d+_\._\d+$';    # -c "RegExp defining temp lbtype name while applying Restricted labels with the applyrestricted.pl utility script."
 
 use constant CLEARCASE_FORCE_RESTRICTION => 'CLEARCASE_FORCE_RESTRICTION';    # -c "Environment Variable, when set restrictions can be forced"
 use constant CLEARCASE_ADMINVOB          => 'CLEARCASE_ADMINVOB';             # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
 use constant CLEARCASE_ACCMETADATAVOBVOB => 'CLEARCASE_ACCMETADATAVOB';       # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
 
+# package globals
+use vars qw($clearcaselt);
+$clearcaselt = "";
+
 # Module version
-$VERSION = "0.1.";
-$BUILD   = "7";
+$VERSION = "0.2.";
+$BUILD   = "8";
+
 my $header = <<ENDHEADER;
 #########################################################################
 #     This module contains a class which is a helper-module for         #
@@ -149,13 +155,14 @@ DATE        EDITOR  NOTE
 2007-08-27  Lars Kruse     1st release prepared for ATP
                            (version 1.0)
 2007-09-19  Lars Kruse     Backstepped to version 0.1.2
-2007-11-07  Lars Kruse     Added some support for publishing lbtype
+2007-07-11  Lars Kruse     Added some support for publishing lbtype
                            stepped to version 1.0.3
-2007-21-07  Lars Kruse     Added some support for composite labels
+2007-07-21  Lars Kruse     Added some support for composite labels
                            and config specs. Stepped to version 1.0.4
-2008-20-06  Jens Brejner   Stepped to v.l.0.6, don´t know what was changed
+2008-06-20  Jens Brejner   Stepped to v.l.0.6, don´t know what was changed
                            in v1.0.5. Added 2 constants.
-2009-28-07  Jens Brejner   Removed duplicate declaration.
+2009-07-28  Jens Brejner   Removed duplicate declaration.
+2009-11-18  Jens Brejner   Interface changed, added is_cclt, version is 0.2.8
 
 -------------------------------------------------------------------------
 ENDREVISION
@@ -1166,29 +1173,20 @@ Returns:
 
     # defined them first:
     my %types = (
-        "attype:" . acc::ATTYPE_FROZEN . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
-        "attype:" . acc::ATTYPE_PROMOTION_LEVEL . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -enum \\\"released\\\",\\\"tested\\\",\\\"built\\\",\\\"integrated\\\" ",
-        "attype:" . acc::ATTYPE_KEYWORDS . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
-        "attype:" . acc::ATTYPE_LBTYPE_TEMPLATE . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"[A-Z][A-Z0-9_-\\\\.]{3,30}\\\" ",
-        "attype:" . acc::ATTYPE_BRTYPE_TEMPLATE . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-z][a-z0-9_]{3,30}\\\" ",
-        "attype:" . acc::ATTYPE_ATTYPE_TEMPLATE . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-zA-Z][a-zA-Z0-9]{3,30}\\\" ",
-        "attype:" . acc::ATTYPE_HLTYPE_TEMPLATE . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-zA-Z][a-zA-Z0-9]{3,30}\\\" ",
-        "attype:" . acc::ATTYPE_ACCMETADATA . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
-        "hltype:" . acc::HLTYPE_PUBLISHED . "\@" .
-          $vob => "-c \"ACC meta type\" ",
-        "hltype:" . acc::HLTYPE_COMPOSITE . "\@" .
-          $vob => "-c \"ACC meta type\" ",
-        "hltype:" . acc::HLTYPE_RESTRICTED . "\@" .
-          $vob                                        => "-c \"ACC meta type\" ",
-        "lbtype:" . acc::LBTYPE_INITIAL . "\@" . $vob => "-c \"ACC meta type\" "
+        "attype:" . acc::ATTYPE_FROZEN . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
+        "attype:"
+          . acc::ATTYPE_PROMOTION_LEVEL . "\@"
+          . $vob => "-c \"ACC meta type\" -vtype string -enum \\\"released\\\",\\\"tested\\\",\\\"built\\\",\\\"integrated\\\" ",
+        "attype:" . acc::ATTYPE_KEYWORDS . "\@" . $vob        => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
+        "attype:" . acc::ATTYPE_LBTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[A-Z][A-Z0-9_-\\\\.]{3,30}\\\" ",
+        "attype:" . acc::ATTYPE_BRTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-z][a-z0-9_]{3,30}\\\" ",
+        "attype:" . acc::ATTYPE_ATTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-zA-Z][a-zA-Z0-9]{3,30}\\\" ",
+        "attype:" . acc::ATTYPE_HLTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-zA-Z][a-zA-Z0-9]{3,30}\\\" ",
+        "attype:" . acc::ATTYPE_ACCMETADATA . "\@" . $vob     => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
+        "hltype:" . acc::HLTYPE_PUBLISHED . "\@" . $vob       => "-c \"ACC meta type\" ",
+        "hltype:" . acc::HLTYPE_COMPOSITE . "\@" . $vob       => "-c \"ACC meta type\" ",
+        "hltype:" . acc::HLTYPE_RESTRICTED . "\@" . $vob      => "-c \"ACC meta type\" ",
+        "lbtype:" . acc::LBTYPE_INITIAL . "\@" . $vob         => "-c \"ACC meta type\" "
     );
 
     foreach ( keys(%types) ) {
@@ -1324,3 +1322,51 @@ Returns:
     my $typeref = shift;
     my $kindref = shift;
 }
+
+################################################################
+sub is_cclt {
+
+=head2 is_cclt ()
+
+Clearcase variant.
+
+ClearCase LT has some differencies from Base ClearCase with respect to
+how objects like for instance vobs or views are reported.
+
+On Base ClearCase the command C<cleartool lsvob> returns the vobtag and the global
+access path's for the vobs like in this example:
+
+ \ADMIN               \\cccq7\ccstorage\vobs\ADMIN.vbs private (ucmvob)
+ \bvob2               \\cccq7\ccstorage\vobs\bvob2.vbs private
+
+So it is :
+  vobtag              UNCPATH public|private (properties)
+
+
+Where as the same command on ClearCase LT are reported in this format:
+
+ \DV0241              APPDKHI008:d:\ccstorage\Vobs\DV0241.vbs
+
+So it is:
+  vobtag              server:server_localpath (properties)
+
+This function will return 1 if we are on ClearCase LT, else it returns 0
+
+
+
+=cut
+
+    return $clearcaselt if ( $clearcaselt ne "" ); # If we have already established the value
+
+    # my $found = grep { /Rational ClearCase LT/ } qx(cleartool -ver);
+    if ( grep { /Rational ClearCase LT/ } qx(cleartool -ver) ) {    # true if found
+        $clearcaselt = 1;
+    } else {
+        $clearcaselt = 0;
+    }
+    return $clearcaselt;
+
+}
+
+
+1;
