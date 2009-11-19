@@ -329,6 +329,9 @@ sub enable_log () {
 
     }
 
+	# Ensure consistent time formatting, see IBM Tech note 1249021
+    $ENV{'CCASE_ISO_DATE_FMT'} = "1";
+
     # Checks ARGV for consistency and enables the log
     if ($log_enabled) {
         if ( scalar(@ARGV) gt 1 ) {

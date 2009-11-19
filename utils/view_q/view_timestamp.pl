@@ -21,7 +21,7 @@ use praqma::scriptlog;
 
 # File version
 our $VERSION = "0.2";
-our $BUILD   = "4";
+our $BUILD   = "5";
 
 # Header info
 our $header = <<ENDHEADER;
@@ -771,6 +771,10 @@ None
     $sw_verbose = defined($sw_debug)   ? $sw_debug     : $sw_verbose;
 
     getlastexecution( \$prev_exe_datetime );    # look for last execution
+
+	# Ensure consistent time formatting, see IBM Tech note 1249021
+    $ENV{'CCASE_ISO_DATE_FMT'} = "1";
+
 
 }
 
