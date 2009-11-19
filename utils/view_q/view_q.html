@@ -2,7 +2,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<title>ACC - Accelerated ClearCase, library functions</title>
+<title>view_q.pl - View Quarantine Utilities</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 <link rev="made" href="mailto:" />
 </head>
@@ -19,46 +19,24 @@
 	<li><a href="#name">NAME</a></li>
 	<li><a href="#synopsis">SYNOPSIS</a></li>
 	<li><a href="#description">DESCRIPTION</a></li>
-	<li><a href="#constants">CONSTANTS</a></li>
+	<li><a href="#support">SUPPORT</a></li>
+	<li><a href="#script_implementation">Script Implementation</a></li>
 	<ul>
 
-		<li><a href="#clearcase_types">ClearCase Types</a></li>
-		<li><a href="#keywords">Keywords</a></li>
-		<li><a href="#conventions_and_regular_expressions">Conventions and regular expressions</a></li>
-		<li><a href="#environment_variables">Environment Variables</a></li>
-	</ul>
+		<li><a href="#internal_subfunctions">Internal subfunctions</a></li>
+		<ul>
 
-	<li><a href="#functions">FUNCTIONS</a></li>
-	<ul>
+			<li><a href="#validate_options___">validate_options( )</a></li>
+			<li><a href="#enable_log___">enable_log ()</a></li>
+			<li><a href="#xxx_mode___">xxx_mode ()</a></li>
+			<li><a href="#lsquarantined___">lsquarantined ()</a></li>
+			<li><a href="#recover_stg___stg_">recover_stg ($stg)</a></li>
+			<li><a href="#purge_stg___stg_">purge_stg ($stg)</a></li>
+			<li><a href="#quarantine_stg___stg_">quarantine_stg ($stg)</a></li>
+			<li><a href="#vwsstgs_nasince____cut_date____result__">vwsstgs_nasince ( $cut_date, \@result )</a></li>
+			<li><a href="#sub_prepare_stg_directory____">sub prepare_stg_directory ( )</a></li>
+		</ul>
 
-		<li><a href="#get_adminvob___vob__">get_adminvob( $vob )</a></li>
-		<li><a href="#is_adminvob___vob__">is_adminvob( $vob )</a></li>
-		<li><a href="#is_clientvob___vob__">is_clientvob( $vob )</a></li>
-		<li><a href="#get_restriction___qualified_lbtype___resultref__">get_restriction( $qualified_lbtype, $resultref )</a></li>
-		<li><a href="#split_dir_file___path__">split_dir_file( $path )</a></li>
-		<li><a href="#get_hlinks___obj___direction___hltype__">get_hlinks( $obj, $direction, $hltype )</a></li>
-		<li><a href="#is_frozen____fqlbtype_">is_frozen(  \$fqlbtype)</a></li>
-		<li><a href="#get_from_hlinks___typeref___hltyperef___returnarrref__">get_from_hlinks(  $typeref, $hltyperef, $returnarrref )</a></li>
-		<li><a href="#get_to_hlinks___typeref___hltyperef___returnarrref__">get_to_hlinks(  $typeref, $hltyperef, $returnarrref )</a></li>
-		<li><a href="#mkrestriction___lbtyperef___brtyperef___vobref__">mkrestriction(  $lbtyperef, $brtyperef, $vobref )</a></li>
-		<li><a href="#scalar_dump____scalar__">scalar_dump(  \$scalar  )</a></li>
-		<li><a href="#objexist____obj__">objexist(  \$obj  )</a></li>
-		<li><a href="#mkhlink_unique____fromobj____toobj____hltype__">mkhlink_unique(  \$fromobj, \$toobj, \$hltype )</a></li>
-		<li><a href="#mkattr_unique____attype____obj__">mkattr_unique(  \$attype, \$obj )</a></li>
-		<li><a href="#rmhlink_all___fromobjref___toobjref___hltyperef__">rmhlink_all(  $fromobjref, $toobjref, $hltyperef )</a></li>
-		<li><a href="#list_published___vobref___long__">list_published(  $vobref, $long )</a></li>
-		<li><a href="#get_acc_meta_data_vobs____returnlist__">get_acc_meta_data_vobs( \@returnlist )</a></li>
-		<li><a href="#get_published___vobref___long___returnarrayref__">get_published(  $vobref, $long, $returnarrayref  )</a></li>
-		<li><a href="#get_composite___lbtype___level___resultref__">get_composite( $lbtype, $level, $resultref )</a></li>
-		<li><a href="#validate_lbtype___lbtype___retvalref__">validate_lbtype( $lbtype, $retvalref )</a></li>
-		<li><a href="#freeze___lbtyperef__">freeze( $lbtyperef )</a></li>
-		<li><a href="#labels_to_cs___labelcsv___branch___csref__">labels_to_cs( $labelcsv, $branch, $csref )</a></li>
-		<li><a href="#lbtype_to_csrule___lbref___retref__">lbtype_to_csrule( $lbref, $retref )</a></li>
-		<li><a href="#initmeta____vob__">initmeta( \$vob )</a></li>
-		<li><a href="#set_default_acc_meta____vob___region__">set_default_acc_meta( \$vob,\$region )</a></li>
-		<li><a href="#get_default_acc_meta____result__">get_default_acc_meta( \$result )</a></li>
-		<li><a href="#validate_global_invob___vobref___typeref___kindref___paramsref__">validate_global_invob( $vobref, $typeref, $kindref, $paramsref )</a></li>
-		<li><a href="#is_cclt___">is_cclt ()</a></li>
 	</ul>
 
 </ul>
@@ -70,455 +48,215 @@
 <p>
 </p>
 <h1><a name="name">NAME</a></h1>
-<p>ACC - Accelerated ClearCase, library functions</p>
+<p>view_q.pl - View Quarantine Utilities</p>
 <p>
 </p>
 <hr />
 <h1><a name="synopsis">SYNOPSIS</a></h1>
-<p>To ease the deployment of the acc.pm module it's recommended that you keep your scripts and acc.pm
-close together and include the directory that contains the acc.pm module using a relative path.</p>
-<p>Example file structure:</p>
-<pre>
- acc
-   triggers
-   utils
-   modules</pre>
-<p>In order to use a relative path, you'll obviously need to determine the location of your running script in a pre-compiled block.</p>
-<p>You can achive that using a regulare BEGIN statement; below is an example on how you can set it up:</p>
-<pre>
- <span class="keyword">our</span> <span class="operator">(</span><span class="variable">$Scriptdir</span><span class="operator">,</span> <span class="variable">$Scriptfile</span><span class="operator">);</span>
- <span class="keyword">BEGIN</span>
- <span class="operator">{</span>
-   <span class="variable">$Scriptdir</span> <span class="operator">=</span><span class="string">".\\"</span><span class="operator">;</span> <span class="comment"># Assume $0 only contain the script, not a fully qualified path. In this case the Scriptdir is set to ".\" (CD)</span>
-   <span class="variable">$Scriptfile</span> <span class="operator">=</span> <span class="variable">$0</span><span class="operator">;</span>  <span class="comment"># Assume $0 only contain the script, not a fully qualified path. In this case the Scriptfile to $0</span>
-   <span class="variable">$Scriptfile</span> <span class="operator">=~</span><span class="regex">/(.*\\)(.*)$/</span> <span class="operator">&amp;&amp;</span>  <span class="keyword">do</span><span class="operator">{</span><span class="variable">$Scriptdir</span><span class="operator">=</span><span class="variable">$1</span><span class="operator">;</span><span class="variable">$Scriptfile</span><span class="operator">=</span><span class="variable">$2</span><span class="operator">;}</span> <span class="comment"># If $0 contains backslashes - it's split on the last occurence</span>
- <span class="operator">}</span>
- <span class="keyword">use</span> <span class="variable">lib</span> <span class="variable">$Scriptdir</span><span class="operator">.</span><span class="string">"/../modules"</span><span class="operator">;</span> <span class="comment"># From here it's up to the parent (..) and then down into modules</span>
- <span class="keyword">use</span> <span class="variable">acc</span><span class="operator">;</span>
-</pre>
-<p>if you have other modules that are located in the modules folder that should also use the current directory  you simply go:</p>
-<pre>
- <span class="operator">...</span>
- <span class="keyword">use</span> <span class="variable">lib</span> <span class="variable">$Scriptdir</span><span class="operator">;</span> <span class="comment"># Include current directory</span>
- <span class="keyword">use</span> <span class="variable">acc</span><span class="operator">;</span>
-</pre>
+<p>A collection of features that enables quarantine, purge and recover of views based on
+the view's 'last accessed' date.</p>
+<p>Execute the script with -help switch to learn the syntax and usage.</p>
 <p>
 </p>
 <hr />
 <h1><a name="description">DESCRIPTION</a></h1>
-<p>Used to support ClearCase scripting in general. and Accelerated ClearCase
-in particular.</p>
+<p>A fundamental concept to understand when working with view_q.pl is &quot;Stranded views&quot;.</p>
+<p>Stranded views are views that have valid (and registered) view storages, but haven't got any
+view tags in any region.</p>
+<p>Stranded views are unavailable for use, but can easily be brought back to availability by using:</p>
+<pre>
+  cleartool mktag -view ...</pre>
+<p>Clearcase has a feature called rgy_check (which is only available on ClearCase registry servers
+though!). Rgy_check utility can report stranded views.</p>
+<pre>
+  rgy_check -views</pre>
+<p>Run cleartool man rgy_check to learn more.</p>
+<p>When view_q.pl puts a view into quarantine, it removes all tags in all regions. This puts the
+view into the state of being 'stranded'. An important difference between 'regular&quot; stranded
+and views put into quarantine by view_q.pl is the file called</p>
+<pre>
+  .view_quarantine</pre>
+<p>which view_q.pl creates in the the 'admin' subfolder in the view storage. This file contains the history
+of tags in all regions from where they were deleted. and enables a complete restore of which can be done from
+any machine with ClearCase installed.</p>
+<p>View_q.pl can be run in a mode where it lists all views not accessed since a certain date. if you whish you
+can even tell view_q.pl to automatically put these views into quarantine.</p>
+<p>View_q.pl has a different mode which lists all views that are currently in quarantine (As you may have figured
+out this is partly determined by the fact that views are stranded, so this mode only works when executed from
+the ClearCase Registry server, which support rgy_check!)</p>
+<p>When listing the quarantined views you can either automatically purge or recover the views.</p>
+<p>Views can also be purged or recovered individually.</p>
+<p>When view_q.pl purges a view it runs the sequence, rmtag, unregister, rmview by uuid, and it will attempt to
+delete the view storage too.</p>
+<p>When a view is recovered by view_q.pl it simply restores all tags in all the regions where it was removed from.</p>
+<p>Some views aren't supposed to be deleted even when they haven't been accessed for a long time. View_q.pl can
+be instructed to disable quarantine of these views.</p>
 <p>
 </p>
 <hr />
-<h1><a name="constants">CONSTANTS</a></h1>
-<p>
-</p>
-<h2><a name="clearcase_types">ClearCase Types</a></h2>
-<p>These types are expected to exist as global types in the ACC Meta Data VOBs (AdminVOBs)</p>
-<pre>
-  <span class="variable">ATTYPE_FROZEN</span>               <span class="operator">=</span> <span class="string">'Frozen'</span>                      <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"\"</span>
-  <span class="variable">ATTYPE_PROMOTION_LEVEL</span>      <span class="operator">=</span> <span class="string">'PromotionLevel'</span>              <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -enum \"released\",\"tested\",\"built\",\"integrated\"</span>
-  <span class="variable">ATTYPE_KEYWORDS</span>             <span class="operator">=</span> <span class="string">'Keywords'</span>                    <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"\"</span>
-  <span class="variable">ATTYPE_LBTYPE_TEMPLATE</span>      <span class="operator">=</span> <span class="string">'LbtypeTemplate'</span>              <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"[A-Z][A-Z0-9_-\.]{3,30}\"</span>
-  <span class="variable">ATTYPE_BRTYPE_TEMPLATE</span>      <span class="operator">=</span> <span class="string">'BrtypeTemplate'</span>              <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"[a-z][a-z0-9_]{3,30}\"</span>
-  <span class="variable">ATTYPE_ATTYPE_TEMPLATE</span>      <span class="operator">=</span> <span class="string">'AttypeTemplate'</span>              <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"[a-zA-Z][a-zA-Z0-9]{3,30}\"</span>
-  <span class="variable">ATTYPE_HLTYPE_TEMPLATE</span>      <span class="operator">=</span> <span class="string">'HltypeTemplate'</span>              <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"[a-zA-Z][a-zA-Z0-9]{3,30}\"</span>
-  <span class="variable">ATTYPE_ACCMETADATA</span>          <span class="operator">=</span> <span class="string">'AccMetaData'</span>                 <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"\"</span>
-  <span class="variable">HLTYPE_PUBLISHED</span>            <span class="operator">=</span> <span class="string">'Published'</span>                   <span class="operator">;</span>     <span class="comment"># -c "ACC meta type"</span>
-  <span class="variable">HLTYPE_COMPOSITE</span>            <span class="operator">=</span> <span class="string">'CompositeLbtype'</span>             <span class="operator">;</span>     <span class="comment"># -c "ACC meta type"</span>
-  <span class="variable">HLTYPE_RESTRICTED</span>           <span class="operator">=</span> <span class="string">'Restricted'</span>                  <span class="operator">;</span>     <span class="comment"># -c "ACC meta type"</span>
-  <span class="variable">LBTYPE_INITIAL</span>              <span class="operator">=</span> <span class="string">'INITIAL'</span>                     <span class="operator">;</span>     <span class="comment"># -c "ACC meta type"</span>
-</pre>
-<p>
-</p>
-<h2><a name="keywords">Keywords</a></h2>
-<p>These constants defines keywords refered to in the code</p>
-<pre>
- TRIGGER_PERL                = 'ratlperl'                    # -c &quot;perl interpreter for triggers scripts&quot;
- GLOBAL_SCOPE                = 'global'                      # -c &quot;Keyword&quot;</pre>
-<p>
-</p>
-<h2><a name="conventions_and_regular_expressions">Conventions and regular expressions</a></h2>
-<p>These regular expressions define different conventions.</p>
-<pre>
- LOCAL_TYPE_PREFIX           = '^[Ll][Oo][Cc][Aa][Ll]_'      # -c &quot;RegExp which defines local types prefix (local types must have this prefix)&quot;
- REGEXP_METADATADEFAULT      = '&lt;:AccMetaDataDefault::\\(/s*):&gt;'  # -c &quot;RegExp which determins the AccMetaDateDefault VOB within a region&quot;
- ACC_TEMP_LBTYPE_NAME        = '^_\._\d+_\._\d+$'                   # -c &quot;RegExp defining temp lbtype name while applying Restricted labels with the applyrestricted.pl utility script.&quot;</pre>
-<p>
-</p>
-<h2><a name="environment_variables">Environment Variables</a></h2>
-<p>These constants defines environment variables which code may be looking for to override default settings.</p>
-<pre>
- CLEARCASE_FORCE_RESTRICTION = 'CLEARCASE_FORCE_RESTRICTION' # -c &quot;Environment Variable, when set restrictions can be forced&quot;
- CLEARCASE_ADMINVOB          = 'CLEARCASE_ADMINVOB'          # -c &quot;Environment Variable, when set it overrides the default ACC meta Data VOB - obsoletede - use CLEARCASE_ACCMETADATAVOB&quot;
- CLEARCASE_ACCMETADATAVOBVOB = 'CLEARCASE_ACCMETADATAVOB'    # -c &quot;Environment Variable, when set it overrides the default ACC meta Data VOB&quot;</pre>
+<h1><a name="support">SUPPORT</a></h1>
+<p>Visit <a href="http://www.praqma.net">http://www.praqma.net</a> to get help.</p>
 <p>
 </p>
 <hr />
-<h1><a name="functions">FUNCTIONS</a></h1>
-<p>The following functions are defined in the acc.pm module but not necessarily exported.
-Look in the acc.pm file to seee what is actually exported.</p>
+<h1><a name="script_implementation">Script Implementation</a></h1>
 <p>
 </p>
-<h2><a name="get_adminvob___vob__">get_adminvob( $vob )</a></h2>
-<p>Takes a vobtag and returns the top-level AdminVOB in the chain of AdminVOB hyperlinks.</p>
-<p>Parameters:</p>
-<pre>
- $vob              = The VOB to check.</pre>
-<p>Returns:</p>
-<pre>
- The top most AdminVOB in the chain of AdminVOB hyperlinks. if the VOB has no AdminVOB hyperlinks it returns $vob (self).</pre>
+<h2><a name="internal_subfunctions">Internal subfunctions</a></h2>
 <p>
 </p>
-<h2><a name="is_adminvob___vob__">is_adminvob( $vob )</a></h2>
-<p>Takes a vobtag and determins if it is an AdminVOB to other client VOBs.</p>
+<h3><a name="validate_options___">validate_options( )</a></h3>
+<p>The sub-functions read the options and switches applied with the execution into
+the global variables that are defined to cache them.</p>
+<p>The function will kill the script execution if unknown switches are used.</p>
 <p>Parameters:</p>
 <pre>
- $vob              = The VOB to check.</pre>
+  none</pre>
 <p>Returns:</p>
 <pre>
- 1..n = TRUE: The number of client VOBs that uses this VOB as ADMINVOB.
- 0    = FALSE - This VOB has no AdminVOB role.</pre>
+  nothing</pre>
 <p>
 </p>
-<h2><a name="is_clientvob___vob__">is_clientvob( $vob )</a></h2>
-<p>Takes a vobtag and determins if it is a clinet VOB to some AdminVOB.</p>
+<h3><a name="enable_log___">enable_log ()</a></h3>
+<p>The sub-function overwrites the default settings for log, debug and verbose if set manually and enables the functionality in the logger.
+Prefix option name with &quot;no&quot; for force disable (e.g. -nodebug)</p>
+<p>Debug:
+- enables verbose, unless -noverbose is set in the script call.
+- enables the logfile
+- gives some extra logging information (variable values, additional information, ect.)</p>
+<p>Verbose:
+- enables log to STDOUT</p>
+<p>Logfile:
+- enables the logfile
+- sets the logfilename (and path) if specified
+- the environment variables SCRIPTLOG_ENABLED or CLEARCASE_TRIGGER_DEBUG forces the logfile to enable, not matter what</p>
+<p>Checks for ARGV arguments (unreferenced values):
+- if log is enabled, it dies if there is more then one (expect it to be filename or relative/absolute path AND filename)
+- if log is disabled, it dies if there are any
+- The logger module fails, if the specified log, can't be opened/created</p>
 <p>Parameters:</p>
 <pre>
- $vob              = The VOB to check.</pre>
+  Non
+  Uses -verbose, -debug and -logfile</pre>
 <p>Returns:</p>
 <pre>
- 1..n = TRUE: The number of AdminVOB hyperlinks pointing FROM this VOB towards another VOB.
- 0    = FALSE - This VOB has no AdminVOB hyperlkinks.</pre>
+  nothing (unless it dies)</pre>
+<p>exit:</p>
+<pre>
+  Will kill the script exit 1 (die) on ARGV errors - printing the arguments</pre>
 <p>
 </p>
-<h2><a name="get_restriction___qualified_lbtype___resultref__">get_restriction( $qualified_lbtype, $resultref )</a></h2>
-<p>Takes a fully qualified lbtype and retrives the brtype it's restricted to.</p>
+<h3><a name="xxx_mode___">xxx_mode ()</a></h3>
+<p>The sub-functions named xxx_mode all work as switches.</p>
+<p>They all start by checking the options and switches applied with the execution to see if the have any work
+to do. if so, they take full responsibility over the remainder of the script execution and exits the script
+with either 1 or 0;</p>
 <p>Parameters:</p>
 <pre>
- $qualified_brtype = The label type to check in the format lbtype:name@\AdminVOB.
- $resultref        = A reference to the scalar the will contain the name of the
-                     branch type which the labe type is restricted to, will contain an
-                     empty string &quot;&quot; if it's not restricted.</pre>
+  none</pre>
 <p>Returns:</p>
 <pre>
- 1 = Suceedes
- 0 = Some error occured, the value of $resultref is not valid.</pre>
+  nothing</pre>
+<p>exit:</p>
+<p>Will force the entire script to exit with 0 or 1</p>
+<pre>
+  1  =   Wrong set of switches applied
+  0  =   Successful execution</pre>
 <p>
 </p>
-<h2><a name="split_dir_file___path__">split_dir_file( $path )</a></h2>
-<p>Splits a path in two: the directory part and the file name part</p>
+<h3><a name="lsquarantined___">lsquarantined ()</a></h3>
+<p>NOTE: This function will only run on ClearCase registry servers!!!</p>
+<p>This function lists all the quarantined views.</p>
+<p>The format of the listing is the local view storage (as reported by lsview -age).</p>
+<p>A quarantined view is defined as a view that is reported &quot;stranded&quot; by rgy_check and which has
+a .view_quarantine file in the admin directory of the storage.</p>
 <p>Parameters:</p>
 <pre>
- $path = The path to split.</pre>
+  none</pre>
 <p>Returns:</p>
 <pre>
- ($dir, $file) A two-item array.</pre>
+  @result    =    The list of quarantined storages.</pre>
 <p>
 </p>
-<h2><a name="get_hlinks___obj___direction___hltype__">get_hlinks( $obj, $direction, $hltype )</a></h2>
-<p>retrieves the hyperlinks of a certain type from og to an object.</p>
+<h3><a name="recover_stg___stg_">recover_stg ($stg)</a></h3>
+<p>This function recovers a view storage.</p>
+<p>It will recreate all the tags in all regions where it was tagged at the time it was quarantined.</p>
 <p>Parameters:</p>
 <pre>
- $obj       =  The fully qualified object in the format type:name@\vob.
- $direction =  The direction to look for legal values are &quot;-&gt;&quot; and &quot;&lt;-&quot;
- $hltype    =  The hyperlink to look for</pre>
+  $stg   = The storage to quarantine (the global one, as reported by a lsview command, or
+           simply the local-path as reported by rgy_check)</pre>
 <p>Returns:</p>
 <pre>
- @objects   =  An array containing the objects pointed to or from by the specifiec hyperlinks.</pre>
+  1    =    Success
+  0    =    The $stg does not contain a .view_quarantine file in the admin directory.</pre>
 <p>
 </p>
-<h2><a name="is_frozen____fqlbtype_">is_frozen(  \$fqlbtype)</a></h2>
-<p>Check a label type to see if it's
-already frozen.</p>
+<h3><a name="purge_stg___stg_">purge_stg ($stg)</a></h3>
+<p>This function purges a view storage.</p>
+<p>It will recreate one intermediate tag to the view stg and then do a regular
+(safe) view removal.</p>
 <p>Parameters:</p>
 <pre>
- $fqlbtype       =  The fully qualified lbtype in the format fully qualifed (lbtype:btyptype@vob).</pre>
+  $stg   = The storage to purge (the global one, as reported by a lsview command, or
+           simply the local-path as reported by rgy_check)</pre>
 <p>Returns:</p>
 <pre>
- 1     =  The type is frozen.
- 0     =  The type isn't frozen (or some error occured)</pre>
+  1    =    Success
+  0    =    The $stg does not contain a .view_quarantine file or the $stg contains
+            a .view_q_ignore file.</pre>
 <p>
 </p>
-<h2><a name="get_from_hlinks___typeref___hltyperef___returnarrref__">get_from_hlinks(  $typeref, $hltyperef, $returnarrref )</a></h2>
-<p>Retrieves the objects pointet to by hyperlinks of a certain type pointing from an object.</p>
+<h3><a name="quarantine_stg___stg_">quarantine_stg ($stg)</a></h3>
+<p>This function quarantines a view storage.</p>
+<p>It will untag tags in all regions and record the reverse commands (the corresponding
+mktag commands) in a file named .view_quarantine located in the admin directory of the
+view storage.</p>
 <p>Parameters:</p>
 <pre>
- $typeref        =  A reference to the The fully qualified object in the format type:name@\vob.
- $hltyperef      =  A reference to the hltype to search for.
- $returnarrayref =  A reference to an arry where the objects pointed to will be placed</pre>
+  $stg   = The storage to quarantine (the global one, as reported by a lsview command)</pre>
 <p>Returns:</p>
 <pre>
- -1    =  An error occured - the content of the returnarray is not valid
- 0...n =  The number of objects pointed to</pre>
+  1    =    Success
+  0    =    The $stg parameter is invalid - nothing to do!</pre>
 <p>
 </p>
-<h2><a name="get_to_hlinks___typeref___hltyperef___returnarrref__">get_to_hlinks(  $typeref, $hltyperef, $returnarrref )</a></h2>
-<p>Retrieves the objects pointet from by hyperlinks of a certain type pointing to an object.</p>
+<h3><a name="vwsstgs_nasince____cut_date____result__">vwsstgs_nasince ( $cut_date, \@result )</a></h3>
+<p>This function pushes (global) view storage locations onto the result array
+handed into the sub as a reference if they haven't been accessed since $cut_date.</p>
+<p>The format of the resulting list entries are like this:</p>
+<pre>
+  &lt;YYYY-MM-DD&gt; &lt;view_stg&gt;</pre>
+<p>Where  view &lt;YYYY-MM-DD&gt; is the last accessed date, and &lt;view_stg&gt; is the global view storage location.</p>
 <p>Parameters:</p>
 <pre>
- $typeref        =  A reference to the The fully qualified object in the format type:name@\vob.
- $hltyperef      =  A reference to the hltype to search for.
- $returnarrayref =  A reference to an arry where the objects pointed from will be placed</pre>
+  $cut_date      =  The date to compare against. The scalar must be in the format YYYY-DD-MM
+  \@result       =  An array reference passed into the sub function</pre>
 <p>Returns:</p>
 <pre>
- -1    =  An error occured - the content of the returnarray is not valid
- 0...n =  The number of objects pointed from</pre>
+  1    =    The content of @result is trust worthy
+  0    =    The $cut_date is in an unsupported format. The content of @result is crab!</pre>
 <p>
 </p>
-<h2><a name="mkrestriction___lbtyperef___brtyperef___vobref__">mkrestriction(  $lbtyperef, $brtyperef, $vobref )</a></h2>
-<p>Makes a a lbtype restricted to a branchtype. Meaning that the label only cna be applied to versions that resides on that
-particulare branch type.</p>
-<p>Parameters:</p>
+<h3><a name="sub_prepare_stg_directory____">sub prepare_stg_directory ( )</a></h3>
+<p>This function is related to the global hash: %stg_directory.</p>
+<p>%stg_directory is used be several sub functions as a common directory listing of view storages
+and view tags.</p>
+<p>After it has been prepared, the format of the hash entries are like this:</p>
 <pre>
- $lbtyperef      =  A reference to the lbtype (only it's name - not fully qualified).
- $brtyperef      =  A reference to the brtype (only it's name - not fully qualified).
- $returnarrayref =  A reference to the VOB (an ACC meta data VOB)</pre>
-<p>Returns:</p>
-<pre>
- 1     =  Restriction is either created or existed already
- 0     =  ERROR the restriction couldn't be created.</pre>
-<p>
-</p>
-<h2><a name="scalar_dump____scalar__">scalar_dump(  \$scalar  )</a></h2>
-<p>Prints debug information about a scalar. (scalar name, package, linie number and value).</p>
-<p>Parameters:</p>
-<pre>
- $scalar      =  The scalar to dump.</pre>
-<p>Returns:</p>
-<pre>
- void</pre>
-<p>
-</p>
-<h2><a name="objexist____obj__">objexist(  \$obj  )</a></h2>
-<p>Prints debug information about a scalar. (scalar name, package, linie number and value).</p>
-<p>Parameters:</p>
-<pre>
- $obj      =  object to test existence for.</pre>
-<p>Returns:</p>
-<pre>
- <span class="number">1</span>         <span class="operator">=</span>  <span class="variable">Object</span> <span class="variable">exist</span><span class="operator">;</span>
- <span class="number">0</span>         <span class="operator">=</span>  <span class="variable">Object</span> <span class="variable">doesn't</span> <span class="variable">exist</span>
+  <span class="keyword">keys</span>                 <span class="operator">=</span> <span class="variable">The</span> <span class="variable">global</span> <span class="variable">view</span> <span class="variable">storage</span> <span class="variable">location</span><span class="operator">;</span>
+  <span class="keyword">values</span>               <span class="operator">=</span> <span class="variable">A</span> <span class="variable">semi</span><span class="operator">-</span><span class="variable">colon</span> <span class="variable">separated</span> <span class="variable">list</span> <span class="variable">of</span> <span class="variable">all</span> <span class="variable">region</span><span class="operator">/</span><span class="variable">tags</span> <span class="variable">pairs</span> <span class="variable">in</span> <span class="variable">the</span>
+                         <span class="keyword">format</span><span class="operator">:</span> <span class="operator">-</span><span class="variable">region</span> <span class="operator">&lt;</span><span class="variable">region</span><span class="operator">&gt;</span> <span class="operator">-</span><span class="variable">tag</span> <span class="operator">&lt;</span><span class="variable">tag</span><span class="operator">&gt;</span>
 </pre>
-<p>
-</p>
-<h2><a name="mkhlink_unique____fromobj____toobj____hltype__">mkhlink_unique(  \$fromobj, \$toobj, \$hltype )</a></h2>
-<p>creates a hyperlink if it doesn't  already exist. Will not create it if it's already there.</p>
+<p>This function validates that the global hash containing all views across all regions is
+loaded and trustworthy.</p>
+<p>All operations querying the directory should call this sub function first.</p>
 <p>Parameters:</p>
 <pre>
- $fromobj     = The fully qualified name of the from object (type:name@vob).
- $toobj       = The fully qualified name of the to object (type:name@vob).
- $hltype      = The name of the hlink type to create.</pre>
+  none</pre>
 <p>Returns:</p>
 <pre>
- 1     =  Succes - created the hyperlink  or validated that it already existed.
- 0     =  ERROR - hyperlink doesn't exist and couldn't be created.</pre>
-<p>
-</p>
-<h2><a name="mkattr_unique____attype____obj__">mkattr_unique(  \$attype, \$obj )</a></h2>
-<p>creates an attribute using the attypes default value it doesn't  already exist. Will not create it if it's already there.</p>
-<p>Parameters:</p>
-<pre>
- $attype      = The name of the attribute type to create.
- $obj         = The fully qualified name of the object to which the attribute shall be attached.</pre>
-<p>Returns:</p>
-<pre>
- 1     =  Succes - created the attribute or validated that it already existed.
- 0     =  ERROR - attribute doesn't exist and couldn't be created.</pre>
-<p>
-</p>
-<h2><a name="rmhlink_all___fromobjref___toobjref___hltyperef__">rmhlink_all(  $fromobjref, $toobjref, $hltyperef )</a></h2>
-<p>Will remove all hyperlink of the specifiec hltype pointing from one object to another.</p>
-<p>Parameters:</p>
-<pre>
- $fromobjref     = The fully qualified name of the from object (type:name@vob).
- $toobjref       = The fully qualified name of the to object (type:name@vob).
- $hltyperef      = The name of the hlink type to remove.</pre>
-<p>Returns:</p>
-<pre>
- 1     =  Succes - removed all hyperlinks or validated that no one existed.
- 0     =  ERROR -  Couldn't remove all hyperlinks.</pre>
-<p>
-</p>
-<h2><a name="list_published___vobref___long__">list_published(  $vobref, $long )</a></h2>
-<p>Will print all published labels from a VOB in short or long format.</p>
-<p>Parameters:</p>
-<pre>
- $vobref         = The VOB (ACC Meta data) to retrive published labels from.
- $long           = Boolean, true indicates long format, false means short.</pre>
-<p>Returns:</p>
-<pre>
- 0     =  Succes - removed all hyperlinks or validated that no one existed.
- 1     =  ERROR -  Couldn't remove all hyperlinks.</pre>
-<p>
-</p>
-<h2><a name="get_acc_meta_data_vobs____returnlist__">get_acc_meta_data_vobs( \@returnlist )</a></h2>
-<p>Will return all ACC Meta Data VOBs that are tagged up in the region where it's executed.</p>
-<p>Parameters:</p>
-<pre>
- @returnlist     = The result.</pre>
-<p>Returns:</p>
-<pre>
- <span class="number">1</span>     <span class="operator">=</span>  <span class="variable">Succes</span> <span class="variable">the</span> <span class="variable">value</span> <span class="variable">of</span> <span class="variable">@returnlist</span> <span class="variable">is</span> <span class="variable">valid</span><span class="operator">;</span>
- <span class="number">0</span>     <span class="operator">=</span>  <span class="variable">ERROR</span> <span class="operator">-</span>  <span class="variable">Some</span> <span class="variable">error</span> <span class="variable">occured</span> <span class="variable">don't</span> <span class="variable">trust</span> <span class="variable">content</span> <span class="variable">of</span> <span class="variable">@returnlist</span><span class="operator">.</span>
-</pre>
-<p>
-</p>
-<h2><a name="get_published___vobref___long___returnarrayref__">get_published(  $vobref, $long, $returnarrayref  )</a></h2>
-<p>Will return an array with all published labels from a VOB in short or long format.</p>
-<p>Parameters:</p>
-<pre>
- $vobref         = The VOB (ACC Meta data) to retrive published labels from.
- $long           = Boolean, true indicates long format, false means short.
- $returnarrayref = A reference to the array that will store the result.</pre>
-<p>Returns:</p>
-<pre>
- 0     =  Succes - removed all hyperlinks or validated that no one existed.
- 1     =  ERROR -  Couldn't remove all hyperlinks.</pre>
-<p>
-</p>
-<h2><a name="get_composite___lbtype___level___resultref__">get_composite( $lbtype, $level, $resultref )</a></h2>
-<p>Returns the composite structure of a lbtype into an array. The functino calls itself recursively.</p>
-<p>Parameters:</p>
-<pre>
-  $lbtype        = The label to construct
-  $level         = The indent level to construct (stepped on for each recursive call)
-  $resultref     = A reference to the array that will hold the result</pre>
-<p>Returns:</p>
-<pre>
- void  =  Noting, empty, not used!</pre>
-<p>
-</p>
-<h2><a name="validate_lbtype___lbtype___retvalref__">validate_lbtype( $lbtype, $retvalref )</a></h2>
-<p>Validates the lbtype as a global type in the adminvob, will return the
-fully qualified name to the global type.</p>
-<p>Parameters:</p>
-<pre>
- $lbtype         = The type to validate.
- $retvalref      = A reference to the scalar that will contain the result.</pre>
-<p>Returns:</p>
-<pre>
- 1     =  Succes - validated that the type is global.
- 0     =  ERROR -  Type doesn't exist or isn't global.</pre>
-<p>
-</p>
-<h2><a name="freeze___lbtyperef__">freeze( $lbtyperef )</a></h2>
-<p>Takes a reference to a fully qualified label type and applies the
-Frozen attribute to it.</p>
-<p>Parameters:</p>
-<pre>
- $lbtyperef     =  A FQ lbtype.</pre>
-<p>Returns:</p>
-<pre>
- 1 =  Success
- 0 =  Some error occured.</pre>
-<p>
-</p>
-<h2><a name="labels_to_cs___labelcsv___branch___csref__">labels_to_cs( $labelcsv, $branch, $csref )</a></h2>
-<p>Takes a comma separated list of label types, and potentially a working branch
-and returns a valid config spec. if the working branch is specified as an empty
-string, the config spec will be read only.</p>
-<p>Note that that this method doesn't the $branch, you should do that before you
-call the function.</p>
-<p>Parameters:</p>
-<pre>
- $labelscsv     =  A prioritzed comma separated list of label
-                   types to adress in the config spec.
- $branch        =  The branch to use as work branch, if this parameter
-                   is an empty string (&quot;&quot; as opposed to not defined) then
-                   the generated config spec will be read-only
- $csref         =  Outparameter, A reference to the scalar that
-                   will contain the config spec.</pre>
-<p>Returns:</p>
-<pre>
- 1 =  Success
- 0 =  Some error occured, the content of $csref is not valid.</pre>
-<p>
-</p>
-<h2><a name="lbtype_to_csrule___lbref___retref__">lbtype_to_csrule( $lbref, $retref )</a></h2>
-<p>Converts a label name into the corresponding Config Spec rule. (in the format &quot;element * &lt;lbtype&gt;&quot;)</p>
-<p>Parameters:</p>
-<pre>
- $qualified_brtype = The label type to convert.
- $$retref          = A reference to the scalar the will contain the name of the
-                     config spec rule.</pre>
-<p>Returns:</p>
-<pre>
- 1 = Suceedes
- 0 = Some error occured, the value of $retref is not valid.</pre>
-<p>
-</p>
-<h2><a name="initmeta____vob__">initmeta( \$vob )</a></h2>
-<p>Creates or replaces the reguired meta data (types) to a vob (ACC Meta Data VOB). Also Attaches the AccMetaData attribute to the VOB.</p>
-<p>Parameters:</p>
-<pre>
- $vob     =  A vob tag.</pre>
-<p>Returns:</p>
-<pre>
- 1 =  Success - types are created or validated
- 0 =  Some error occured.</pre>
-<p>
-</p>
-<h2><a name="set_default_acc_meta____vob___region__">set_default_acc_meta( \$vob,\$region )</a></h2>
-<p>Assigns the role &quot;default Acc Meta VOB&quot; to a VOB within an existing region.
-if another VOB already has that role it will be revoked from the current VOB and assigned to the new one.</p>
-<p>Parameters:</p>
-<pre>
- $vob        =  A vob tag.
- $region     =  A region tag</pre>
-<p>Returns:</p>
-<pre>
- 1 =  Success - default meta data VOB role assigend
- 0 =  Some error occured.</pre>
-<p>
-</p>
-<h2><a name="get_default_acc_meta____result__">get_default_acc_meta( \$result )</a></h2>
-<p>Returns the &quot;default Acc Meta VOB&quot; within the context from where
-it's executed.</p>
-<p>Parameters:</p>
-<pre>
-  $result</pre>
-<p>Returns:</p>
-<pre>
- 1 =  Success - default meta data VOB is stored in $result
- 0 =  There is no default meta data VOB defined.</pre>
-<p>
-</p>
-<h2><a name="validate_global_invob___vobref___typeref___kindref___paramsref__">validate_global_invob( $vobref, $typeref, $kindref, $paramsref )</a></h2>
-<p>validates that a certain type exist as global in a VOB (ACC meta VOB). if it doesn't it will be created as a global type.
-if the type exist but is not global it will be replaced</p>
-<p>Parameters:</p>
-<pre>
- $vobref     =  A vob tag.
- $typeref    =  The type to validate/create.
- $kindref    =  The kind of the type, must be one of &quot;lbtype&quot;, &quot;attype&quot;, &quot;hltype&quot;
- $paramsref  =  The additional parameters that will be passed to the mkxxtype command if any.</pre>
-<p>Returns:</p>
-<pre>
- 3 =  Success - type existed as local - changed to global
- 2 =  Success - Type existed as global - type is validated
- 1 =  Success - type is created as global
- 0 =  Some error occured.</pre>
-<p>
-</p>
-<h2><a name="is_cclt___">is_cclt ()</a></h2>
-<p>Clearcase variant.</p>
-<p>ClearCase LT has some differencies from Base ClearCase with respect to
-how objects like for instance vobs or views are reported.</p>
-<p>On Base ClearCase the command <code>cleartool lsvob</code> returns the vobtag and the global
-access path's for the vobs like in this example:</p>
-<pre>
- \ADMIN               \\cccq7\ccstorage\vobs\ADMIN.vbs private (ucmvob)
- \bvob2               \\cccq7\ccstorage\vobs\bvob2.vbs private</pre>
-<p>So it is :
-  vobtag              UNCPATH public|private (properties)</p>
-<p>Where as the same command on ClearCase LT are reported in this format:</p>
-<pre>
- \DV0241              APPDKHI008:d:\ccstorage\Vobs\DV0241.vbs</pre>
-<p>So it is:
-  vobtag              server:server_localpath (properties)</p>
-<p>This function will return 1 if we are on ClearCase LT, else it returns 0</p>
+  0      The %stg_directory is already prepared, it will be reused.
+  1      The %stg_directory has been prepared.</pre>
 
 </body>
 

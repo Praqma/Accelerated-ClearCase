@@ -89,7 +89,7 @@ use praqma::acc;
 
 # File version
 our $VERSION = "0.5";
-our $BUILD   = "7";
+our $BUILD   = "9";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;    # Set 1 for testing purpose
@@ -224,6 +224,7 @@ if (@ARGV) {
 &help_mode();
 &enable_log();
 &lsquarantine_mode();
+&recover_mode();
 &purge_mode();
 &nasince_mode();
 &quarantine_mode();
@@ -329,7 +330,7 @@ sub enable_log () {
 
     }
 
-	# Ensure consistent time formatting, see IBM Tech note 1249021
+    # Ensure consistent time formatting, see IBM Tech note 1249021
     $ENV{'CCASE_ISO_DATE_FMT'} = "1";
 
     # Checks ARGV for consistency and enables the log
@@ -517,25 +518,28 @@ sub ignore_mode () {
         #rw2 cleanup project reimplement ARGV (remember logfile uses it right now)
         @sw_ignore = split( /;/, join( ';', @sw_ignore ) );
         foreach (@sw_ignore) {
-            my $viewtag = $_;
+            my $stg           = "";
+            my $viewtag       = $_;
             my $region_switch = ( defined($sw_region) ) ? "-region $sw_region" : "";
             $_ = `cleartool lsview $region_switch $viewtag`;
             $? && $log->error( $? . $_ . "\nCould not find view $viewtag to ignore\n" );
+
             if (acc::is_cclt) {
                 /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
+                $stg = $2;
             } else {
 
                 #  Base ClearCase
                 /^[\s\*]*(\S*)\s*(\S*)$/;
+                $stg = $2;
             }
-            my $stg = $2;
 
-            my $ignore_file_loc = $2 . "\\admin\\" . $view_q_ignore_file;
+            my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
 
             open VIEW_Q_IGNORE_FILE, ">$ignore_file_loc" or $log->assertion_failed("Couldn't open '$ignore_file_loc'\n");
             print VIEW_Q_IGNORE_FILE "This view storage is ignored by $Scriptfile\nDelete this file to reenable this storage for view_q.pl considerations\n";
             close VIEW_Q_IGNORE_FILE or $log->error("Couldn't close '$ignore_file_loc'\n");
-            $log->information("Storage '$2' has been set to ignored\n");
+            $log->information("Storage '$stg' has been set to ignored\n");
         }    # end foreach
         exit 0;
     };    # end ignore
@@ -544,7 +548,8 @@ sub ignore_mode () {
         $log->information("noignore\n");
         @sw_noignore = split( /;/, join( ';', @sw_noignore ) );
         foreach (@sw_noignore) {
-            my $viewtag = $_;
+            my $stg           = "";
+            my $viewtag       = $_;
             my $region_switch = ( defined($sw_region) ) ? "-region $sw_region" : "";
             $_ = `cleartool lsview $region_switch $viewtag`;
 
@@ -552,14 +557,15 @@ sub ignore_mode () {
 
             if (acc::is_cclt) {
                 /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
+                $stg = $2;
             } else {
 
                 #  Base ClearCase
                 /^[\s\*]*(\S*)\s*(\S*)$/;
+                $stg = $2;
             }
-            my $stg = $2;
 
-            my $ignore_file_loc = $2 . "\\admin\\" . $view_q_ignore_file;
+            my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
             unlink $ignore_file_loc;
             $log->information("Viewtag '$viewtag' has been unignored\n");
         }    # end foreach
@@ -705,16 +711,14 @@ sub purge_stg ($) {
     system("$endviewcmd");
     if ($?) {
         $log->error( "End view failed with exitcode: " . ( $? / 256 ) . "\n" );
- 		my $i = 0;
-		while ( $i < 11 ) {
-	        $log->information( "Waiting a sec before trying to end that view...\n" );
-			sleep 1;
-		    system("$endviewcmd");
-            if ($?) {$i++;} else {$i = 12;}
+        my $i = 0;
+        while ( $i < 11 ) {
+            $log->information("Waiting a sec before trying to end that view...\n");
+            sleep 1;
+            system("$endviewcmd");
+            if   ($?) { $i++; }
+            else      { $i = 12; }
         }
-
-
-
 
         $log->error( "End view failed with exitcode: " . ( $? / 256 ) . "\n" );
     } else {
