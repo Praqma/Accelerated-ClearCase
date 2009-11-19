@@ -705,6 +705,18 @@ sub purge_stg ($) {
     system("$endviewcmd");
     if ($?) {
         $log->error( "End view failed with exitcode: " . ( $? / 256 ) . "\n" );
+ 		my $i = 0;
+		while ( $i < 11 ) {
+	        $log->information( "Waiting a sec before trying to end that view...\n" );
+			sleep 1;
+		    system("$endviewcmd");
+            if ($?) {$i++;} else {$i = 12;}
+        }
+
+
+
+
+        $log->error( "End view failed with exitcode: " . ( $? / 256 ) . "\n" );
     } else {
         $log->information("End view successful\n");
     }
