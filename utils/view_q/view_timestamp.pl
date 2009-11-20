@@ -21,7 +21,7 @@ use praqma::scriptlog;
 
 # File version
 our $VERSION = "0.2";
-our $BUILD   = "4";
+our $BUILD   = "6";
 
 # Header info
 our $header = <<ENDHEADER;
@@ -60,7 +60,7 @@ DATE        EDITOR         NOTE
                            full. Remove documentation too about -since too
                            Adding a new switch (-run).
                            Document that snapshot views are not supported.
-2009-11-09  Jens Brejner   Version 0.2.4 Add support for snapshot views, some
+2009-11-09  Jens Brejner   Version 0.2.6 Add support for snapshot views, some
                            rewriting.
 
 -------------------------------------------------------------------------
@@ -761,7 +761,7 @@ None
     };
 
     !defined($sw_run) && do {
-        print "Won't process anything unless -run is on specified\n";
+        print "Won't process anything unless -run is on specified\n$usage";
         exit 1;
     };
 
@@ -771,6 +771,9 @@ None
     $sw_verbose = defined($sw_debug)   ? $sw_debug     : $sw_verbose;
 
     getlastexecution( \$prev_exe_datetime );    # look for last execution
+
+    # Ensure consistent time formatting, see IBM Tech note 1249021
+    $ENV{'CCASE_ISO_DATE_FMT'} = "1";
 
 }
 
@@ -794,9 +797,5 @@ should use the -logfile parameter and define a local logfile.
 Only dynamic views and snapshot views are supported. CCRC and other webviews are
 not supporteed yet but that may come in the future.
 
-Add support for ClearCase LT, on LT views are tagged a bit differently.
-
-
 =cut
-
 

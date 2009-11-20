@@ -85,10 +85,11 @@ use strict;
 use lib "$Scriptdir..//..";
 use Getopt::Long;
 use praqma::scriptlog;
+use praqma::acc;
 
 # File version
 our $VERSION = "0.5";
-our $BUILD   = "6";
+our $BUILD   = "9";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;    # Set 1 for testing purpose
@@ -134,6 +135,7 @@ DATE        EDITOR  NOTE
 2009-09-21  Jens Brejner   Chg. use lib statement to match reorganized module locations
                            Source formatting, minor syntax changes weeding out some warnings.
 2009-11-16  Jens Brejner   Version 0.5.6: Add support for snapshot views
+2009-11-18  Jens Brejner   Version 0.5.7: Add support for ClearCase LT
 
 -------------------------------------------------------------------------
 
@@ -222,6 +224,7 @@ if (@ARGV) {
 &help_mode();
 &enable_log();
 &lsquarantine_mode();
+&recover_mode();
 &purge_mode();
 &nasince_mode();
 &quarantine_mode();
@@ -327,6 +330,9 @@ sub enable_log () {
 
     }
 
+    # Ensure consistent time formatting, see IBM Tech note 1249021
+    $ENV{'CCASE_ISO_DATE_FMT'} = "1";
+
     # Checks ARGV for consistency and enables the log
     if ($log_enabled) {
         if ( scalar(@ARGV) gt 1 ) {
@@ -364,6 +370,11 @@ sub enable_log () {
         $log->information("ARGV value checks OK");
       };
     $log->information( "Called with " . $argstring . "\n" );
+
+    # Region not allowed on ClearCase LT
+    if ( (acc::is_cclt) && defined($sw_region) ) {
+        $log->assertion_failed("ClearCase LT detected, -region switch is not allowed\n");
+    }
 }
 
 =head3 xxx_mode ()
@@ -507,20 +518,28 @@ sub ignore_mode () {
         #rw2 cleanup project reimplement ARGV (remember logfile uses it right now)
         @sw_ignore = split( /;/, join( ';', @sw_ignore ) );
         foreach (@sw_ignore) {
-            my $viewtag = $_;
+            my $stg           = "";
+            my $viewtag       = $_;
             my $region_switch = ( defined($sw_region) ) ? "-region $sw_region" : "";
             $_ = `cleartool lsview $region_switch $viewtag`;
             $? && $log->error( $? . $_ . "\nCould not find view $viewtag to ignore\n" );
-            /^[\s\*]*(\S*)\s*(\S*)$/
-              ; # Any number of whitespaces or * (if the view is started) followed by non-whitespace chars (the view tag) followed by some whitespaces and tne another set of non-whitespace chars (the view storage)
-            my $stg = $2;
 
-            my $ignore_file_loc = $2 . "\\admin\\" . $view_q_ignore_file;
+            if (acc::is_cclt) {
+                /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
+                $stg = $2;
+            } else {
+
+                #  Base ClearCase
+                /^[\s\*]*(\S*)\s*(\S*)$/;
+                $stg = $2;
+            }
+
+            my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
 
             open VIEW_Q_IGNORE_FILE, ">$ignore_file_loc" or $log->assertion_failed("Couldn't open '$ignore_file_loc'\n");
             print VIEW_Q_IGNORE_FILE "This view storage is ignored by $Scriptfile\nDelete this file to reenable this storage for view_q.pl considerations\n";
             close VIEW_Q_IGNORE_FILE or $log->error("Couldn't close '$ignore_file_loc'\n");
-            $log->information("Storage '$2' has been set to ignored\n");
+            $log->information("Storage '$stg' has been set to ignored\n");
         }    # end foreach
         exit 0;
     };    # end ignore
@@ -529,19 +548,24 @@ sub ignore_mode () {
         $log->information("noignore\n");
         @sw_noignore = split( /;/, join( ';', @sw_noignore ) );
         foreach (@sw_noignore) {
-            my $viewtag = $_;
+            my $stg           = "";
+            my $viewtag       = $_;
             my $region_switch = ( defined($sw_region) ) ? "-region $sw_region" : "";
             $_ = `cleartool lsview $region_switch $viewtag`;
 
-            #rw2 error(view not found), not assertion
             $? && $log->assertion_failed( "\n" . $usage );
 
-            # Any number of whitespaces or * (if the view is started) followed by non-whitespace chars
-            # (the view tag) followed by some whitespaces and tne another set of non-whitespace chars (the view storage)
-            /^[\s\*]*(\S*)\s*(\S*)$/;
-            my $stg = $2;
+            if (acc::is_cclt) {
+                /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
+                $stg = $2;
+            } else {
 
-            my $ignore_file_loc = $2 . "\\admin\\" . $view_q_ignore_file;
+                #  Base ClearCase
+                /^[\s\*]*(\S*)\s*(\S*)$/;
+                $stg = $2;
+            }
+
+            my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
             unlink $ignore_file_loc;
             $log->information("Viewtag '$viewtag' has been unignored\n");
         }    # end foreach
@@ -603,7 +627,12 @@ sub recover_stg ($) {
     my $view_q_file_loc = "$stg\\admin\\$view_q_file";
     return 0 unless ( -e $view_q_file_loc );
     open VIEW_Q_FILE, "$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
-    foreach (<VIEW_Q_FILE>) { $log->information($_); system($_); $_ = ($?) ? "ERROR\n" : "Success\n"; $log->information($_); }
+    foreach (<VIEW_Q_FILE>) {
+        $log->information($_);
+        system($_);
+        $_ = ($?) ? "ERROR\n" : "Success\n";
+        $log->information($_);
+    }
     close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
 
     # Something is delaying the close above, the file is not ready for deletion
@@ -656,7 +685,7 @@ sub purge_stg ($) {
     $_ = $_[0];    # Cache the first entry (we really just need the global storage, so any entry will do)
     /\s(\S*)$/;    # The stg is the last part (whitespace separated) of the stream;
 
-    my $temptag = "VIEW_Q_TEMP_TAG";
+    my $temptag    = "VIEW_Q_TEMP_TAG";
     my $mktagcmd   = "cleartool mktag -view -nstart -tag $temptag $1";
     my $endviewcmd = "cleartool endview -server $temptag";
     my $rmtagcmd   = "cleartool rmtag -view $temptag";
@@ -682,6 +711,16 @@ sub purge_stg ($) {
     system("$endviewcmd");
     if ($?) {
         $log->error( "End view failed with exitcode: " . ( $? / 256 ) . "\n" );
+        my $i = 0;
+        while ( $i < 11 ) {
+            $log->information("Waiting a sec before trying to end that view...\n");
+            sleep 1;
+            system("$endviewcmd");
+            if   ($?) { $i++; }
+            else      { $i = 12; }
+        }
+
+        $log->error( "End view failed with exitcode: " . ( $? / 256 ) . "\n" );
     } else {
         $log->information("End view successful\n");
     }
@@ -696,7 +735,7 @@ sub purge_stg ($) {
             $log->information("$temptag was not found, continuing\n");
         } else {
             $log->error("$temptag found, removing it now\n");
-            `cleartool rmtag -all -view $temptag`;
+            `cleartool rmtag -view $temptag`;
         }
     } else {
         $log->information("Remove temp tag successful\n");
@@ -718,9 +757,7 @@ sub purge_stg ($) {
     system("$rmviewcmd");
     if ($?) {
         $log->error( "Remove view failed with exitcode: " . ( $? / 256 ) . "\n" );
-        }
-         else
-          {
+    } else {
         $log->information("Remove view successful\n");
     }
 
@@ -877,14 +914,44 @@ Returns:
 
 sub prepare_stg_directory () {
     return 0 if keys(%stg_directory);    # Someone else already prepared the directory, reuse it! Let's get out.
-    foreach my $region (`cleartool lsregion`) {
-        chomp($region);
-        foreach (`cleartool lsview -region $region`) {
-            /^[\s\*]*(\S*)\s*(\S*)$/
-              ; # Any number of whitespaces or * (if the view is started) followed by non-whitespace chars (the view tag) followed by some whitespaces and tne another set of non-whitespace chars (the view storage)
-            $stg_directory{"$2"} =
-              $stg_directory{"$2"} . "-region \"$region\" -tag \"$1\";";    #build a unique list of view storages containing the tags in all regions
+
+    # report syntax is different on LT versus Base CC
+
+    if (acc::is_cclt) {
+
+        # This is ClearCase LT
+        foreach (`cleartool lsview `) {
+
+            # Any number of whitespaces or * (if the view is started)
+            # followed by non-whitespace chars (the view tag) followed
+            # by some whitespaces and non-whitespace ending with a colon and
+            # then another set of non-whitespace chars that starts with a letter, a colon and a backslash (the view storage)
+            /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
+
+            #build a unique list of view storages containing the tags
+            $stg_directory{"$2"} = $stg_directory{"$2"} . "-tag \"$1\";";
         }
+
+    } else {
+
+        #  Base ClearCase
+        foreach my $region (`cleartool lsregion`) {
+            chomp($region);
+            foreach (`cleartool lsview -region $region`) {
+
+                # Any number of whitespaces or * (if the view is started)
+                # followed by non-whitespace chars (the view tag) followed
+                # by some whitespaces and tne another set of non-whitespace chars (the view storage)
+                /^[\s\*]*(\S*)\s*(\S*)$/;
+
+                #build a unique list of view storages containing the tags in all regions
+                $stg_directory{"$2"} = $stg_directory{"$2"} . "-region \"$region\" -tag \"$1\";";
+            }
+        }
+
     }
+
     return 1;
 }
+
+__END__
