@@ -462,7 +462,7 @@ None
         if ( $reply =~ m/error:/i ) {
 
             # get view's uncpath
-            unless ( getviewunc( \$viewlocal, \$viewunc ) ) {
+            if ( getviewunc( \$viewlocal, \$viewunc ) ) { # trouble
                 $log->warning("Failed getting UNC path for storage [$viewlocal], skipping.\n");
                 next;
             }
@@ -471,7 +471,7 @@ None
             $viewtag = "_RMTAG_ONLY_" . $i++;
 
             # tag that view here
-            unless ( mktemptag( $viewtag, $viewunc ) ) {
+            if ( mktemptag( $viewtag, $viewunc ) ) {
                 $log->warning("Failed setting local view tag on [$viewunc] , skipping [$viewlocal]\n");
                 next;
             }
