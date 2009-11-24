@@ -4,7 +4,7 @@
 <head>
 <title>view_q.pl - View Quarantine Utilities</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link rev="made" href="mailto:root@localhost" />
+<link rev="made" href="mailto:" />
 </head>
 
 <body style="background-color: white">
@@ -27,12 +27,14 @@
 		<ul>
 
 			<li><a href="#validate_options___">validate_options( )</a></li>
-			<li><a href="#enable_log___">enable_log( )</a></li>
-			<li><a href="#xxx_mode___">xxx_mode( )</a></li>
-			<li><a href="#lsquarantined___">lsquarantined( )</a></li>
-			<li><a href="#purge_stg___stg__">purge_stg( $stg )</a></li>
-			<li><a href="#quarantine_stg___stg__">quarantine_stg( $stg )</a></li>
-			<li><a href="#vwsstgs_nasince___cut_date____result__">vwsstgs_nasince( $cut_date, \@result )</a></li>
+			<li><a href="#enable_log___">enable_log ()</a></li>
+			<li><a href="#xxx_mode___">xxx_mode ()</a></li>
+			<li><a href="#lsquarantined___">lsquarantined ()</a></li>
+			<li><a href="#recover_stg___stg_">recover_stg ($stg)</a></li>
+			<li><a href="#purge_stg___stg_">purge_stg ($stg)</a></li>
+			<li><a href="#quarantine_stg___stg_">quarantine_stg ($stg)</a></li>
+			<li><a href="#vwsstgs_nasince____cut_date____result__">vwsstgs_nasince ( $cut_date, \@result )</a></li>
+			<li><a href="#sub_prepare_stg_directory____">sub prepare_stg_directory ( )</a></li>
 		</ul>
 
 	</ul>
@@ -74,7 +76,7 @@ view into the state of being 'stranded'. An important difference between 'regula
 and views put into quarantine by view_q.pl is the file called</p>
 <pre>
   .view_quarantine</pre>
-<p>which view_q.pl created in the in the 'admin' subfolder in the view storage. This file contains the history
+<p>which view_q.pl creates in the the 'admin' subfolder in the view storage. This file contains the history
 of tags in all regions from where they were deleted. and enables a complete restore of which can be done from
 any machine with ClearCase installed.</p>
 <p>View_q.pl can be run in a mode where it lists all views not accessed since a certain date. if you whish you
@@ -84,9 +86,8 @@ out this is partly determined by the fact that views are stranded, so this mode 
 the ClearCase Registry server, which support rgy_check!)</p>
 <p>When listing the quarantined views you can either automatically purge or recover the views.</p>
 <p>Views can also be purged or recovered individually.</p>
-<p>When view_q.pl purges a view it simply re-creates an intermediate view tag and runs a regular</p>
-<pre>
-  cleartool remove view</pre>
+<p>When view_q.pl purges a view it runs the sequence, rmtag, unregister, rmview by uuid, and it will attempt to
+delete the view storage too.</p>
 <p>When a view is recovered by view_q.pl it simply restores all tags in all the regions where it was removed from.</p>
 <p>Some views aren't supposed to be deleted even when they haven't been accessed for a long time. View_q.pl can
 be instructed to disable quarantine of these views.</p>
@@ -116,11 +117,9 @@ the global variables that are defined to cache them.</p>
   nothing</pre>
 <p>
 </p>
-<h3><a name="enable_log___">enable_log( )</a></h3>
-<pre>
-
-The sub-function overwrites the default settings for log, debug and verbose if set manually and enables the functionality in the logger.
-Prefix option name with &quot;no&quot; for force disable (e.g. -nodebug)</pre>
+<h3><a name="enable_log___">enable_log ()</a></h3>
+<p>The sub-function overwrites the default settings for log, debug and verbose if set manually and enables the functionality in the logger.
+Prefix option name with &quot;no&quot; for force disable (e.g. -nodebug)</p>
 <p>Debug:
 - enables verbose, unless -noverbose is set in the script call.
 - enables the logfile
@@ -147,14 +146,12 @@ Prefix option name with &quot;no&quot; for force disable (e.g. -nodebug)</pre>
   Will kill the script exit 1 (die) on ARGV errors - printing the arguments</pre>
 <p>
 </p>
-<h3><a name="xxx_mode___">xxx_mode( )</a></h3>
+<h3><a name="xxx_mode___">xxx_mode ()</a></h3>
 <p>The sub-functions named xxx_mode all work as switches.</p>
 <p>They all start by checking the options and switches applied with the execution to see if the have any work
 to do. if so, they take full responsibility over the remainder of the script execution and exits the script
 with either 1 or 0;</p>
-<pre>
-
-Parameters:</pre>
+<p>Parameters:</p>
 <pre>
   none</pre>
 <p>Returns:</p>
@@ -167,7 +164,7 @@ Parameters:</pre>
   0  =   Successful execution</pre>
 <p>
 </p>
-<h3><a name="lsquarantined___">lsquarantined( )</a></h3>
+<h3><a name="lsquarantined___">lsquarantined ()</a></h3>
 <p>NOTE: This function will only run on ClearCase registry servers!!!</p>
 <p>This function lists all the quarantined views.</p>
 <p>The format of the listing is the local view storage (as reported by lsview -age).</p>
@@ -181,7 +178,20 @@ a .view_quarantine file in the admin directory of the storage.</p>
   @result    =    The list of quarantined storages.</pre>
 <p>
 </p>
-<h3><a name="purge_stg___stg__">purge_stg( $stg )</a></h3>
+<h3><a name="recover_stg___stg_">recover_stg ($stg)</a></h3>
+<p>This function recovers a view storage.</p>
+<p>It will recreate all the tags in all regions where it was tagged at the time it was quarantined.</p>
+<p>Parameters:</p>
+<pre>
+  $stg   = The storage to quarantine (the global one, as reported by a lsview command, or
+           simply the local-path as reported by rgy_check)</pre>
+<p>Returns:</p>
+<pre>
+  1    =    Success
+  0    =    The $stg does not contain a .view_quarantine file in the admin directory.</pre>
+<p>
+</p>
+<h3><a name="purge_stg___stg_">purge_stg ($stg)</a></h3>
 <p>This function purges a view storage.</p>
 <p>It will recreate one intermediate tag to the view stg and then do a regular
 (safe) view removal.</p>
@@ -196,7 +206,7 @@ a .view_quarantine file in the admin directory of the storage.</p>
             a .view_q_ignore file.</pre>
 <p>
 </p>
-<h3><a name="quarantine_stg___stg__">quarantine_stg( $stg )</a></h3>
+<h3><a name="quarantine_stg___stg_">quarantine_stg ($stg)</a></h3>
 <p>This function quarantines a view storage.</p>
 <p>It will untag tags in all regions and record the reverse commands (the corresponding
 mktag commands) in a file named .view_quarantine located in the admin directory of the
@@ -210,7 +220,7 @@ view storage.</p>
   0    =    The $stg parameter is invalid - nothing to do!</pre>
 <p>
 </p>
-<h3><a name="vwsstgs_nasince___cut_date____result__">vwsstgs_nasince( $cut_date, \@result )</a></h3>
+<h3><a name="vwsstgs_nasince____cut_date____result__">vwsstgs_nasince ( $cut_date, \@result )</a></h3>
 <p>This function pushes (global) view storage locations onto the result array
 handed into the sub as a reference if they haven't been accessed since $cut_date.</p>
 <p>The format of the resulting list entries are like this:</p>
@@ -225,6 +235,28 @@ handed into the sub as a reference if they haven't been accessed since $cut_date
 <pre>
   1    =    The content of @result is trust worthy
   0    =    The $cut_date is in an unsupported format. The content of @result is crab!</pre>
+<p>
+</p>
+<h3><a name="sub_prepare_stg_directory____">sub prepare_stg_directory ( )</a></h3>
+<p>This function is related to the global hash: %stg_directory.</p>
+<p>%stg_directory is used be several sub functions as a common directory listing of view storages
+and view tags.</p>
+<p>After it has been prepared, the format of the hash entries are like this:</p>
+<pre>
+  <span class="keyword">keys</span>                 <span class="operator">=</span> <span class="variable">The</span> <span class="variable">global</span> <span class="variable">view</span> <span class="variable">storage</span> <span class="variable">location</span><span class="operator">;</span>
+  <span class="keyword">values</span>               <span class="operator">=</span> <span class="variable">A</span> <span class="variable">semi</span><span class="operator">-</span><span class="variable">colon</span> <span class="variable">separated</span> <span class="variable">list</span> <span class="variable">of</span> <span class="variable">all</span> <span class="variable">region</span><span class="operator">/</span><span class="variable">tags</span> <span class="variable">pairs</span> <span class="variable">in</span> <span class="variable">the</span>
+                         <span class="keyword">format</span><span class="operator">:</span> <span class="operator">-</span><span class="variable">region</span> <span class="operator">&lt;</span><span class="variable">region</span><span class="operator">&gt;</span> <span class="operator">-</span><span class="variable">tag</span> <span class="operator">&lt;</span><span class="variable">tag</span><span class="operator">&gt;</span>
+</pre>
+<p>This function validates that the global hash containing all views across all regions is
+loaded and trustworthy.</p>
+<p>All operations querying the directory should call this sub function first.</p>
+<p>Parameters:</p>
+<pre>
+  none</pre>
+<p>Returns:</p>
+<pre>
+  0      The %stg_directory is already prepared, it will be reused.
+  1      The %stg_directory has been prepared.</pre>
 
 </body>
 

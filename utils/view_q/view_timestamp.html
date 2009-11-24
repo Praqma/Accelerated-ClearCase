@@ -4,7 +4,7 @@
 <head>
 <title>view_timestamp.pl - view quarantine utilities</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link rev="made" href="mailto:root@localhost" />
+<link rev="made" href="mailto:" />
 </head>
 
 <body style="background-color: white">
@@ -26,16 +26,20 @@
 		<li><a href="#internal_subfunctions">Internal subfunctions</a></li>
 		<ul>
 
-			<li><a href="#validate_options___">validate_options( )</a></li>
-			<li><a href="#enable_log___">enable_log( )</a></li>
-			<li><a href="#help_mode___">help_mode( )</a></li>
-			<li><a href="#getlastexecution___">getlastexecution( )</a></li>
-			<li><a href="#get_the_log___">get_the_log( )</a></li>
-			<li><a href="#touch_views___">touch_views( )</a></li>
+			<li><a href="#getviewunc____localpath____uncpath_">getviewunc (\$localpath, \$uncpath)</a></li>
+			<li><a href="#stampdynamic___viewtag_">stampdynamic ($viewtag)</a></li>
+			<li><a href="#rmtemptag___viewtag_">rmtemptag ($viewtag)</a></li>
+			<li><a href="#mktemptag___viewtag___uncpath_">mktemptag ($viewtag, $uncpath)</a></li>
+			<li><a href="#touchviews">touchviews</a></li>
+			<li><a href="#getlastexecution____lasttime_">getlastexecution (\$lasttime)</a></li>
+			<li><a href="#enable_log___">enable_log ()</a></li>
+			<li><a href="#validate_options___">validate_options ()</a></li>
 		</ul>
 
 	</ul>
 
+	<li><a href="#bugs">Bugs</a></li>
+	<li><a href="#to_do">To Do</a></li>
 </ul>
 
 <hr name="index" />
@@ -44,6 +48,7 @@
 
 <p>
 </p>
+<hr />
 <h1><a name="name">NAME</a></h1>
 <p>view_timestamp.pl - view quarantine utilities</p>
 <p>
@@ -55,11 +60,14 @@
 </p>
 <hr />
 <h1><a name="decription">DECRIPTION</a></h1>
-<p>view_timestamp.pl is a auxilary utility that supports the functionality of view_q.pl.
-Reason is, that view_q.pl makes used of the &quot;last_accessed&quot; timestamp, with is only updated when an actual write is committed to the view.
-view_timestamp.pl scans the ClearCase log for any views opened (read) and forces a recompilation of the configspec, 
-which does nothing (as the configspec isn't changed) but updates the timestamp, which then tells view_q.pl that the view is still in use
-and thus preventing that the view is quarantined in view_q.pl's scheduled runs.</p>
+<p>view_timestamp.pl is a auxilary utility that supports the functionality of
+view_q.pl. Reason is, that view_q.pl makes used of the &quot;last_accessed&quot;
+timestamp, with is only updated when an actual write is committed to the view.</p>
+<p>view_timestamp.pl scans the ClearCase log for any views opened (started) and
+forces a recompilation of the config spec, which does nothing (as the config
+spec isn't changed) but updates the timestamp, which then tells view_q.pl
+that the view has been used recently and thus preventing that the view is
+quarantined in view_q.pl's scheduled runs.</p>
 <p>
 </p>
 <hr />
@@ -74,88 +82,293 @@ and thus preventing that the view is quarantined in view_q.pl's scheduled runs.<
 <h2><a name="internal_subfunctions">Internal subfunctions</a></h2>
 <p>
 </p>
-<h3><a name="validate_options___">validate_options( )</a></h3>
-<p>The sub-functions read the options and switches applied with the execution into
-the global variables that are defined to cache them.</p>
-<p>The function will kill the script execution if unknown switches are used.</p>
-<p>Parameters:</p>
-<pre>
-  none</pre>
-<p>Returns:</p>
-<pre>
-  nothing</pre>
-<p>
-</p>
-<h3><a name="enable_log___">enable_log( )</a></h3>
-<p>The sub-function overwrites the default settings for log, debug and verbose if set manually and enables the functionality in the logger.</p>
-<p>debug:
-- enables verbose, unless -noverbose is set in the script call.
-- can be extended to give additional information during execution (not implemented)</p>
-<p>verbose:
-- enables log to STDOUT</p>
-<p>logfile &quot;filename&quot;:
-- sets the logfilename (and path) if specified (default name [scriptdir]\view_check.log)</p>
-<p>Checks for ARGV arguments (unreferenced values):
-- if log is enabled, it dies if there is more then one (expect it to be filename or relative/absolute path AND filename)
-- if log is disabled, it dies if there are any
-- The logger module fails, if the specified log, can't be opened/created</p>
-<p>Parameters:</p>
-<pre>
-  Non
-  Uses -verbose, -debug and -logfile &quot;filename&quot;</pre>
-<p>Returns:</p>
-<pre>
-  nothing (unless it dies)</pre>
-<p>exit:</p>
-<pre>
-  Will kill the script exit 1 (die) on ARGV errors - printing the arguments</pre>
-<p>
-</p>
-<h3><a name="help_mode___">help_mode( )</a></h3>
-<p>Prints the help and exits</p>
-<p>Returns:</p>
-<pre>
-  Header, revision and extended usage information</pre>
-<p>Exit:</p>
-<pre>
-  Always</pre>
-<p>
-</p>
-<h3><a name="getlastexecution___">getlastexecution( )</a></h3>
-<pre>
-  Opens the previous logfil (if it exsists) and gets the last datetime-stamp in CC format or an error msg.</pre>
-<p>Returns:</p>
-<pre>
-  Last logentry in CC datetime format or textstring explaining it was not found (saved in global variable)</pre>
-<p>Exit:</p>
-<pre>
-  Dies if logfile can't be opened</pre>
-<p>
-</p>
-<h3><a name="get_the_log___">get_the_log( )</a></h3>
-<pre>
-  Executes &quot;cleartool getlog&quot; based on returns from getlastexecution().
-  If getlog is set, it only gets since the time found by getlastexecution().
-  If gotlog is not set, it gets the entire log</pre>
-<p>Returns:</p>
-<pre>
-  Array of views found in the getlog execution (saved in global variable)</pre>
-<p>Exit:</p>
-<pre>
-  No</pre>
-<p>
-</p>
-<h3><a name="touch_views___">touch_views( )</a></h3>
-<pre>
-  Touches (updates last access datetime-stamp) all views found in get_the_log()</pre>
-<pre>
+<h3><a name="getviewunc____localpath____uncpath_">getviewunc (\$localpath, \$uncpath)</a></h3>
+<p>Loop through regions in search of a view's unc path.
+The input parameters are references, where the \$uncpath will be updated
+by the function.</p>
+<dl>
+<dt><strong><a name="parameters" class="item">Parameters</a></strong></dt>
 
-Returns:</pre>
+<dd>
+</li>
+<li><strong><a name="1_st_is_reference_to_local_view_storage" class="item">1'st is reference to local view storage</a></strong>
+
+</li>
+<li><strong><a name="2_nd_is_reference_to_a_view_s_unc_path" class="item">2'nd is reference to a view's UNC path</a></strong>
+
+</dd>
+</dl>
+<dl>
+<dt><strong><a name="returns" class="item">Returns</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="0_on_success" class="item">0 on success</a></strong>
+
+</li>
+<li><strong><a name="non_zero_on_failure" class="item">non-zero on failure</a></strong>
+
+</dd>
+</dl>
+<p>
+</p>
+<h3><a name="stampdynamic___viewtag_">stampdynamic ($viewtag)</a></h3>
+<p>Set dynamic view's config spec to current, (using <code>cleartool setcs -current VIEWTAG</code> )
+because that will update the view's Last Accessed time stamp.</p>
+<dl>
+<dt><strong><a name="parameters2" class="item">Parameters:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="1_st_is_the_viewtag_to_update" class="item">1'st is the viewtag to update</a></strong>
+
+</dd>
+</dl>
+<dl>
+<dt><strong><a name="returns2" class="item">Returns:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="0_on_success" class="item">0 on Success</a></strong>
+
+</li>
+<li><strong><a name="non_zero_on_failure2" class="item">non-zero on failure</a></strong>
+
+</dd>
+</dl>
+<p>Remove the file .access_info that resides in the local view-storage directory.
+We can not use <code>cleartool setcs -current VIEWTAG</code> on snapshot views, without modifying the
+actual view contents. As a minimum, all files in the view will become hijacked,
+and the user will start complaining quite rapidly.</p>
+<p>But if we just shut down that view's view-server process, and remove the file, it
+will automatically be recreated next time a view-server is started for that view -
+and the file creation or modification date is used by ClearCase to report the Last
+Accessed timestamp</p>
+<dl>
+<dt><strong><a name="paramters" class="item">Paramters</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="1_st_the_the_local_view_storage_location_to_look_in" class="item">1'st the the local view storage location to look in</a></strong>
+
+</li>
+<li><strong><a name="2_nd_is_the_viewtag" class="item">2'nd is the viewtag</a></strong>
+
+</dd>
+</dl>
+<dl>
+<dt><strong><a name="returns3" class="item">Returns:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="0_on_success2" class="item">0 on Success</a></strong>
+
+</li>
+<li><strong><a name="non_zero_on_failure3" class="item">non-zero on failure</a></strong>
+
+</dd>
+</dl>
+<p>
+</p>
+<h3><a name="rmtemptag___viewtag_">rmtemptag ($viewtag)</a></h3>
+<p>In order to have this script do what we want, we may have created at temporary
+view tag (see <a href="#mktemptag___viewtag___uncpath_">mktemptag</a> ) for touching a view. So we need to clean up.</p>
+<dl>
+<dt><strong><a name="parameters3" class="item">Parameters:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="1_st_the_view_tag_to_remove" class="item">1'st    the view tag to remove</a></strong>
+
+</dd>
+</dl>
+<dl>
+<dt><strong><a name="returns4" class="item">Returns:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="0_for_success" class="item">0 for success</a></strong>
+
+</li>
+<li><strong><a name="non_zero_for_failure" class="item">non-zero for failure</a></strong>
+
+</dd>
+</dl>
+<p>
+</p>
+<h3><a name="mktemptag___viewtag___uncpath_">mktemptag ($viewtag, $uncpath)</a></h3>
+<p>Tag a view temporarily. In order to create a view tag, we need at tag name
+and an global-storage path which is in UNC format.</p>
+<dl>
+<dt><strong><a name="parameters4" class="item">Parameters:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="1_the_view_tag" class="item">1. the view tag</a></strong>
+
+</li>
+<li><strong><a name="2_the_view_s_uncpath" class="item">2. the view's uncpath</a></strong>
+
+</dd>
+</dl>
+<dl>
+<dt><strong><a name="returns5" class="item">Returns:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="0_on_success3" class="item">0 on Success</a></strong>
+
+</li>
+<li><strong><a name="non_zero_on_failure4" class="item">non-zero on failure</a></strong>
+
+</dd>
+</dl>
+<p>
+</p>
+<h3><a name="touchviews">touchviews</a></h3>
+<p>Loops through the local views storages we isolated in @fulllog array</p>
+<p>If clearcase can't resolve the storage to a registered view, it is
+probably tagged in a different region. So we will find that region
+so the unc path can be determined, by calling <a href="#getviewunc____localpath____uncpath_">getviewunc</a></p>
+<p>Then we will temporarily create a tag for the view in this region, and
+remove the tag after the view have been touched.</p>
+<dl>
+<dt><strong><a name="parameters5" class="item">Parameters:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="none" class="item">None</a></strong>
+
+</dd>
+</dl>
+<dl>
+<dt><strong><a name="returns6" class="item">Returns:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="none2" class="item">None</a></strong>
+
+</dd>
+</dl>
+<p>This function retrieves the contents of the clearcase log <em>view</em>. If no this script
+does not find it's own log file, the entire log will be processed, if it's logfile does
+exist, we will use the last modification time of that at file and only get the view log
+since that time.</p>
+<p>After retrieval, the we will isolate only the unique local view storage path's that have
+been used, and add them to the internal array @fulllog.</p>
+<p>The initial retrieval only selects the lines that contains &quot;Using View&quot;, which all will be
+looking like this:</p>
 <pre>
-  Nothing</pre>
-<p>Exit:</p>
-<pre>
-  No (but last sub)</pre>
+ 2006-11-09T14:03:32+01 view_server(1172): Using view C:\ccstorage\views\CCCQ7\student\student_view3.vws, on host: CCCQ7</pre>
+<dl>
+<dt><strong><a name="parameters6" class="item">Parameters:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="none3" class="item">None</a></strong>
+
+</dd>
+</dl>
+<dl>
+<dt><strong><a name="returns7" class="item">Returns:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="none4" class="item">None</a></strong>
+
+</dd>
+</dl>
+<p>
+</p>
+<h3><a name="getlastexecution____lasttime_">getlastexecution (\$lasttime)</a></h3>
+<p>Get last modification time stamp from logfile if one exists.</p>
+<p>If it does not exist, the $lasttime is set to <code> -full</code>, because $lasttime is
+used by the call to <code>cleartool getlog </code>, and if we have never been in action before
+we want to consider all views.</p>
+<p>If on the other hand this script's logfile exist, we will set $lasttime to a string looking
+like this <code> -since yyyy-mm-ddThh:mm:ss</code>, the Format that is suitable for
+cleartool getlog -since format.</p>
+<dl>
+<dt><strong><a name="parameters7" class="item">Parameters:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="1_st_reference_to_scalar_meant_for_use_with_cleartool_getlog" class="item">1'st: Reference to scalar meant for use with cleartool getlog</a></strong>
+
+</dd>
+</dl>
+<dl>
+<dt><strong><a name="returns8" class="item">Returns:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="0_for_success2" class="item">0 for success</a></strong>
+
+</li>
+<li><strong><a name="non_zero_for_failure2" class="item">non-zero for failure</a></strong>
+
+</dd>
+</dl>
+<p>
+</p>
+<h3><a name="enable_log___">enable_log ()</a></h3>
+<p>Enables the log, and start logging to the logfile.</p>
+<p>Will kill the script exit on ARGV errors - printing the arguments</p>
+<dl>
+<dt><strong><a name="parameters8" class="item">Parameters:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="none5" class="item">None</a></strong>
+
+</dd>
+</dl>
+<dl>
+<dt><strong><a name="returns9" class="item">Returns:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="none6" class="item">None</a></strong>
+
+</dd>
+</dl>
+<p>
+</p>
+<h3><a name="validate_options___">validate_options ()</a></h3>
+<p>Reads and validate the command line options, as well as establish default values</p>
+<dl>
+<dt><strong><a name="parameters9" class="item">Parameters:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="none7" class="item">None</a></strong>
+
+</dd>
+</dl>
+<dl>
+<dt><strong><a name="returns10" class="item">Returns:</a></strong></dt>
+
+<dd>
+</li>
+<li><strong><a name="none8" class="item">None</a></strong>
+
+</dd>
+</dl>
+<p>
+</p>
+<hr />
+<h1><a name="bugs">Bugs</a></h1>
+<p>None known at this time, but there may be a problem with running the script from
+a network location, if the 2 machines are not time synchronized from the same source.</p>
+<p>That is because we rely on the modification time stamp on our logfile, but that timestamp
+will be set by the remote filesystem, so there may be a discrepancy. To overcome that you
+should use the -logfile parameter and define a local logfile.</p>
+<p>
+</p>
+<hr />
+<h1><a name="to_do">To Do</a></h1>
+<p>Only dynamic views and snapshot views are supported. CCRC and other webviews are
+not supporteed yet but that may come in the future.</p>
 
 </body>
 

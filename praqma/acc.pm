@@ -13,6 +13,7 @@ our @EXPORT = qw( get_adminvob
   mkrestriction
   get_composite
   validate_lbtype
+  is_cclt
 );
 
 =head1 NAME
@@ -150,7 +151,7 @@ use constant GLOBAL_SCOPE => 'global';                              # -c "Keywor
 
 use constant LOCAL_TYPE_PREFIX      => '^[Ll][Oo][Cc][Aa][Ll]_';             # -c "RegExp which defines local types prefix (local types must have this prefix)"
 use constant REGEXP_METADATADEFAULT => '<:AccMetaDataDefault::\\(/s*):>';    # -c "RegExp which determins the AccMetaDateDefault VOB within a region"
-use constant ACC_TEMP_LBTYPE_NAME   =>
+use constant ACC_TEMP_LBTYPE_NAME =>
   '^_\._\d+_\._\d+$';    # -c "RegExp defining temp lbtype name while applying Restricted labels with the applyrestricted.pl utility script."
 
 use constant CLEARCASE_FORCE_RESTRICTION => 'CLEARCASE_FORCE_RESTRICTION';    # -c "Environment Variable, when set restrictions can be forced"
@@ -158,17 +159,22 @@ use constant CLEARCASE_ADMINVOB          => 'CLEARCASE_ADMINVOB';             # 
 use constant CLEARCASE_ACCMETADATAVOBVOB => 'CLEARCASE_ACCMETADATAVOB';       # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
 
 # These Constants are used to identify VOB types:
-use constant VOBTYPE_PVOB                => 'pvob';       
-use constant VOBTYPE_ADMINVOB            => 'adminvob';       
-use constant VOBTYPE_UCM_CLIENT          => 'ucmvob';       
+use constant VOBTYPE_PVOB                => 'pvob';
+use constant VOBTYPE_ADMINVOB            => 'adminvob';
+use constant VOBTYPE_UCM_CLIENT          => 'ucmvob';
 use constant VOBTYPE_BCC_CLIENT          => 'bccvob';
 use constant ATTYPE_CUSTOM_VOBTYPE       => 'ACC_VOBType';                     # -vtype string -c "Used to define Custom VOB types to be used be the trigger_helper module"
 use constant ATTYPE_TRIGGER_BLACKLIST    => 'ACC_TriggerBlacklist';            # -vtype string -c "Used to blacklist explicit triggers on VOBs when istalled by the trigger_helper module"
 
+# package globals
+use vars qw($clearcaselt);
+$clearcaselt = "";
+my $self = {};    #Reference to an anonymous hash, Will be blessed later
 
 # Module version
 $VERSION = "1.0.";
-$BUILD   = "8";
+$BUILD   = "9";
+
 my $header = <<ENDHEADER;
 #########################################################################
 #     This module contains a class which is a helper-module for         #
@@ -187,20 +193,24 @@ DATE        EDITOR  NOTE
 2007-08-27  Lars Kruse     1st release prepared for ATP
                            (version 1.0)
 2007-09-19  Lars Kruse     Backstepped to version 0.1.2
-2007-11-07  Lars Kruse     Added some support for publishing lbtype
+2007-07-11  Lars Kruse     Added some support for publishing lbtype
                            stepped to version 1.0.3
-2007-21-07  Lars Kruse     Added some support for composite labels
+2007-07-21  Lars Kruse     Added some support for composite labels
                            and config specs. Stepped to version 1.0.4
-2008-20-06  Jens Brejner   Stepped to v.l.0.6, don´t know what was changed
+2008-06-20  Jens Brejner   Stepped to v.l.0.6, don´t know what was changed
                            in v1.0.5. Added 2 constants.
-2009-28-07  Jens Brejner   Removed duplicate declaration.
-2009-11-10  Lars Kruse     Added the get_vobtypes sub and the necessary 
+
+2009-07-28  Jens Brejner   Removed duplicate declaration.
+2009-11-10  Lars Kruse     Added the get_vobtypes sub and the necessary
                            support for that (v1.0.7)
 2009-11-16  Lars Kruse     Added constant def ATTYPE_TRIGGER_BLACKLIST
-                           (v1.0.8)                        
+                           (v1.0.8)
+2009-11-18  Jens Brejner   Rebase from trunk. Interface changed, added is_cclt
+                           (v1.0.9)
+
 -------------------------------------------------------------------------
 ENDREVISION
-my $self = {};    #Reference to an anonymous hash, Will be blessed later
+
 
 =head1 FUNCTIONS
 
@@ -226,7 +236,7 @@ Takes a vobtag and returns the AdminVOB.
 Parameters:
 
  $vob              = The VOB to check.
-                     It can be aither a vob tag or a vob object. 
+                     It can be aither a vob tag or a vob object.
                      Both examples are legal;
                        get_adminvob("\TheVob");
                        get_adminvob("vob:\TheVob");
@@ -258,7 +268,7 @@ Takes a vob and returns the top-level AdminVOB in the chain of AdminVOB hyperlin
 Parameters:
 
  $vob              = The VOB to check.
-                     It can be aither a vob tag or a vob object. 
+                     It can be aither a vob tag or a vob object.
                      Both examples are legal;
                        get_adminvob("\TheVob");
                        get_adminvob("vob:\TheVob");
@@ -271,7 +281,7 @@ Returns:
 
     my $vob = "vob:".shift;
     $vob =~s/vob:vob:/vob:/;
-    
+
     my $retval = join "", get_hlinks( $vob, "->", "AdminVOB" );
     if ( $retval eq "" ) {
         $vob =~ s/vob://;
@@ -280,7 +290,6 @@ Returns:
         return &get_top_adminvob($retval);
     }
 }
-
 
 ##############################################################################
 
@@ -311,7 +320,6 @@ Returns:
 
 ##############################################################################
 
-
 sub is_pvob($){
 # When you lsvob a PVOB it will list the (ucmvob) keyword in the end:
 # cleratool lsvob  \PDS_PVOB
@@ -326,42 +334,42 @@ sub is_pvob($){
 
 sub get_vobtypes{
 	my $vob = shift;
-	
+
 	# Get the ACC_VOBType attribute: a csv list of supported custom vob type
 	my $cmd = "cleartool desc -s -aattr ".ATTYPE_CUSTOM_VOBTYPE." vob:$vob";
 	my $raw_vobtypeattr = `$cmd`;
   $? && die "Execution of: [$cmd] failed\n"; # assert success
-	chomp($raw_vobtypeattr); 
+	chomp($raw_vobtypeattr);
 	$raw_vobtypeattr =~ s/\"//g; # get rid of the 'required' quotes in CC string attributes
 	my @result = split(',', $raw_vobtypeattr); # feed it to the result
-  
+
 	# Determine the generic VOB type
-	
+
 	# Is it a PVOB?
 	is_pvob($vob) && do{
 		push @result, VOBTYPE_PVOB;
 		return @result;
 	};
-	
+
 	# Is it an AdminVOB
 	is_adminvob($vob) && do{
 		push @result, VOBTYPE_ADMINVOB;
 		return @result;
 	};
-	
+
 	#Is it a Base ClearCase VOB (one without an AdminVOB hyperlink?
 	my $adminvob = get_adminvob($vob);
 	($adminvob eq $vob) && do {
 		push @result, VOBTYPE_BCC_CLIENT; # The Vob is self-contained - it has No AdminVOB
 		return @result;
   };
-  
+
   # Is it an UCM vob
 	(is_pvob($adminvob)) && do {
   	push @result, VOBTYPE_UCM_CLIENT; # The VOB has an AdminVOB hlink pointin to a PVOB
 		return @result;
 	};
-  
+
   # OK The is't a Base ClearCase VOB (one with a hlink to a regular AdminVOB )
  	push @result, VOBTYPE_BCC_CLIENT; # The VOB has an AdminVOB hlink pointin to a PVOB
 	return @result;
@@ -433,6 +441,7 @@ Returns:
 }
 
 ###############################################################
+
 sub get_hlinks($$$) {
 
 =head2 get_hlinks( $obj, $direction, $hltype )
@@ -466,6 +475,7 @@ Returns:
 }
 
 ###############################################################
+
 sub is_frozen ($) {
 
 =head2 is_frozen(  \$fqlbtype)
@@ -577,6 +587,7 @@ Returns:
 }
 
 ###############################################################
+
 sub mkrestriction($$$) {
 
 =head2 mkrestriction(  $lbtyperef, $brtyperef, $vobref )
@@ -668,7 +679,8 @@ Returns:
       . $$ref . "]\n";
 }
 
-##########################################################################################
+###############################################################
+
 sub objexist($) {
 
 =head2 objexist(  \$obj  )
@@ -692,7 +704,8 @@ Returns:
     return ($?) ? 0 : 1;    # Cleartool desc returns 1 on error and 0 on succes, so it'll have to be inverted:
 }
 
-##########################################################################################
+###############################################################
+
 sub mkhlink_unique($$$) {
 
 =head2 mkhlink_unique(  \$fromobj, \$toobj, \$hltype )
@@ -742,7 +755,8 @@ Returns:
     };
 }
 
-################################################################################################
+###############################################################
+
 sub mkattr_unique($$) {
 
 =head2 mkattr_unique(  \$attype, \$obj )
@@ -786,7 +800,8 @@ Returns:
     }
 }
 
-####################################################################################################
+###############################################################
+
 sub rmhlink_all($$$) {
 
 =head2 rmhlink_all(  $fromobjref, $toobjref, $hltyperef )
@@ -839,7 +854,8 @@ Returns:
     exit $retval;
 }
 
-################################################################################################
+###############################################################
+
 sub _list_published($$) {
 
     my $vobref = shift;
@@ -886,7 +902,8 @@ sub _list_published($$) {
     return 0;
 }
 
-############################################################################################
+###############################################################
+
 sub list_published($$) {
 
 =head2 list_published(  $vobref, $long )
@@ -912,7 +929,8 @@ Returns:
     return $retval;
 }
 
-############################################################################################
+###############################################################
+
 sub get_acc_meta_data_vobs($) {
 
 =head2 get_acc_meta_data_vobs( \@returnlist )
@@ -946,7 +964,8 @@ Returns:
     return 1;
 }
 
-#########################################################################################
+###############################################################
+
 sub get_published($$$) {
 
 =head2 get_published(  $vobref, $long, $returnarrayref  )
@@ -998,6 +1017,7 @@ Returns:
 }
 
 ###############################################################
+
 sub get_composite($$$) {
 
 =head2 get_composite( $lbtype, $level, $resultref )
@@ -1045,6 +1065,7 @@ Returns:
 }
 
 ###############################################################
+
 sub validate_lbtype($$) {
 
 =head2 validate_lbtype( $lbtype, $retvalref )
@@ -1089,6 +1110,7 @@ Returns:
 }
 
 ###############################################################
+
 sub freeze($) {
 
 =head2 freeze( $lbtyperef )
@@ -1123,6 +1145,7 @@ Returns:
 }
 
 ###############################################################
+
 sub labels_to_cs($$$) {
 
 =head2 labels_to_cs( $labelcsv, $branch, $csref )
@@ -1214,6 +1237,7 @@ Returns:
 }
 
 ###############################################################
+
 sub lbtype_to_csrule($$) {
 
 =head2 lbtype_to_csrule( $lbref, $retref )
@@ -1247,7 +1271,8 @@ Returns:
     }
 }
 
-################################################################
+###############################################################
+
 sub initmeta($) {
 
 =head2 initmeta( \$vob )
@@ -1278,29 +1303,20 @@ Returns:
 
     # defined them first:
     my %types = (
-        "attype:" . acc::ATTYPE_FROZEN . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
-        "attype:" . acc::ATTYPE_PROMOTION_LEVEL . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -enum \\\"released\\\",\\\"tested\\\",\\\"built\\\",\\\"integrated\\\" ",
-        "attype:" . acc::ATTYPE_KEYWORDS . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
-        "attype:" . acc::ATTYPE_LBTYPE_TEMPLATE . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"[A-Z][A-Z0-9_-\\\\.]{3,30}\\\" ",
-        "attype:" . acc::ATTYPE_BRTYPE_TEMPLATE . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-z][a-z0-9_]{3,30}\\\" ",
-        "attype:" . acc::ATTYPE_ATTYPE_TEMPLATE . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-zA-Z][a-zA-Z0-9]{3,30}\\\" ",
-        "attype:" . acc::ATTYPE_HLTYPE_TEMPLATE . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-zA-Z][a-zA-Z0-9]{3,30}\\\" ",
-        "attype:" . acc::ATTYPE_ACCMETADATA . "\@" .
-          $vob => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
-        "hltype:" . acc::HLTYPE_PUBLISHED . "\@" .
-          $vob => "-c \"ACC meta type\" ",
-        "hltype:" . acc::HLTYPE_COMPOSITE . "\@" .
-          $vob => "-c \"ACC meta type\" ",
-        "hltype:" . acc::HLTYPE_RESTRICTED . "\@" .
-          $vob                                        => "-c \"ACC meta type\" ",
-        "lbtype:" . acc::LBTYPE_INITIAL . "\@" . $vob => "-c \"ACC meta type\" "
+        "attype:" . acc::ATTYPE_FROZEN . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
+        "attype:"
+          . acc::ATTYPE_PROMOTION_LEVEL . "\@"
+          . $vob => "-c \"ACC meta type\" -vtype string -enum \\\"released\\\",\\\"tested\\\",\\\"built\\\",\\\"integrated\\\" ",
+        "attype:" . acc::ATTYPE_KEYWORDS . "\@" . $vob        => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
+        "attype:" . acc::ATTYPE_LBTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[A-Z][A-Z0-9_-\\\\.]{3,30}\\\" ",
+        "attype:" . acc::ATTYPE_BRTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-z][a-z0-9_]{3,30}\\\" ",
+        "attype:" . acc::ATTYPE_ATTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-zA-Z][a-zA-Z0-9]{3,30}\\\" ",
+        "attype:" . acc::ATTYPE_HLTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-zA-Z][a-zA-Z0-9]{3,30}\\\" ",
+        "attype:" . acc::ATTYPE_ACCMETADATA . "\@" . $vob     => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
+        "hltype:" . acc::HLTYPE_PUBLISHED . "\@" . $vob       => "-c \"ACC meta type\" ",
+        "hltype:" . acc::HLTYPE_COMPOSITE . "\@" . $vob       => "-c \"ACC meta type\" ",
+        "hltype:" . acc::HLTYPE_RESTRICTED . "\@" . $vob      => "-c \"ACC meta type\" ",
+        "lbtype:" . acc::LBTYPE_INITIAL . "\@" . $vob         => "-c \"ACC meta type\" "
     );
 
     foreach ( keys(%types) ) {
@@ -1353,7 +1369,8 @@ Returns:
     return 1;
 }
 
-################################################################
+###############################################################
+
 sub set_default_acc_meta($$) {
 
 =head2 set_default_acc_meta( \$vob,\$region )
@@ -1383,7 +1400,8 @@ Returns:
     return 1;
 }
 
-################################################################
+###############################################################
+
 sub get_default_acc_meta($) {
 
 =head2 get_default_acc_meta( \$result )
@@ -1408,7 +1426,8 @@ Returns:
     return $_;
 }
 
-################################################################
+###############################################################
+
 sub validate_global_invob($$$) {
 
 =head2 validate_global_invob( $vobref, $typeref, $kindref, $paramsref )
@@ -1436,3 +1455,51 @@ Returns:
     my $typeref = shift;
     my $kindref = shift;
 }
+
+###############################################################
+
+sub is_cclt {
+
+=head2 is_cclt ()
+
+Clearcase variant.
+
+ClearCase LT has some differencies from Base ClearCase with respect to
+how objects like for instance vobs or views are reported.
+
+On Base ClearCase the command C<cleartool lsvob> returns the vobtag and the global
+access path's for the vobs like in this example:
+
+ \ADMIN               \\cccq7\ccstorage\vobs\ADMIN.vbs private (ucmvob)
+ \bvob2               \\cccq7\ccstorage\vobs\bvob2.vbs private
+
+So it is :
+  vobtag              UNCPATH public|private (properties)
+
+
+Where as the same command on ClearCase LT are reported in this format:
+
+ \DV0241              APPDKHI008:d:\ccstorage\Vobs\DV0241.vbs
+
+So it is:
+  vobtag              server:server_localpath (properties)
+
+This function will return 1 if we are on ClearCase LT, else it returns 0
+
+
+
+=cut
+
+    return $clearcaselt if ( $clearcaselt ne "" ); # If we have already established the value
+
+    # my $found = grep { /Rational ClearCase LT/ } qx(cleartool -ver);
+    if ( grep { /Rational ClearCase LT/ } qx(cleartool -ver) ) {    # true if found
+        $clearcaselt = 1;
+    } else {
+        $clearcaselt = 0;
+    }
+    return $clearcaselt;
+
+}
+
+1;
