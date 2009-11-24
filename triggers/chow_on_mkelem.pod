@@ -1,0 +1,172 @@
+
+=pod
+
+=head1 NAME
+
+chow_on_mkelem - ClearCase trigger
+
+Script:        F<chow_on_mkelem.pl>
+
+Trigger name:  C<CHOW_ON_MKELEM>
+
+Version (v1.1.3)
+
+Used as a trigger to change the ownership of newly added elemetns to be owned by the VOB owner.
+
+=head1 SYNOPSIS
+
+Runs as ClearCase trigger script installed on basevobs and ucmvobs (not adminvobs or pvobs)
+
+The scripts installs itself correctly when executed outside a trigger context using:
+
+  chow_on_mkelem.pl -install -vob \thevob
+
+To learn the full syntax simply execute the the script without the -vob switch:
+
+  chow_on_mkelem.pl -install
+
+=head2 Restrictions
+
+During the install process, that script is supposed to run under the account which owns the VOB.
+The script will fail if that is not the case.
+
+An exception is if you execute it in -preview mode
+
+To bypass the script you must create the appropriate semaphor file first
+(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
+
+It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
+that triggers are executed - and semaphore files ar looked-up - at locations where common users only
+have read access. ...There! I said it anyway!
+
+=head1 DESCRIPTION
+
+Elements are per default owned by the user who creates them (adds them to source control) and element ownership
+means 'superpowers' ...superpowers which general users aren't supposed to have, so thererfor they are revoked
+instantly upon creation by this trigger.
+
+=head1 AUTHOR
+
+Lars Kruse, E<lt>lak@praqma.netE<gt>.
+
+=head1 BUGS
+
+See the website below.
+
+=head1 COPYRIGHT
+
+This program is distributed under the GNU General Pulic License v3.0
+
+Support:    http://launchpad.net/acc
+
+=for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
+
+
+=head1 Test Cases
+
+=over
+
+=item Test 1:
+
+=item *
+Test what: Usage information to STDOUT if no trigger context
+
+=item *
+Test how: ratlperl chow_on_mkelem.pl
+
+=item *
+Expect: Usage information printed to STDOUT
+
+=back
+
+
+=over
+
+=item Test 2:
+
+=item *
+Test what: Trigger is self-installing on the allowed vob types
+
+=item *
+Test how: ratlperl <UNCPATH>\chow_on_mkelem -install -vob I<vobtag>
+
+=item *
+Expect: shall install if vob type is either I<bccvob> or I<ucmvob> see "enable_install"
+in ..\Pragma\trigger_helper.pm, if the vob type is not allowed, the script shall refuse to
+install on the vob.
+
+=back
+
+=over
+
+=item Test 3:
+
+=item *
+Test what: Logging can be enabled
+
+=item *
+Test how: Install trigger, then set environment variable CLEARCASE_TRIGGER_DEBUG=1, and add a new element to the vob
+
+=item *
+Expect: A log file shall be created in TEMP, look for a file called chow_on_mkelem.pl.PID<N>.log
+
+
+=back
+
+
+=over
+
+=item Test 4:
+
+=item *
+Test what: Trigger can be bypassed (Not too important here, this one is a post-op trigger, and can there for not prevent an operation.
+
+=item *
+Test how: Create a valid semaphore file, and add an element to source control from command line.
+
+=item *
+Expect: A message is printed to STDOUT that tells that the script was cancelled.
+
+
+=back
+
+
+=over
+
+=item Test 5:
+
+=item *
+Test what: Element owner is set to vobowner.
+
+=item *
+Test how: First take a note of the vob-owner by executing:
+ cleartool desc -fmt %[owner]p vob:\I<vobtag>
+then add a new element to the vob as a user that is not the vob-owner
+
+=item *
+Expect: The owner of the element shall be the vob-owner when the operation completes.
+
+
+=back
+
+
+=over
+
+=item Test 6:
+
+=item *
+Test what: The owner is not changed when trigger bypassing is active
+
+=item *
+Test how: Do test 4, then test 5
+
+=item *
+Expect: The owner of the new element shall not be changed, but stay with the user that added the element.
+
+=back
+
+
+=over
+
+
+=cut
