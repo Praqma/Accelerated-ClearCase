@@ -1,30 +1,21 @@
 require 5.000;
 use strict;
-
-our ( $Scriptdir, $Scriptfile );
-
-BEGIN {
-    $Scriptdir  = ".\\";
-    $Scriptfile = $0;      # Assume the script is called from 'current directory' (no leading path - $0 is the file)
-    $Scriptfile =~ /(.*\\)(.*)$/
-      && do {
-        $Scriptdir  = $1;
-        $Scriptfile = $2;
-      }                    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+our ($Scriptdir, $Scriptfile);
+BEGIN{
+	$Scriptdir =".\\";$Scriptfile = $0;                                # Assume the script is called from 'current directory' (no leading path - $0 is the file)
+	$Scriptfile =~/(.*\\)(.*)$/ &&  do{$Scriptdir=$1;$Scriptfile=$2;}  # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
-
-use lib $Scriptdir. "..";
-
+use lib $Scriptdir."..";
 use praqma::scriptlog;
 use praqma::trigger_helper;
 
 #Required if you call trigger_helper->enable_install
-our $TRIGGER_NAME = "ACC_CHECKOUT_LATEST";
+our $TRIGGER_NAME = "ACC_CO_LATEST_ONLY";
 
 our %install_params = (
   "name"        => $TRIGGER_NAME,                                         # The name og the trigger
-  "mktrtype"    => "-preop checkout -element -all ",                      # The stripped-down mktrtype command
-  "supports"    => "",                                                    # csv list of generic and/or custom VOB types (case insensetive)
+  "mktrtype"    => "-element -all -preop checkout",                       # The stripped-down mktrtype command
+  "supports"    => "bccvob,ucmvob",                                       # csv list of generic and/or custom VOB types (case insensetive)
 );
 
 # File version
@@ -45,11 +36,13 @@ our $header = <<ENDHEADER;
 #     switch to learn more).
 #
 #     Read the POD documentation in the script for more details
-#     Date:       2009-09-21
-#     Author:     Mikael Jensen, mij\@praqma.net
+#     Date:       2009-11-26
+#     Author:     Lars Kruse, lak\@praqma.net
 #     Copyright:  Praqma A/S
 #     License:    GNU General Pulic License v3.0
 #     Support:    http://launchpad.net/acc
+#     Docs:       Goto http://wiki.praqma.net/acc 
+#                 and search for "acc_co_latest_only"            
 #########################################################################
 ENDHEADER
 
@@ -58,8 +51,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
-2009-09-21  Mikael Jensen  1st release prepared for Novo (version 0.1.1)
-
+2009-11-26  Lars Kruse     1st release prepared for Novo (version 0.1.1)
 -------------------------  ----------------------------------------------
 ENDREVISION
 
@@ -78,73 +70,21 @@ our $logfile=$log->get_logfile;
 $log->information($semaphore_status);
 $log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE variables
 
+######### PREVENT CHECKOUT OF VERSIONS UNLESS THEY ARE LATEST ON THE BRANCH ##############
 
-# Here starts the actual trigger code.
-my $cmd = "cleartool find \"$ENV{CLEARCASE_PN}\" -version version(\\$ENV{CLEARCASE_BRTYPE}\\LATEST) -print";
-my $latest = `$cmd`;
-chomp($latest);
-if ($latest eq $ENV{CLEARCASE_XPN}) {
-	$log->information("This element is latest version \n");
-	exit 0;
-} else {
-	$log->information("Not latest element version. \n Enforcing trigger on $ENV{'CLEARCASE_PN'} \n");
+if ( ($ENV{CLEARCASE_VIEW_KIND} eq "snapshot") && ($ENV{CLEARCASE_OP_KIND} eq "checkout") )  {      #Check that the events that fired the trigger are the ones we support
+
+  my $cmd = "cleartool find \"$ENV{CLEARCASE_PN}\" -version version(\\$ENV{CLEARCASE_BRTYPE}\\LATEST) -print";
+  my $latest = `$cmd`;
+  chomp($latest);
+  if ($latest ne $ENV{CLEARCASE_XPN}) {
+  	$log->error("THIS version is not the LATEST version on the branch. Update your snapshot view and try again\n".
+  	            "THIS   version: [$ENV{CLEARCASE_XPN}]\n".
+  	            "LATEST version: [$latest]\n");
+    exit 1;	
+  }
+  exit 0;
 }
-
-#my ( $dir_delim, $possible_dupe, $dupver );
-#my $viewkind = $ENV{CLEARCASE_VIEW_KIND};
-#my $pathname = $ENV{CLEARCASE_XPN};
-#my $sfx      = $ENV{'CLEARCASE_XN_SFX'} ? $ENV{'CLEARCASE_XN_SFX'} : '@@';
-my $pathname = $ENV{CLEARCASE_XPN};
-#my $sfx      = $ENV{'CLEARCASE_XN_SFX'} ? $ENV{'CLEARCASE_XN_SFX'} : '@@';
-
-if ( $ENV{'OS'} =~ /[Ww]indows/ ) {
-    # Convert any "X:\view_tag\vob_tag\.\*" to "X:\view_tag\vob_tag\*"
-    $pathname =~ s/\\.\\/\\/;
-    my $dir_delim = "\\";
-} else {
-    my $dir_delim = "/";
-}
-
-my $prompt = "This elemente is not the latest available. \\n";
-my ( $parent, $element ) = acc::split_dir_file($pathname);
-$prompt = "$prompt [-$parent-{$element}].\\n";
-$prompt = "$prompt Would you like to update the element to LATEST before checkout?\\n";
-$prompt = "$prompt yes = Update the element $parent to LATEST\\n";
-$prompt = "$prompt no = Continue checkout of current version of $parent \\n";
-$prompt = "$prompt abort = cancel checkout operation \\n \\n";
-$prompt = "$prompt Action is logged in logfile:\\n " . $log->get_logfile;
-$prompt = "$prompt \\n (if you expect/experience alot of these, you might want to abort and update the view)";
-
-`clearprompt yes_no -pro \"$prompt\" -type error -mask yes,no,abort -default abort -newline -prefer_gui`;
-my $result = $?;
-# if "NO" is selected
-if ($result == 256) {
-	$log->information("Element $ENV{'CLEARCASE_PN'} is not latest available, but accepted by user");
-	exit 0;
-}
-# if "YES" is selected
-if ($result == 0) {
-	# Do something to update the view
-	# check the status of the update
-	# if good update exit 0
-	# if bad update exit 1 with explanation
-	$log->information("You have YES to update the file");
-	my $update = `cleartool update \"$ENV{'CLEARCASE_PN'}\"`;
-	if ($?) {
-		$log->error("Update of $ENV{'CLEARCASE_PN'} failed with $update");
-		exit 1;
-	}
-	$log->information($update);
-	exit 0;
-}
-if ($result == 512) {
-	$log->information("You have chosen to abort");
-	# prevent the operation
-	exit 1;	
-}
-
-$log->error("Clearprompt returned an unexpected error");
-exit 1;
 __END__
 
 ######################## DOCUMENTATION ##############################
