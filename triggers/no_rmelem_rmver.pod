@@ -1,0 +1,65 @@
+=pod
+
+=head1 NAME
+
+no_rmelem_rmver - ClearCase trigger
+
+Script:        F<no_rmelem_rmver.pl>
+
+Trigger name:  C<NO_RMELEM_RMVER>
+
+Used as a generic trigger which prevents rmelem and rmver (unless the user happens to be the vobowner).
+
+=head1 SYNOPSIS
+
+Runs as ClearCase trigger script installed on basevobs and ucmvobs (not adminvobs or pvobs)
+
+The scripts installs itself correctly when executed outside a trigger context using:
+
+  no_rmelem_rmver.pl -install -vob \thevob
+
+To learn the full syntax simply execute the the script without the -vob switch:
+
+  no_rmelem_rmver.pl -install
+
+=head2 Restrictions
+
+During the install process, that script is supposed to run under the account which owns the VOB.
+The script will fail if that is not the case.
+
+An exception is if you execute it in -preview mode
+
+To bypass the script you must create the appropriate semaphor file first
+(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
+
+It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
+that triggers are executed - and semaphore files ar looked-up - at locations where common users only
+have read access. ...There! I said it anyway!
+
+=head1 DESCRIPTION
+
+Elements and versions of elements can be removed by the users who owns them. This trigger prevents the
+operations all togeteher - with the vobowner as the built-in exception.
+
+
+
+
+=head1 AUTHOR
+
+Lars Kruse, E<lt>lak@praqma.netE<gt>.
+
+=head1 BUGS
+
+See the website below.
+
+=head1 COPYRIGHT
+
+This program is distributed under the GNU General Pulic License v3.0
+
+Support:    http://launchpad.net/acc
+
+=for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
+
+=cut
+
+

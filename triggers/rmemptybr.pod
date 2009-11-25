@@ -1,0 +1,67 @@
+=pod
+
+=head1 NAME
+
+rmemptybr - ClearCase trigger
+
+Script:        F<rmemptybr.pl>
+
+Trigger name:  C<ACC_RMEMPTYBR>
+
+Used as a trigger to remove empty branches if necessary after versions or branches has been removed.
+
+=head1 SYNOPSIS
+
+Runs as ClearCase trigger script installed on VOBs that hold elements (everything but AdminVOBs and PVOBs)
+
+The scripts installs itself correctly when executed outside a trigger context using:
+
+  rmemptybr.pl -install -vob \thevob
+
+To learn the full syntax simply execute the the script without the -vob switch:
+
+  rmemptybr.pl -install
+
+(...or consult the POD documentation for praqma::trigger_helper).
+
+=head2 Restrictions
+
+During the install process, that script is supposed to run under the account which owns the VOB.
+The script will fail if that is not the case.
+
+An exception is if you execute it in -preview mode
+
+To bypass (diable witoput uninstalling) the script the admin must create the appropriate semaphore file first
+(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
+
+=head1 DESCRIPTION
+
+When a version is removed from a branch or a checkout is undone, then the predecessor becomes the new LATEST.
+But if the removed version is the only one on the branch except the zero version it means that the branch is
+left empty and it really ought to be removed.
+
+Another situation that can lead to dangeling empty branches is if a config spec is set up to create "cascading
+branches". Then you have intentionally empty branches with no other purpose than to hold other branches coming
+off from it - but if the leaf branches are removed - then so should the in-between branches.
+
+The trigger is fires post-op and in case og snapshort views it deals with the unpleasant side-effect that if
+you remove a version from a snapshot view then the element will have the status [not loaded]. This triggers
+will re-load the element.
+
+=head1 AUTHOR
+
+Lars Kruse, E<lt>lak@praqma.netE<gt>.
+
+=head1 BUGS
+
+See the website below.
+
+=head1 COPYRIGHT
+
+This program is distributed under the GNU General Pulic License v3.0
+
+Support:    http://launchpad.net/acc
+
+=for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
+
+=cut
