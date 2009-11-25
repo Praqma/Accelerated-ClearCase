@@ -23,7 +23,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.1";
-our $REVISION = "2";
+our $REVISION = "3";
 
 my $verbose_mode = 1;
 
@@ -37,7 +37,7 @@ our $header = <<ENDHEADER;
 #     changes the ownership of the element to the VOB owner account.
 #     This script supports self-install (execute with the -install
 #     switch to learn more).
-#     Read the POD documentation in the script for more details
+#     Read the POD documentation for more details
 #     Date:       2009-08-11
 #     Author:     Lars Kruse, lak\@praqma.net
 #     Copyright:  Praqma A/S
@@ -53,6 +53,7 @@ DATE        EDITOR  NOTE
 ----------  -------------  ---------------------------------------------------
 2009-06-24  Lars Kruse     1st release prepared for Novo Nordisk (version 1.0.1)
 2009-11-10  Lars Kruse     Made it compliant with the new enable_install method
+2009-11-24  Jens Brejner   Move POD info to seperate file  (v1.1.3)
 ------------------------------------------------------------------------------
 ENDREVISION
 
@@ -90,64 +91,4 @@ exit 0;
 __END__
 
 ######################## DOCUMENTATION ##############################
-=pod
-
-=head1 NAME
-
-chow_on_mkelem - ClearCase trigger
-
-Script:        F<chow_on_mkelem.pl>
-
-Trigger name:  C<CHOW_ON_MKELEM>
-
-Used as a trigger to change the ownership of newly added elemetns to be owned by the VOB owner.
-
-=head1 SYNOPSIS
-
-Runs as ClearCase trigger script installed on basevobs and ucmvobs (not adminvobs or pvobs)
-
-The scripts installs itself correctly when executed outside a trigger context using:
-
-  chow_on_mkelem.pl -install -vob \thevob
-
-To learn the full syntax simply execute the the script without the -vob switch:
-
-  chow_on_mkelem.pl -install
-
-=head2 Restrictions
-
-During the install process, that script is supposed to run under the account which owns the VOB.
-The script will fail if that is not the case.
-
-An exception is if you execute it in -preview mode
-
-To bypass the script you must create the appropriate semaphor file first
-(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
-
-It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
-that triggers are executed - and semaphore files ar looked-up - at locations where common users only
-have read access. ...There! I said it anyway!
-
-=head1 DESCRIPTION
-
-Elements are per default owned by the user who creates them (adds them to source control) and element ownership
-means 'superpowers' ...superpowers which general users aren't supposed to have, so thererfor they are revoked
-instantly upon creation by this trigger.
-
-=head1 AUTHOR
-
-Lars Kruse, E<lt>lak@praqma.netE<gt>.
-
-=head1 BUGS
-
-See the website below.
-
-=head1 COPYRIGHT
-
-This program is distributed under the GNU General Pulic License v3.0
-
-Support:    http://launchpad.net/acc
-
-=for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
-
-=cut
+# See pod file
