@@ -74,13 +74,19 @@ $log->dump_ccvars; # Run this statement to have the trigger dump the CLEARCASE v
 
 if ( ($ENV{CLEARCASE_VIEW_KIND} eq "snapshot") && ($ENV{CLEARCASE_OP_KIND} eq "checkout") )  {      #Check that the events that fired the trigger are the ones we support
 
-  my $cmd = "cleartool find \"$ENV{CLEARCASE_PN}\" -version version(\\$ENV{CLEARCASE_BRTYPE}\\LATEST) -print";
+  my $cmd = "cleartool find \"$ENV{CLEARCASE_PN}\" -version version(\\$ENV{CLEARCASE_BRTYPE}\\LATEST) -print 2>&1";
   my $latest = `$cmd`;
+  ($? || ($latest eq "") ) && do{
+  	$log->error("The result of the execution was unexpected please report to ClearCase Admin\n".
+  	            "Execute:\n\>$cmd\n".
+  	            "Return value was:\n$latest\n");
+  	exit 0;
+  };
   chomp($latest);
   if ($latest ne $ENV{CLEARCASE_XPN}) {
   	$log->error("THIS version is not the LATEST version on the branch. Update your snapshot view and try again\n".
-  	            "THIS   version: [$ENV{CLEARCASE_XPN}]\n".
-  	            "LATEST version: [$latest]\n");
+  	            "   THIS   version: [$ENV{CLEARCASE_XPN}]\n".
+  	            "   LATEST version: [$latest]\n");
     exit 1;	
   }
   exit 0;
@@ -95,23 +101,23 @@ __END__
 
 checkout_latest - ClearCase trigger
 
-Script:        F<checkout_latest.pl>
+Script:        F<co_latest_only.pl>
 
-Trigger name:  C<ACC_CHECKOUT_LATEST>
+Trigger name:  C<ACC_CO_LATEST_ONLY>
 
-Used as a generic trigger which warns when trying to checkout an element that is not the latest - please see the Description
+Used as a generic trigger which prevents checkouts in snapshot views of a version if that version is not the latest on it's branch.
 
 =head1 SYNOPSIS
 
-Runs as ClearCase trigger script installed on any vob, but primaryly on basevobs and ucmvobs ( it less likely to create elements on adminvobs or pvobs).
+Runs as ClearCase trigger script installed on base ClearCase VOBs and UCM VOBs.
 
-The scripts installs itself correctly when executed outside a trigger context using:
+The script installs itself correctly when executed outside a trigger context using:
 
-  (ratl)perl stop_twin -install -vob \thevob
+  co_latest_only.pl -install -vob \thevob
 
 To learn the full syntax simply execute the the script without the -vob switch:
 
-  stop_twin -install
+  co_latest_only.pl -install
 
 =head2 Restrictions
 
@@ -122,41 +128,14 @@ An exception is if you execute it in -preview mode
 
 =head1 DESCRIPTION
 
-In ClearCase all files and directories are elements, and directory elements are versioned just like file elements are.
-Every ClearCase element is identfied by an Object ID internally in ClearCase, and these Object ID's each have a name.
-Each version of a Directory Element contains a list of file- or directory names which where contained by the directory
-element - in that version, and a diff of two versions will display a change in the list of names contained by the directory
-element. $sfx      = $ENV{'CLEARCASE_X
+By default ClearCase allows any version to be checked out. But unless the version is the latest on it's branch it constitutes 
+a rather odd case. And it's not typically a scenario you would want to end up in deliberately.
 
-In a normal filesystem we delete files - or names - in order to remove them from the directory, but in ClearCase, because the names
-actually are names of other elements, we can not accept that an entire element vanishes from Clearcase, just because we don't like or
-need the name anymore.
-So Clearcase does the only right thing - it removes the name from the directory element version.
+In snapshot views there is a tendency that this scenario occurs frequently because when a user checkes out a version, it's by 
+default the one that is selected by the view, and if the view isn't updated and newer versions exists on the branch, then this trigger
+will prevent it from happening, and the user is instructed to update the snapshot view and try againg.
 
-Suppose that we at some time after removing the name foo.c from a directory version, ClearCase by itself does not stop us from creating
-a brand new element, with the name foo.c, and have that recorded in the directory contents, but what ClearCase has created for us is 2
-completely different element, with a history and contents of their own - but they look, by their name - like identical twins.
-And they are evil. ClearCase can - and will not - merge what you see as one file, because it is 2 files.
-
-That is the evil twin situation - and this trigger script, prevents the situation from happening, by looking in previous versions of the
-directory if the name has been used. If the name have been used, you are not allowed to reuse it.
-
-If you must reuse the name, you will need to merge a directory version that contains the name in question to the
-directory version you are working with.
-
-=head2 Case sensivity
-
-By default the trigger operates in Case sensitive mode, so elements with for instance  CamelCase errors can be renamed
-without involving the vob owner.
-
-The case sensitive pattern matching can be changed to case insensitive if that is required, to do that, you will edit the
-trigger script and change the line
-
-        my $case_sensitive = 1;
-
-to
-
-        my $case_sensitive = 0;
+The trigger has no effect if you are in a dynamic view. Assuming that if this scenario occurs in a dynamic view, it's because the user want it to happen.
 
 =head2 Bypassing the trigger.
 
@@ -169,7 +148,7 @@ have read access.
 
 =head1 AUTHOR
 
-Jens Brejner, E<lt>jbr@praqma.netE<gt>.
+Lars Kruse, E<lt>lak@praqma.netE<gt>.
 
 =head1 BUGS
 
