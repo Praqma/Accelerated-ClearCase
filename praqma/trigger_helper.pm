@@ -2,11 +2,11 @@ require 5.001;
 
 package trigger_helper;
 use strict;
-our( $scriptdir, $scriptfile );
+our ( $scriptdir, $scriptfile );
 
 BEGIN {
     $scriptdir  = ".\\";
-    $scriptfile = $0;                                 # Assume the module is called from 'current directory' (no leading path - $0 is the file)
+    $scriptfile = $0;      # Assume the module is called from 'current directory' (no leading path - $0 is the file)
     $scriptfile =~ /(.*\\)(.*)$/
       && do { $scriptdir = $1; $scriptfile = $2; }    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
@@ -49,10 +49,10 @@ DATE         EDITOR        NOTE
                            trigger_utils module (version 1.0.1)
 2009-08-11   Lars Kruse    Changed path to the semaphore file to use
                            back-slashes (version 1.0.2)
-2009-08-25	Lars Kruse		 Changed the return value of enable_semaphore()
+2009-08-25        Lars Kruse                 Changed the return value of enable_semaphore()
                            to be the status of the semaphore look-up.
                            (version 1.0.3)
-2009-11-06	Lars Kruse		 Changed the interface and semantics of
+2009-11-06        Lars Kruse                 Changed the interface and semantics of
                            enable_install. (version 1.1.4)
 2009-11-26  Jens Brejner   Add support for spaces in script path
 -------------------------------------------------------------------------
@@ -70,7 +70,7 @@ sub require_trigger_context() {
 }
 
 sub enable_semaphore_backdoor($) {
-	  my $msg = ""; #The status level of the semphore file.
+    my $msg = "";         #The status level of the semphore file.
 
     # If the semaphor file exists and it's not older than MAX_SEMAPHORE_FILE_AGE_DAYS
     # then the trigger will exit silently with 0 - allowing the event the trigger subscribed to, to carry on
@@ -80,41 +80,41 @@ sub enable_semaphore_backdoor($) {
 
     my ( $mainpath, $mainscript ) = acc::split_dir_file($main::0);
     if ( -e $semaphore_file ) {
-    	  $msg = "Script '$mainscript' found semaphore file at '$semaphore_file'\n";
+        $msg = "Script '$mainscript' found semaphore file at '$semaphore_file'\n";
         if ( ( -M $semaphore_file ) > MAX_SEMAPHORE_FILE_AGE_DAYS ) {
-            $msg = $msg."...but it's too old to stop us!";
+            $msg = $msg . "...but it's too old to stop us!";
         } else {
-            open( SEMAPHORE, $semaphore_file ) || print $msg = $msg. "...Failed to open the semaphore file for read\n" && return;
+            open( SEMAPHORE, $semaphore_file ) || print $msg = $msg . "...Failed to open the semaphore file for read\n" && return;
             my @sempahore = grep( /^\s*$mainscript\s*$/i, <SEMAPHORE> );
             close(SEMAPHORE);
 
             if ( scalar @sempahore ) {
-                $msg = $msg."...and found the script '$mainscript' listed in the semphore file\nThe trigger script is canceled by semaphore!\n";
+                $msg = $msg . "...and found the script '$mainscript' listed in the semphore file\nThe trigger script is canceled by semaphore!\n";
                 print $msg;
                 exit 0;
             }
-            $msg=$msg."...but it doesn't mention '$mainscript' so the trigger is allowed to continue\n";
+            $msg = $msg . "...but it doesn't mention '$mainscript' so the trigger is allowed to continue\n";
         }
     } else {
-    	$msg = "Script '$mainscript' looked for semaphore file at '$semaphore_file'\n...but there wasn't any\n";
+        $msg = "Script '$mainscript' looked for semaphore file at '$semaphore_file'\n...but there wasn't any\n";
     }
     return $msg;
 }
 
 sub enable_install($$) {
-  my ( $sw_install, $sw_vob, $sw_script, $sw_trigger, $sw_preview );
-  my %options = (
-      "install"   => \$sw_install,
-      "vob=s"     => \$sw_vob,
-      "script=s"  => \$sw_script,
-      "trigger=s" => \$sw_trigger,
-      "preview"   => \$sw_preview,
-  );
-  GetOptions(%options);
+    my ( $sw_install, $sw_vob, $sw_script, $sw_trigger, $sw_preview );
+    my %options = (
+        "install"   => \$sw_install,
+        "vob=s"     => \$sw_vob,
+        "script=s"  => \$sw_script,
+        "trigger=s" => \$sw_trigger,
+        "preview"   => \$sw_preview,
+    );
+    GetOptions(%options);
 
-  return 0 unless defined($sw_install);
+    return 0 unless defined($sw_install);
 
-  my $usage = <<ENDUSAGE;
+    my $usage = <<ENDUSAGE;
   $::Scriptfile -install -vob vob_tag [-script script_pname]
               [-trigger trigger_name] [-preview]
 
@@ -138,115 +138,116 @@ sub enable_install($$) {
                           run the script even if you are not the VOB owner
 ENDUSAGE
 
-  my $self = shift;
-  my $installopt_ref=shift;
-  my %installopt = %$installopt_ref;
+    my $self           = shift;
+    my $installopt_ref = shift;
+    my %installopt     = %$installopt_ref;
 
-  my $key_name = 'name';
-  my $key_support = 'supports';
-  my $key_mktrtype = 'mktrtype';
-  my ($trigger_name, $trigger_support, $trigger_mktrtype);
+    my $key_name     = 'name';
+    my $key_support  = 'supports';
+    my $key_mktrtype = 'mktrtype';
+    my ( $trigger_name, $trigger_support, $trigger_mktrtype );
 
-  $trigger_name = $installopt{$key_name};
-  $trigger_support = $installopt{$key_support};
-  $trigger_mktrtype = $installopt{$key_mktrtype};
+    $trigger_name     = $installopt{$key_name};
+    $trigger_support  = $installopt{$key_support};
+    $trigger_mktrtype = $installopt{$key_mktrtype};
 
-  die "The trigger name should have been passed in a key named '$key_name' but it wasn't\n"
-  unless ( defined($trigger_name));
+    die "The trigger name should have been passed in a key named '$key_name' but it wasn't\n"
+      unless ( defined($trigger_name) );
 
-  die "The trigger support option should have been passed in a key named '$key_support' but it wasn't\n"
-  unless ( defined($trigger_support));
+    die "The trigger support option should have been passed in a key named '$key_support' but it wasn't\n"
+      unless ( defined($trigger_support) );
 
-  die "The trigger mktrtype option should have been passed in a key named '$key_mktrtype' but it wasn't\n"
-  unless ( defined($trigger_mktrtype));
+    die "The trigger mktrtype option should have been passed in a key named '$key_mktrtype' but it wasn't\n"
+      unless ( defined($trigger_mktrtype) );
 
+    #Assert -vob switch is applied
+    die "ERROR -vob is required in -install mode.\n\n$usage\n"
+      unless defined($sw_vob);
 
- #Assert -vob switch is applied
- die "ERROR -vob is required in -install mode.\n\n$usage\n"
- unless defined($sw_vob);
+    #Assert VOB is available (test by querying the VOB owner)
+    my $vobowner = lc(`cleartool desc -fmt \%[owner]p vob:$sw_vob`);
+    die "ERROR $sw_vob is not accessible\n\n$usage\n"
+      unless ( not $? );
 
+    #Assert current user is the VOB owner - or we're running in -preview mode
+    my $current_user = lc( $ENV{userdomain} . "\\" . $ENV{username} );
+    die "Ooooh! You ($current_user) aren't the VOB owner ($vobowner is) ...trying to hack you way in are you!\n\n$usage\n"
+      unless ( ( $vobowner eq $current_user ) || defined($sw_preview) );
 
-  #Assert VOB is available (test by querying the VOB owner)
-  my $vobowner = lc(`cleartool desc -fmt \%[owner]p vob:$sw_vob`);
-  die "ERROR $sw_vob is not accessible\n\n$usage\n"
-    unless ( not $? );
+    #Assert path to the trigger script is fully qualified
+    my $trigger_pname = ( defined $sw_script ) ? $sw_script : $::Scriptdir . $::Scriptfile;
+    die "Only fully qualified paths are allowed: '$trigger_pname' is not valid.\n\n$usage\n"
+      unless ( $trigger_pname =~ /^\\\\/ ) || ( $trigger_pname =~ /^[a-zA-Z]:\\/ );
 
-  #Assert current user is the VOB owner - or we're running in -preview mode
-  my $current_user = lc( $ENV{userdomain} . "\\" . $ENV{username} );
-  die "Ooooh! You ($current_user) aren't the VOB owner ($vobowner is) ...trying to hack you way in are you!\n\n$usage\n"
-    unless ( ( $vobowner eq $current_user ) || defined($sw_preview) );
+    #Assert the path to the trigger script is valid
+    die "The script '$trigger_pname' is not accessible\n\n$usage\n"
+      unless ( -e $trigger_pname );
 
-  #Assert path to the trigger script is fully qualified
-  my $trigger_pname = ( defined $sw_script ) ? $sw_script : $::Scriptdir . $::Scriptfile;
-  die "Only fully qualified paths are allowed: '$trigger_pname' is not valid.\n\n$usage\n"
-    unless ( $trigger_pname =~ /^\\\\/ ) || ( $trigger_pname =~ /^[a-zA-Z]:\\/ );
+    my @vobtypes = acc::get_vobtypes($sw_vob);
+    my @allowed_vob_context = split( ',', $trigger_support );
+    push @allowed_vob_context, lc($trigger_name);
 
-  #Assert the path to the trigger script is valid
-  die "The script '$trigger_pname' is not accessible\n\n$usage\n"
-    unless ( -e $trigger_pname );
+    # match the two arrays against each other - get out as soon as a batchi is found
+    my $match;
+    foreach my $vt (@vobtypes) {
+        $match && last;
+        foreach my $avc (@allowed_vob_context) {
+            ( lc($vt) eq lc($avc) ) && do { $match = $vt; last }
+        }
+    }
 
-	my @vobtypes = acc::get_vobtypes($sw_vob);
-	my @allowed_vob_context = split(',', $trigger_support);
-	push @allowed_vob_context, lc($trigger_name);
+    $match || do {
+        my $vtlist;
+        foreach (@vobtypes) { $vtlist = $vtlist . $_ . ","; }
+        chop($vtlist);
+        print "[-]\t$trigger_name' does not qualify for VOB '$sw_vob' ($vtlist)\n";
+        uninstall_trtype( $trigger_name, $sw_vob );
+        exit 0;
+    };
 
-  # match the two arrays against each other - get out as soon as a batchi is found
-  my $match;
-  foreach my $vt (@vobtypes){
-  	$match && last;
-  	foreach my $avc(@allowed_vob_context){
-  		(lc($vt) eq lc($avc)) && do {$match=$vt; last}
-  	}
-  }
+    # Check if there is a blacklist disqualifying the installation
+    # Get the ACC_TriggerBlacklist attribute: a csv list of blacklisted trigger names
 
-  $match || do {
-  	my $vtlist;
-  	foreach(@vobtypes){$vtlist=$vtlist.$_.",";}
-  	chop($vtlist);
-  	print "[-]\t$trigger_name' does not qualify for VOB '$sw_vob' ($vtlist)\n";
-  	uninstall_trtype($trigger_name, $sw_vob);
-  	exit 0;
-  };
+    my $cmd               = "cleartool desc -s -aattr " . acc::ATTYPE_TRIGGER_BLACKLIST . " vob:$sw_vob";
+    my $raw_triggerblattr = `$cmd`;
+    $? && die "Execution of: [$cmd] failed\n";    # assert success
+    chomp($raw_triggerblattr);
+    $raw_triggerblattr =~ s/\"//g;                # get rid of the 'required' quotes in CC string attributes
+    my @blacklist = split( ',', $raw_triggerblattr );    # make a list;
 
-  # Check if there is a blacklist disqualifying the installation
-  # Get the ACC_TriggerBlacklist attribute: a csv list of blacklisted trigger names
+    my $bl_match = 0;
+    foreach my $bl (@blacklist) {
+        $bl_match = ( lc($bl) eq lc($trigger_name) );
+        $bl_match && last;
+    }
 
-	my $cmd = "cleartool desc -s -aattr ".acc::ATTYPE_TRIGGER_BLACKLIST." vob:$sw_vob";
-	my $raw_triggerblattr = `$cmd`;
-  $? && die "Execution of: [$cmd] failed\n"; # assert success
-	chomp($raw_triggerblattr);
-	$raw_triggerblattr =~ s/\"//g; # get rid of the 'required' quotes in CC string attributes
-	my @blacklist = split(',', $raw_triggerblattr); # make a list;
+    $bl_match && do {
+        print "[-]\t$trigger_name' match the role as [$match] but the trigger is blacklisted on VOB '$sw_vob'.\n";
+        uninstall_trtype( $trigger_name, $sw_vob );
+        exit 0;
+    };
 
-	my $bl_match=0;
-	foreach my $bl (@blacklist){
-		$bl_match = (lc($bl) eq lc($trigger_name));
-		$bl_match && last;
-	}
+    print "[+]\t$trigger_name' match the role as [$match] on VOB '$sw_vob'.\n";
 
-
-	$bl_match && do {
-    print "[-]\t$trigger_name' match the role as [$match] but the trigger is blacklisted on VOB '$sw_vob'.\n";
-		uninstall_trtype($trigger_name, $sw_vob);
-    exit 0;
-	};
-
-	print "[+]\t$trigger_name' match the role as [$match] on VOB '$sw_vob'.\n";
     # Check if the trigger is already set (in which case we must use the -replace switch)
     my $trigger_tag = defined($sw_trigger) ? $sw_trigger : $trigger_name;
 
-    my $replace = ( has_trtype($trigger_tag,$sw_vob) )? "-replace " : "";
+    my $replace = ( has_trtype( $trigger_tag, $sw_vob ) ) ? "-replace " : "";
 
-
-
-	# enclose path in double qouties if there are spaces in the path
-	if ($trigger_pname =~ / /) {
-		$trigger_pname = "\\\"$trigger_pname\\\"";
-	}
+    # enclose path in double qoutes and escapes there are spaces in the path
+    if ( $trigger_pname =~ / / ) {
+        $trigger_pname = "\\\"$trigger_pname\\\"";
+    }
 
     #Compile the trigger installation command
-    my $trig_inst_com           = "\"Created using the -install switch of $::Scriptfile\"";
-    my $current_trigger_install = "cleartool" . " mktrtype $replace". $trigger_mktrtype .
-                                  " -c $trig_inst_com -exec \"" . acc::TRIGGER_PERL . " $trigger_pname\" $trigger_tag\@$sw_vob 2>&1";
+    my $trig_inst_com = "\"Created using the -install switch of $::Scriptfile\"";
+    my $current_trigger_install =
+        "cleartool"
+      . " mktrtype $replace"
+      . $trigger_mktrtype
+      . " -c $trig_inst_com -exec \""
+      . acc::TRIGGER_PERL
+      . " $trigger_pname\" $trigger_tag\@$sw_vob 2>&1";
 
     #If all the uses wanted was a preview it's time to get out
     defined($sw_preview) && do {
@@ -258,33 +259,32 @@ ENDUSAGE
     exit system("$current_trigger_install");
 }
 
-sub has_trtype($$){
-	my $trtype = shift;
-	my $vob = shift;
-  # Check if the trigger is already set (in which case we must use the -replace switch)
-  my $cmd     = "cleartool desc trtype:$trtype\@$vob 2>&1";
-  my $cmdexec = `$cmd`;
-  #scalar_dump(\$cmd);
-  $? && return 0;
-  return 1;
+sub has_trtype($$) {
+    my $trtype = shift;
+    my $vob    = shift;
+
+    # Check if the trigger is already set (in which case we must use the -replace switch)
+    my $cmd     = "cleartool desc trtype:$trtype\@$vob 2>&1";
+    my $cmdexec = `$cmd`;
+
+    #scalar_dump(\$cmd);
+    $? && return 0;
+    return 1;
 }
 
-sub uninstall_trtype($$){
-	my $trtype = shift;
-	my $vob = shift;
-	has_trtype($trtype,$vob)&& do {
-    my $cmd     = "cleartool rmtype trtype:$trtype\@$vob 2>&1";
-    my $cmdexec = `$cmd`;
-    $? && do {
-    	print STDERR "ERROR: Failed to remove trigger:\n".
-                   "[Command:]\n$cmd\n".
-                   "[Returned:]\n$cmdexec\n";
-      die;
+sub uninstall_trtype($$) {
+    my $trtype = shift;
+    my $vob    = shift;
+    has_trtype( $trtype, $vob ) && do {
+        my $cmd     = "cleartool rmtype trtype:$trtype\@$vob 2>&1";
+        my $cmdexec = `$cmd`;
+        $? && do {
+            print STDERR "ERROR: Failed to remove trigger:\n" . "[Command:]\n$cmd\n" . "[Returned:]\n$cmdexec\n";
+            die;
+        };
+
+        print "The trigger '$trtype' was uninstalled from the VOB $vob\n";
     };
-
-    print "The trigger '$trtype' was uninstalled from the VOB $vob\n";
-	};
-
 
 }
 
