@@ -1,0 +1,96 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>rmemptybr - ClearCase trigger</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:" />
+</head>
+
+<body style="background-color: white">
+
+
+<!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<ul>
+
+		<li><a href="#restrictions">Restrictions</a></li>
+	</ul>
+
+	<li><a href="#description">DESCRIPTION</a></li>
+	<li><a href="#author">AUTHOR</a></li>
+	<li><a href="#bugs">BUGS</a></li>
+	<li><a href="#copyright">COPYRIGHT</a></li>
+</ul>
+
+<hr name="index" />
+</div>
+<!-- INDEX END -->
+
+<p>
+</p>
+<hr />
+<h1><a name="name">NAME</a></h1>
+<p>rmemptybr - ClearCase trigger</p>
+<p>Script:        <em class="file">rmemptybr.pl</em></p>
+<p>Trigger name:  <code>ACC_RMEMPTYBR</code></p>
+<p>Used as a trigger to remove empty branches if necessary after versions or branches has been removed.</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>Runs as ClearCase trigger script installed on VOBs that hold elements (everything but AdminVOBs and PVOBs)</p>
+<p>The scripts installs itself correctly when executed outside a trigger context using:</p>
+<pre>
+  rmemptybr.pl -install -vob \thevob</pre>
+<p>To learn the full syntax simply execute the the script without the -vob switch:</p>
+<pre>
+  rmemptybr.pl -install</pre>
+<p>(...or consult the POD documentation for praqma::trigger_helper).</p>
+<p>
+</p>
+<h2><a name="restrictions">Restrictions</a></h2>
+<p>During the install process, that script is supposed to run under the account which owns the VOB.
+The script will fail if that is not the case.</p>
+<p>An exception is if you execute it in -preview mode</p>
+<p>To bypass (diable witoput uninstalling) the script the admin must create the appropriate semaphore file first
+(see the POD documentation for praqma::trigger_helper-&gt;enable_semaphore_backdoor).</p>
+<p>
+</p>
+<hr />
+<h1><a name="description">DESCRIPTION</a></h1>
+<p>When a version is removed from a branch or a checkout is undone, then the predecessor becomes the new LATEST.
+But if the removed version is the only one on the branch except the zero version it means that the branch is
+left empty and it really ought to be removed.</p>
+<p>Another situation that can lead to dangeling empty branches is if a config spec is set up to create &quot;cascading
+branches&quot;. Then you have intentionally empty branches with no other purpose than to hold other branches coming
+off from it - but if the leaf branches are removed - then so should the in-between branches.</p>
+<p>The trigger is fires post-op and in case og snapshort views it deals with the unpleasant side-effect that if
+you remove a version from a snapshot view then the element will have the status [not loaded]. This triggers
+will re-load the element.</p>
+<p>
+</p>
+<hr />
+<h1><a name="author">AUTHOR</a></h1>
+<p>Lars Kruse, &lt;<a href="mailto:lak@praqma.net">lak@praqma.net</a>&gt;.</p>
+<p>
+</p>
+<hr />
+<h1><a name="bugs">BUGS</a></h1>
+<p>See the website below.</p>
+<p>
+</p>
+<hr />
+<h1><a name="copyright">COPYRIGHT</a></h1>
+<p>This program is distributed under the GNU General Pulic License v3.0</p>
+<p>Support:    <a href="http://launchpad.net/acc">http://launchpad.net/acc</a></p>
+<a href="http://launchpad.net/acc">Project home at Launchpad</a>
+</body>
+
+</html>
