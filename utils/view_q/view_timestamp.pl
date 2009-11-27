@@ -241,6 +241,8 @@ non-zero on failure
         $log->information("\n");
         return 1;
     }
+    # Stop the view-server process
+    `cleartool endview -server $viewtag`;
     $log->information("OK. Last access stamp on dynamic view [$tag] is now current\n");
     return 0;
 }
@@ -345,15 +347,9 @@ non-zero for failure
 =cut
 
     my $tag = shift;
-
-    # stop the view server process
-    my $cmd = "cleartool endview -server $tag 2>&1";
-    $sw_debug && $log->information("DEBUG: Endview command: [$cmd]\n");
-    my @retval = `$cmd`;    # No output is expected from command
-                            # remove the tag
-    $cmd = "cleartool rmtag -view $tag 2>&1";
+    my $cmd = "cleartool rmtag -view $tag 2>&1";
     $sw_debug && $log->information("DEBUG: rmtag command: [$cmd]\n");
-    @retval = `$cmd`;
+    my @retval = `$cmd`;
 
     if ($?) {
         $log->error("Trouble removing the temporary tag: [$tag]\n");
@@ -494,10 +490,6 @@ None
         } else {
             $log->warning("View type at [$viewlocal] not recognized, view not processed\n");
         }
-
-        # Stop the view-server process
-
-        `cleartool endview -server $viewtag`;
 
         if ($is_temptag) {
             rmtemptag($viewtag);
