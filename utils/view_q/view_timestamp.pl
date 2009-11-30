@@ -242,7 +242,7 @@ non-zero on failure
         return 1;
     }
     # Stop the view-server process
-    `cleartool endview -server $viewtag`;
+    `cleartool endview -server $tag`;
     $log->information("OK. Last access stamp on dynamic view [$tag] is now current\n");
     return 0;
 }
