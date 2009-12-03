@@ -12,7 +12,7 @@ use lib $Scriptdir. "..";
 use praqma::scriptlog;
 use praqma::trigger_helper;
 
-our $TRIGGER_NAME = "ACC_RMEMPTYBR";                  # The Trigger name is cached to it can be referenced in the header.
+our $TRIGGER_NAME = "ACC_RM_EMPTY_BR";                  # The Trigger name is cached to it can be referenced in the header.
 
 our %install_params = (
     "name"     => $TRIGGER_NAME,                                         # The name og the trigger

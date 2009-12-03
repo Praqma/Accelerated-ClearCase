@@ -55,8 +55,9 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
 2009-11-26  Lars Kruse     1st release prepared for Novo (version 0.1.1)
-2009-12-02  Jens Brejner   1st Basic bug fixes (version 0.1.2), isolate
+2009-12-02  Jens Brejner   Fix bug, fails on vob root (version 0.1.2), isolate
                            pod information in separate file.
+2009-12-03  Jens Brejner   Fix bug, fails if checkout creates a branch (v0.1.3).
 -------------------------  ----------------------------------------------
 ENDREVISION
 
@@ -83,7 +84,7 @@ if ( ( $ENV{'CLEARCASE_VIEW_KIND'} eq "snapshot" ) && ( $ENV{'CLEARCASE_OP_KIND'
     # find on directory elements needs some filtering.
     my $dirswitch = ( lc( $ENV{'CLEARCASE_ELTYPE'} ) eq "directory" ) ? " -directory" : "";
 
-    my $cmd    = "cleartool find \"" . $ENV{'CLEARCASE_PN'} . "\" $dirswitch -version version(\\" . $ENV{'CLEARCASE_BRTYPE'} . "\\LATEST) -print 2>&1";
+    my $cmd    = "cleartool find \"" . $ENV{'CLEARCASE_PN'} . "\" $dirswitch -version version(...\\" . $ENV{'CLEARCASE_BRTYPE'} . "\\LATEST) -print 2>&1";
     my $latest = `$cmd`;
     chomp($latest);
 
