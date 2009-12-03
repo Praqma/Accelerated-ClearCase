@@ -20,7 +20,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "1";
+our $REVISION = "2";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -52,6 +52,7 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
 2009-11-26  Lars Kruse     1st release prepared for Novo (version 0.1.1)
+2009-12-02  Jens Brejner   1st Basic bug fixes (version 0.1.2)
 -------------------------  ----------------------------------------------
 ENDREVISION
 
@@ -76,11 +77,15 @@ if ( ($ENV{CLEARCASE_VIEW_KIND} eq "snapshot") && ($ENV{CLEARCASE_OP_KIND} eq "c
 
   my $cmd = "cleartool find \"$ENV{CLEARCASE_PN}\" -version version(\\$ENV{CLEARCASE_BRTYPE}\\LATEST) -print 2>&1";
   my $latest = `$cmd`;
+  
+  print "\n\n[$latest]\n\n";
+  
+  
   ($? || ($latest eq "") ) && do{
   	$log->error("The result of the execution was unexpected please report to ClearCase Admin\n".
   	            "Execute:\n\>$cmd\n".
   	            "Return value was:\n$latest\n");
-  	exit 0;
+  	exit 1;
   };
   chomp($latest);
   if ($latest ne $ENV{CLEARCASE_XPN}) {
