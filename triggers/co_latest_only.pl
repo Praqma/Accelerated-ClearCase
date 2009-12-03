@@ -23,7 +23,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "2";
+our $REVISION = "3";
 
 # Header and revision history
 our $header = <<ENDHEADER;
