@@ -44,7 +44,7 @@
 <h1><a name="name">NAME</a></h1>
 <p>checkout_latest - ClearCase trigger</p>
 <p>Script:        <em class="file">co_latest_only.pl</em></p>
-<p>Trigger name:  <code>ACC_CO_LATEST_ONLY&quot;</code></p>
+<p>Trigger name:  <code>ACC_CO_LATEST_ONLY</code></p>
 <p>Used as a generic trigger which prevents checkouts in snapshot views of a version if that version is not the latest on it's branch.</p>
 <p>
 </p>
@@ -67,9 +67,9 @@ The script will fail if that is not the case.</p>
 </p>
 <hr />
 <h1><a name="description">DESCRIPTION</a></h1>
-<p>By default ClearCase allows any version to be checked out. But unless the version is the latest on it's branch it constitutes 
+<p>By default ClearCase allows any version to be checked out. But unless the version is the latest on it's branch it constitutes
 a rather odd case. And it's not typically a scenario you would want to end up in deliberately.</p>
-<p>In snapshot views there is a tendency that this scenario occurs frequently because when a user checkes out a version, it's by 
+<p>In snapshot views there is a tendency that this scenario occurs frequently because when a user checkes out a version, it's by
 default the one that is selected by the view, and if the view isn't updated and newer versions exists on the branch, then this trigger
 will prevent it from happening, and the user is instructed to update the snapshot view and try againg.</p>
 <p>The trigger has no effect if you are in a dynamic view. Assuming that if this scenario occurs in a dynamic view, it's because the user want it to happen.</p>
