@@ -83,7 +83,7 @@ if ( ( ( $ENV{CLEARCASE_OP_KIND} eq "checkout" ) && ( $ENV{CLEARCASE_RESERVED} e
 {                                                             #Check that the events that fired the trigger are the ones we support
     $log->error( "ERROR: You are about to make an unreserved checkout\n"
           . "That is not allowed!\n\n"
-          . "Contact the Configuration Manager or ClearCase Admin to get help!" );
+          . "Contact the Configuration Manager or ClearCase Admin to get help!\n" );
     exit 1;
 }
 exit 0;
