@@ -1,449 +1,601 @@
-<HTML>
-<HEAD>
-<TITLE>ACC - Accelerated ClearCase, library functions</TITLE>
-<LINK REV="made" HREF="mailto:">
-</HEAD>
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>ACC - Accelerated ClearCase, library functions</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:" />
+</head>
 
-<BODY>
+<body style="background-color: white">
 
-<A NAME="__index__"></A>
+
 <!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
 
-<UL>
+<ul>
 
-	<LI><A HREF="#name">NAME</A></LI>
-	<LI><A HREF="#synopsis">SYNOPSIS</A></LI>
-	<LI><A HREF="#description">DESCRIPTION</A></LI>
-	<LI><A HREF="#constants">CONSTANTS</A></LI>
-	<UL>
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<li><a href="#description">DESCRIPTION</a></li>
+	<li><a href="#constants">CONSTANTS</a></li>
+	<ul>
 
-		<LI><A HREF="#clearcase types">ClearCase Types</A></LI>
-		<LI><A HREF="#keywords">Keywords</A></LI>
-		<LI><A HREF="#conventions and regular expressions">Conventions and regular expressions</A></LI>
-		<LI><A HREF="#environment variables">Environment Variables</A></LI>
-	</UL>
+		<li><a href="#clearcase_types">ClearCase Types</a></li>
+		<li><a href="#keywords">Keywords</a></li>
+		<li><a href="#conventions_and_regular_expressions">Conventions and regular expressions</a></li>
+		<li><a href="#environment_variables">Environment Variables</a></li>
+		<li><a href="#standart_vobtype_definition">Standart VOBtype definition</a></li>
+		<ul>
 
-	<LI><A HREF="#functions">FUNCTIONS</A></LI>
-	<UL>
+			<li><a href="#pvob">PVOB</a></li>
+			<li><a href="#adminvob">AdminVOB</a></li>
+			<li><a href="#ucmvob">UCMVOB</a></li>
+			<li><a href="#basevob">BaseVOB</a></li>
+			<li><a href="#selfcontained_vobs">Selfcontained VOBs</a></li>
+		</ul>
 
-		<LI><A HREF="#get_adminvob( $vob )">get_adminvob( $vob )</A></LI>
-		<LI><A HREF="#is_adminvob( $vob )">is_adminvob( $vob )</A></LI>
-		<LI><A HREF="#is_clientvob( $vob )">is_clientvob( $vob )</A></LI>
-		<LI><A HREF="#get_restriction( $qualified_lbtype, $resultref )">get_restriction( $qualified_lbtype, $resultref )</A></LI>
-		<LI><A HREF="#split_dir_file( $path )">split_dir_file( $path )</A></LI>
-		<LI><A HREF="#get_hlinks( $obj, $direction, $hltype )">get_hlinks( $obj, $direction, $hltype )</A></LI>
-		<LI><A HREF="#is_frozen( \$fqlbtype)">is_frozen(  \$fqlbtype)</A></LI>
-		<LI><A HREF="#get_from_hlinks( $typeref, $hltyperef, $returnarrref )">get_from_hlinks(  $typeref, $hltyperef, $returnarrref )</A></LI>
-		<LI><A HREF="#get_to_hlinks( $typeref, $hltyperef, $returnarrref )">get_to_hlinks(  $typeref, $hltyperef, $returnarrref )</A></LI>
-		<LI><A HREF="#mkrestriction( $lbtyperef, $brtyperef, $vobref )">mkrestriction(  $lbtyperef, $brtyperef, $vobref )</A></LI>
-		<LI><A HREF="#scalar_dump( \$scalar )">scalar_dump(  \$scalar  )</A></LI>
-		<LI><A HREF="#objexist( \$obj )">objexist(  \$obj  )</A></LI>
-		<LI><A HREF="#mkhlink_unique( \$fromobj, \$toobj, \$hltype )">mkhlink_unique(  \$fromobj, \$toobj, \$hltype )</A></LI>
-		<LI><A HREF="#mkattr_unique( \$attype, \$obj )">mkattr_unique(  \$attype, \$obj )</A></LI>
-		<LI><A HREF="#rmhlink_all( $fromobjref, $toobjref, $hltyperef )">rmhlink_all(  $fromobjref, $toobjref, $hltyperef )</A></LI>
-		<LI><A HREF="#list_published( $vobref, $long )">list_published(  $vobref, $long )</A></LI>
-		<LI><A HREF="#get_acc_meta_data_vobs( \@returnlist )">get_acc_meta_data_vobs( \@returnlist )</A></LI>
-		<LI><A HREF="#get_published( $vobref, $long, $returnarrayref )">get_published(  $vobref, $long, $returnarrayref  )</A></LI>
-		<LI><A HREF="#get_composite( $lbtype, $level, $resultref )">get_composite( $lbtype, $level, $resultref )</A></LI>
-		<LI><A HREF="#validate_lbtype( $lbtype, $retvalref )">validate_lbtype( $lbtype, $retvalref )</A></LI>
-		<LI><A HREF="#freeze( $lbtyperef )">freeze( $lbtyperef )</A></LI>
-		<LI><A HREF="#labels_to_cs( $labelcsv, $branch, $csref )">labels_to_cs( $labelcsv, $branch, $csref )</A></LI>
-		<LI><A HREF="#lbtype_to_csrule( $lbref, $retref )">lbtype_to_csrule( $lbref, $retref )</A></LI>
-		<LI><A HREF="#set_default_acc_meta( \$vob,\$region )">set_default_acc_meta( \$vob,\$region )</A></LI>
-		<LI><A HREF="#get_default_acc_meta( \$result )">get_default_acc_meta( \$result )</A></LI>
-		<LI><A HREF="#validate_global_invob( $vobref, $typeref, $kindref, $paramsref )">validate_global_invob( $vobref, $typeref, $kindref, $paramsref )</A></LI>
-	</UL>
+	</ul>
 
-</UL>
+	<li><a href="#functions">FUNCTIONS</a></li>
+	<ul>
+
+		<li><a href="#get_adminvob___vob__">get_adminvob( $vob )</a></li>
+		<li><a href="#get_adminvob___vob__">get_adminvob( $vob )</a></li>
+		<li><a href="#is_adminvob___vob__">is_adminvob( $vob )</a></li>
+		<li><a href="#is_clientvob___vob__">is_clientvob( $vob )</a></li>
+		<li><a href="#is_poradminvob___vob__">is_poradminvob( $vob )</a></li>
+		<li><a href="#get_vobtype___vob__">get_vobtype( $vob )</a></li>
+		<li><a href="#get_restriction___qualified_lbtype___resultref__">get_restriction( $qualified_lbtype, $resultref )</a></li>
+		<li><a href="#split_dir_file___path__">split_dir_file( $path )</a></li>
+		<li><a href="#get_hlinks___obj___direction___hltype__">get_hlinks( $obj, $direction, $hltype )</a></li>
+		<li><a href="#is_frozen____fqlbtype_">is_frozen(  \$fqlbtype)</a></li>
+		<li><a href="#get_from_hlinks___typeref___hltyperef___returnarrref__">get_from_hlinks(  $typeref, $hltyperef, $returnarrref )</a></li>
+		<li><a href="#get_to_hlinks___typeref___hltyperef___returnarrref__">get_to_hlinks(  $typeref, $hltyperef, $returnarrref )</a></li>
+		<li><a href="#mkrestriction___lbtyperef___brtyperef___vobref__">mkrestriction(  $lbtyperef, $brtyperef, $vobref )</a></li>
+		<li><a href="#scalar_dump____scalar__">scalar_dump(  \$scalar  )</a></li>
+		<li><a href="#objexist____obj__">objexist(  \$obj  )</a></li>
+		<li><a href="#mkhlink_unique____fromobj____toobj____hltype__">mkhlink_unique(  \$fromobj, \$toobj, \$hltype )</a></li>
+		<li><a href="#mkattr_unique____attype____obj__">mkattr_unique(  \$attype, \$obj )</a></li>
+		<li><a href="#rmhlink_all___fromobjref___toobjref___hltyperef__">rmhlink_all(  $fromobjref, $toobjref, $hltyperef )</a></li>
+		<li><a href="#list_published___vobref___long__">list_published(  $vobref, $long )</a></li>
+		<li><a href="#get_acc_meta_data_vobs____returnlist__">get_acc_meta_data_vobs( \@returnlist )</a></li>
+		<li><a href="#get_published___vobref___long___returnarrayref__">get_published(  $vobref, $long, $returnarrayref  )</a></li>
+		<li><a href="#get_composite___lbtype___level___resultref__">get_composite( $lbtype, $level, $resultref )</a></li>
+		<li><a href="#validate_lbtype___lbtype___retvalref__">validate_lbtype( $lbtype, $retvalref )</a></li>
+		<li><a href="#freeze___lbtyperef__">freeze( $lbtyperef )</a></li>
+		<li><a href="#labels_to_cs___labelcsv___branch___csref__">labels_to_cs( $labelcsv, $branch, $csref )</a></li>
+		<li><a href="#lbtype_to_csrule___lbref___retref__">lbtype_to_csrule( $lbref, $retref )</a></li>
+		<li><a href="#initmeta____vob__">initmeta( \$vob )</a></li>
+		<li><a href="#set_default_acc_meta____vob___region__">set_default_acc_meta( \$vob,\$region )</a></li>
+		<li><a href="#get_default_acc_meta____result__">get_default_acc_meta( \$result )</a></li>
+		<li><a href="#validate_global_invob___vobref___typeref___kindref___paramsref__">validate_global_invob( $vobref, $typeref, $kindref, $paramsref )</a></li>
+	</ul>
+
+</ul>
+
+<hr name="index" />
+</div>
 <!-- INDEX END -->
 
-<HR>
-<P>
-<H1><A NAME="name">NAME</A></H1>
-<P>ACC - Accelerated ClearCase, library functions</P>
-<P>
-<HR>
-<H1><A NAME="synopsis">SYNOPSIS</A></H1>
-<P>To ease the deployment of the acc.pm module it's recommended that you keep your scripts and acc.pm 
-close together and include the directory that contains the acc.pm module using a relative path.</P>
-<P>Example file structure:</P>
-<PRE>
+<p>
+</p>
+<h1><a name="name">NAME</a></h1>
+<p>ACC - Accelerated ClearCase, library functions</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>To ease the deployment of the acc.pm module it's recommended that you keep your scripts and acc.pm
+close together and include the directory that contains the acc.pm module using a relative path.</p>
+<p>Example file structure:</p>
+<pre>
  acc
    triggers
    utils
-   modules</PRE>
-<P>In order to use a relative path, you'll obviously need to determine the location of your running script in a pre-compiled block.</P>
-<P>You can achive that using a regulare BEGIN statement; below is an example on how you can set it up:</P>
-<PRE>
- our ($Scriptdir, $Scriptfile); 
- BEGIN
- {
-   $Scriptdir =&quot;.\\&quot;; # Assume $0 only contain the script, not a fully qualified path. In this case the Scriptdir is set to &quot;.\&quot; (CD)
-   $Scriptfile = $0;  # Assume $0 only contain the script, not a fully qualified path. In this case the Scriptfile to $0  
-   $Scriptfile =~/(.*\\)(.*)$/ &amp;&amp;  do{$Scriptdir=$1;$Scriptfile=$2;} # If $0 contains backslashes - it's split on the last occurence
- }
- use lib $Scriptdir.&quot;/../modules&quot;; # From here it's up to the parent (..) and then down into modules
- use acc;</PRE>
-<P>if you have other modules that are located in the modules folder that should also use the current directory  you simply go:</P>
-<PRE>
- ...
- use lib $Scriptdir; # Include current directory
- use acc;</PRE>
-<P>
-<HR>
-<H1><A NAME="description">DESCRIPTION</A></H1>
-<P>Used to support ClearCase scripting in general. and Accelerated ClearCase
-in particular.</P>
-<P>
-<HR>
-<H1><A NAME="constants">CONSTANTS</A></H1>
-<P>
-<H2><A NAME="clearcase types">ClearCase Types</A></H2>
-<P>These types are expected to exist as global types in the ACC Meta Data VOBs (AdminVOBs)</P>
-<PRE>
-  ATTYPE_FROZEN               = 'Frozen'                      ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;\&quot; 
-  ATTYPE_PROMOTION_LEVEL      = 'PromotionLevel'              ;     # -c &quot;ACC meta type&quot; -vtype string -enum \&quot;released\&quot;,\&quot;tested\&quot;,\&quot;built\&quot;,\&quot;integrated\&quot;
-  ATTYPE_KEYWORDS             = 'Keywords'                    ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;\&quot; 
-  ATTYPE_LBTYPE_TEMPLATE      = 'LbtypeTemplate'              ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;[A-Z][A-Z0-9_-\.]{3,30}\&quot; 
-  ATTYPE_BRTYPE_TEMPLATE      = 'BrtypeTemplate'              ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;[a-z][a-z0-9_]{3,30}\&quot;
-  ATTYPE_ATTYPE_TEMPLATE      = 'AttypeTemplate'              ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;[a-zA-Z][a-zA-Z0-9]{3,30}\&quot; 
-  ATTYPE_HLTYPE_TEMPLATE      = 'HltypeTemplate'              ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;[a-zA-Z][a-zA-Z0-9]{3,30}\&quot; 
-  ATTYPE_ACCMETADATA          = 'AccMetaData'                 ;     # -c &quot;ACC meta type&quot; -vtype string -default \&quot;\&quot;
-  HLTYPE_PUBLISHED            = 'Published'                   ;     # -c &quot;ACC meta type&quot;
-  HLTYPE_COMPOSITE            = 'CompositeLbtype'             ;     # -c &quot;ACC meta type&quot;
-  HLTYPE_RESTRICTED           = 'Restricted'                  ;     # -c &quot;ACC meta type&quot;
-  LBTYPE_INITIAL              = 'INITIAL'                     ;     # -c &quot;ACC meta type&quot;</PRE>
-<P>
-<H2><A NAME="keywords">Keywords</A></H2>
-<P>These constants defines keywords refered to in the code</P>
-<PRE>
+   modules</pre>
+<p>In order to use a relative path, you'll obviously need to determine the location of your running script in a pre-compiled block.</p>
+<p>You can achive that using a regulare BEGIN statement; below is an example on how you can set it up:</p>
+<pre>
+ <span class="keyword">our</span> <span class="operator">(</span><span class="variable">$Scriptdir</span><span class="operator">,</span> <span class="variable">$Scriptfile</span><span class="operator">);</span>
+ <span class="keyword">BEGIN</span>
+ <span class="operator">{</span>
+   <span class="variable">$Scriptdir</span> <span class="operator">=</span><span class="string">".\\"</span><span class="operator">;</span> <span class="comment"># Assume $0 only contain the script, not a fully qualified path. In this case the Scriptdir is set to ".\" (CD)</span>
+   <span class="variable">$Scriptfile</span> <span class="operator">=</span> <span class="variable">$0</span><span class="operator">;</span>  <span class="comment"># Assume $0 only contain the script, not a fully qualified path. In this case the Scriptfile to $0</span>
+   <span class="variable">$Scriptfile</span> <span class="operator">=~</span><span class="regex">/(.*\\)(.*)$/</span> <span class="operator">&amp;&amp;</span>  <span class="keyword">do</span><span class="operator">{</span><span class="variable">$Scriptdir</span><span class="operator">=</span><span class="variable">$1</span><span class="operator">;</span><span class="variable">$Scriptfile</span><span class="operator">=</span><span class="variable">$2</span><span class="operator">;}</span> <span class="comment"># If $0 contains backslashes - it's split on the last occurence</span>
+ <span class="operator">}</span>
+ <span class="keyword">use</span> <span class="variable">lib</span> <span class="variable">$Scriptdir</span><span class="operator">.</span><span class="string">"/../modules"</span><span class="operator">;</span> <span class="comment"># From here it's up to the parent (..) and then down into modules</span>
+ <span class="keyword">use</span> <span class="variable">acc</span><span class="operator">;</span>
+</pre>
+<p>if you have other modules that are located in the modules folder that should also use the current directory  you simply go:</p>
+<pre>
+ <span class="operator">...</span>
+ <span class="keyword">use</span> <span class="variable">lib</span> <span class="variable">$Scriptdir</span><span class="operator">;</span> <span class="comment"># Include current directory</span>
+ <span class="keyword">use</span> <span class="variable">acc</span><span class="operator">;</span>
+</pre>
+<p>
+</p>
+<hr />
+<h1><a name="description">DESCRIPTION</a></h1>
+<p>Used to support ClearCase scripting in general. and Accelerated ClearCase
+in particular.</p>
+<p>
+</p>
+<hr />
+<h1><a name="constants">CONSTANTS</a></h1>
+<p>
+</p>
+<h2><a name="clearcase_types">ClearCase Types</a></h2>
+<p>These types are expected to exist as global types in the ACC Meta Data VOBs (AdminVOBs)</p>
+<pre>
+  <span class="variable">ATTYPE_FROZEN</span>               <span class="operator">=</span> <span class="string">'Frozen'</span>                      <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"\"</span>
+  <span class="variable">ATTYPE_PROMOTION_LEVEL</span>      <span class="operator">=</span> <span class="string">'PromotionLevel'</span>              <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -enum \"released\",\"tested\",\"built\",\"integrated\"</span>
+  <span class="variable">ATTYPE_KEYWORDS</span>             <span class="operator">=</span> <span class="string">'Keywords'</span>                    <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"\"</span>
+  <span class="variable">ATTYPE_LBTYPE_TEMPLATE</span>      <span class="operator">=</span> <span class="string">'LbtypeTemplate'</span>              <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"[A-Z][A-Z0-9_-\.]{3,30}\"</span>
+  <span class="variable">ATTYPE_BRTYPE_TEMPLATE</span>      <span class="operator">=</span> <span class="string">'BrtypeTemplate'</span>              <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"[a-z][a-z0-9_]{3,30}\"</span>
+  <span class="variable">ATTYPE_ATTYPE_TEMPLATE</span>      <span class="operator">=</span> <span class="string">'AttypeTemplate'</span>              <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"[a-zA-Z][a-zA-Z0-9]{3,30}\"</span>
+  <span class="variable">ATTYPE_HLTYPE_TEMPLATE</span>      <span class="operator">=</span> <span class="string">'HltypeTemplate'</span>              <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"[a-zA-Z][a-zA-Z0-9]{3,30}\"</span>
+  <span class="variable">ATTYPE_ACCMETADATA</span>          <span class="operator">=</span> <span class="string">'AccMetaData'</span>                 <span class="operator">;</span>     <span class="comment"># -c "ACC meta type" -vtype string -default \"\"</span>
+  <span class="variable">HLTYPE_PUBLISHED</span>            <span class="operator">=</span> <span class="string">'Published'</span>                   <span class="operator">;</span>     <span class="comment"># -c "ACC meta type"</span>
+  <span class="variable">HLTYPE_COMPOSITE</span>            <span class="operator">=</span> <span class="string">'CompositeLbtype'</span>             <span class="operator">;</span>     <span class="comment"># -c "ACC meta type"</span>
+  <span class="variable">HLTYPE_RESTRICTED</span>           <span class="operator">=</span> <span class="string">'Restricted'</span>                  <span class="operator">;</span>     <span class="comment"># -c "ACC meta type"</span>
+  <span class="variable">LBTYPE_INITIAL</span>              <span class="operator">=</span> <span class="string">'INITIAL'</span>                     <span class="operator">;</span>     <span class="comment"># -c "ACC meta type"</span>
+</pre>
+<p>
+</p>
+<h2><a name="keywords">Keywords</a></h2>
+<p>These constants defines keywords refered to in the code</p>
+<pre>
  TRIGGER_PERL                = 'ratlperl'                    # -c &quot;perl interpreter for triggers scripts&quot;
- GLOBAL_SCOPE                = 'global'                      # -c &quot;Keyword&quot;</PRE>
-<P>
-<H2><A NAME="conventions and regular expressions">Conventions and regular expressions</A></H2>
-<P>These regular expressions define different conventions.</P>
-<PRE>
- LOCAL_TYPE_PREFIX           = '^[Ll][Oo][Cc][Aa][Ll]_'      # -c &quot;RegExp which defines local types prefix (local types must have this prefix)&quot; 
- REGEXP_METADATADEFAULT      = '&lt;:AccMetaDataDefault::\\(/s*):&gt;'  # -c &quot;RegExp which determins the AccMetaDateDefault VOB within a region&quot; 
- ACC_TEMP_LBTYPE_NAME        = '^_\._\d+_\._\d+$'                   # -c &quot;RegExp defining temp lbtype name while applying Restricted labels with the applyrestricted.pl utility script.&quot;</PRE>
-<P>
-<H2><A NAME="environment variables">Environment Variables</A></H2>
-<P>These constants defines environment variables which code may be looking for to override default settings.</P>
-<PRE>
+ GLOBAL_SCOPE                = 'global'                      # -c &quot;Keyword&quot;</pre>
+<p>
+</p>
+<h2><a name="conventions_and_regular_expressions">Conventions and regular expressions</a></h2>
+<p>These regular expressions define different conventions.</p>
+<pre>
+ LOCAL_TYPE_PREFIX           = '^[Ll][Oo][Cc][Aa][Ll]_'      # -c &quot;RegExp which defines local types prefix (local types must have this prefix)&quot;
+ REGEXP_METADATADEFAULT      = '&lt;:AccMetaDataDefault::\\(/s*):&gt;'  # -c &quot;RegExp which determins the AccMetaDateDefault VOB within a region&quot;
+ ACC_TEMP_LBTYPE_NAME        = '^_\._\d+_\._\d+$'                   # -c &quot;RegExp defining temp lbtype name while applying Restricted labels with the applyrestricted.pl utility script.&quot;</pre>
+<p>
+</p>
+<h2><a name="environment_variables">Environment Variables</a></h2>
+<p>These constants defines environment variables which code may be looking for to override default settings.</p>
+<pre>
  CLEARCASE_FORCE_RESTRICTION = 'CLEARCASE_FORCE_RESTRICTION' # -c &quot;Environment Variable, when set restrictions can be forced&quot;
  CLEARCASE_ADMINVOB          = 'CLEARCASE_ADMINVOB'          # -c &quot;Environment Variable, when set it overrides the default ACC meta Data VOB - obsoletede - use CLEARCASE_ACCMETADATAVOB&quot;
- CLEARCASE_ACCMETADATAVOBVOB = 'CLEARCASE_ACCMETADATAVOB'    # -c &quot;Environment Variable, when set it overrides the default ACC meta Data VOB&quot;</PRE>
-<P>
-<HR>
-<H1><A NAME="functions">FUNCTIONS</A></H1>
-<P>The following functions are defined in the acc.pm module but not necessarily exported.
-Look in the acc.pm file to seee what is actually exported.</P>
-<P>
-<H2><A NAME="get_adminvob( $vob )">get_adminvob( $vob )</A></H2>
-<P>Takes a vobtag and returns the top-level AdminVOB in the chain of AdminVOB hyperlinks.</P>
-<P>Parameters:</P>
-<PRE>
- $vob              = The VOB to check.</PRE>
-<P>Returns:</P>
-<PRE>
- The top most AdminVOB in the chain of AdminVOB hyperlinks. if the VOB has no AdminVOB hyperlinks it returns $vob (self).</PRE>
-<P>
-<H2><A NAME="is_adminvob( $vob )">is_adminvob( $vob )</A></H2>
-<P>Takes a vobtag and determins if it is an AdminVOB to other client VOBs.</P>
-<P>Parameters:</P>
-<PRE>
- $vob              = The VOB to check.</PRE>
-<P>Returns:</P>
-<PRE>
+ CLEARCASE_ACCMETADATAVOBVOB = 'CLEARCASE_ACCMETADATAVOB'    # -c &quot;Environment Variable, when set it overrides the default ACC meta Data VOB&quot;</pre>
+<p>
+</p>
+<h2><a name="standart_vobtype_definition">Standart VOBtype definition</a></h2>
+<p>ACC has some functions used to identify the VOB type.
+This functions are especially important for</p>
+<p>A VOB is defined as one of four types of VOBs, which is PVOB, AdminVOB, Ucmvob and BaseVOB.</p>
+<p>
+</p>
+<h3><a name="pvob">PVOB</a></h3>
+<p>A PVOB or ProjectVOB is defined as UCM enabled VOB, which has a hyperlink og type &quot;AdminVOB&quot; pointing towards it.</p>
+<p>
+</p>
+<h3><a name="adminvob">AdminVOB</a></h3>
+<p>A AdminVOB is defined as a non-UCM enabled VOB, which has a hyperlink og type &quot;AdminVOB&quot; pointing towards it.</p>
+<p>
+</p>
+<h3><a name="ucmvob">UCMVOB</a></h3>
+<p>A UCMVOB is defined as a VOB, that is neither a AdminVOB or a PVOB and has AdminVOB hyperlink pointing towards a VOB, which is a PVOB</p>
+<p>
+</p>
+<h3><a name="basevob">BaseVOB</a></h3>
+<p>A BaseVOB is defined as a VOB, that is neither a AdminVOB or a PVOB and has AdminVOB hyperlink pointing towards a VOB, which is a PVOB</p>
+<p>
+</p>
+<h3><a name="selfcontained_vobs">Selfcontained VOBs</a></h3>
+<p>Selfcontained VOBs (VOBs with no AdminVOB hyperlink, what so ever) have essitially no ACCified VOB type and is currently not supported.</p>
+<p>
+</p>
+<hr />
+<h1><a name="functions">FUNCTIONS</a></h1>
+<p>The following functions are defined in the acc.pm module but not necessarily exported.
+Look in the acc.pm file to seee what is actually exported.</p>
+<p>
+</p>
+<h2><a name="get_adminvob___vob__">get_adminvob( $vob )</a></h2>
+<p>Takes a vobtag and returns the AdminVOB.</p>
+<p>Parameters:</p>
+<pre>
+ <span class="variable">$vob</span>              <span class="operator">=</span> <span class="variable">The</span> <span class="variable">VOB</span> <span class="variable">to</span> <span class="variable">check</span><span class="operator">.</span>
+                     <span class="variable">It</span> <span class="variable">can</span> <span class="variable">be</span> <span class="variable">aither</span> <span class="variable">a</span> <span class="variable">vob</span> <span class="variable">tag</span> <span class="keyword">or</span> <span class="variable">a</span> <span class="variable">vob</span> <span class="variable">object</span><span class="operator">.</span> 
+                     <span class="variable">Both</span> <span class="variable">examples</span> <span class="variable">are</span> <span class="variable">legal</span><span class="operator">;</span>
+                       <span class="variable">get_adminvob</span><span class="operator">(</span><span class="string">"\TheVob"</span><span class="operator">);</span>
+                       <span class="variable">get_adminvob</span><span class="operator">(</span><span class="string">"vob:\TheVob"</span><span class="operator">);</span>
+</pre>
+<p>Returns:</p>
+<pre>
+ The AdminVOB. If the VOB has no AdminVOB hyperlinks it returns the vob-tag of the $vob.</pre>
+<p>
+</p>
+<h2><a name="get_adminvob___vob__">get_adminvob( $vob )</a></h2>
+<p>Takes a vob and returns the top-level AdminVOB in the chain of AdminVOB hyperlinks.</p>
+<p>Parameters:</p>
+<pre>
+ <span class="variable">$vob</span>              <span class="operator">=</span> <span class="variable">The</span> <span class="variable">VOB</span> <span class="variable">to</span> <span class="variable">check</span><span class="operator">.</span>
+                     <span class="variable">It</span> <span class="variable">can</span> <span class="variable">be</span> <span class="variable">aither</span> <span class="variable">a</span> <span class="variable">vob</span> <span class="variable">tag</span> <span class="keyword">or</span> <span class="variable">a</span> <span class="variable">vob</span> <span class="variable">object</span><span class="operator">.</span> 
+                     <span class="variable">Both</span> <span class="variable">examples</span> <span class="variable">are</span> <span class="variable">legal</span><span class="operator">;</span>
+                       <span class="variable">get_adminvob</span><span class="operator">(</span><span class="string">"\TheVob"</span><span class="operator">);</span>
+                       <span class="variable">get_adminvob</span><span class="operator">(</span><span class="string">"vob:\TheVob"</span><span class="operator">);</span>
+</pre>
+<p>Returns:</p>
+<pre>
+ The top most AdminVOB in the chain of AdminVOB hyperlinks. if the VOB has no AdminVOB hyperlinks it returns the vobtag of $vob (self).</pre>
+<p>
+</p>
+<h2><a name="is_adminvob___vob__">is_adminvob( $vob )</a></h2>
+<p>Takes a vobtag and determins if it is an AdminVOB to other client VOBs.</p>
+<p>Parameters:</p>
+<pre>
+ $vob              = The VOB to check.</pre>
+<p>Returns:</p>
+<pre>
  1..n = TRUE: The number of client VOBs that uses this VOB as ADMINVOB.
- 0    = FALSE - This VOB has no AdminVOB role.</PRE>
-<P>
-<H2><A NAME="is_clientvob( $vob )">is_clientvob( $vob )</A></H2>
-<P>Takes a vobtag and determins if it is a clinet VOB to some AdminVOB.</P>
-<P>Parameters:</P>
-<PRE>
- $vob              = The VOB to check.</PRE>
-<P>Returns:</P>
-<PRE>
+ 0    = FALSE - This VOB has no AdminVOB role.</pre>
+<p>
+</p>
+<h2><a name="is_clientvob___vob__">is_clientvob( $vob )</a></h2>
+<p>Takes a vobtag and determins if it is a client VOB to some AdminVOB.</p>
+<p>Parameters:</p>
+<pre>
+ $vob              = The VOB to check.</pre>
+<p>Returns:</p>
+<pre>
  1..n = TRUE: The number of AdminVOB hyperlinks pointing FROM this VOB towards another VOB.
- 0    = FALSE - This VOB has no AdminVOB hyperlkinks.</PRE>
-<P>
-<H2><A NAME="get_restriction( $qualified_lbtype, $resultref )">get_restriction( $qualified_lbtype, $resultref )</A></H2>
-<P>Takes a fully qualified lbtype and retrives the brtype it's restricted to.</P>
-<P>Parameters:</P>
-<PRE>
+ 0    = FALSE - This VOB has no AdminVOB hyperlkinks.</pre>
+<p>
+</p>
+<h2><a name="is_poradminvob___vob__">is_poradminvob( $vob )</a></h2>
+<p>Takes a vobtag and determins if it is an (UCM) PVOB to other client VOBs.</p>
+<p>Parameters:</p>
+<pre>
+ $vob              = The VOB to check.</pre>
+<p>Returns:</p>
+<pre>
+ 2    = TRUE Base - The VOB is a AdminVOB (base Clearcase)
+ 1    = TRUE UCM  - The VOB is a PVOB (UCM)
+ 0    = FALSE     - The VOB is not a PVOB or adminvob</pre>
+<p>
+</p>
+<h2><a name="get_vobtype___vob__">get_vobtype( $vob )</a></h2>
+<p>Takes a vobtag and determins what kind of vob it is, based on returnlist below.</p>
+<p>Parameters:</p>
+<pre>
+ $vob              = The VOB to check.
+# REVIEW LAK
+# The vob types should be identified as constants rater than just returning integers
+# See the constanct defined line 170-173
+# By definition of the fory types: PVOB, AdminVob, UCM client and Base CC client, a VOB can not be &quot;not idetified&quot;
+# If the VOB isn't either PVOB, AdminVOB or UCM client VOB, then by definition, it is a Base ClearCase client vob
+# thus get_vobtype should never return 0</pre>
+<p>Returns:
+ 4    = BaseCC AdminVOB - This VOB is a normal AdminVOB (not UCM enabled)
+ 3    = UCM PVOB        - This VOB is a UCM PVOB (ucmvob tagged)
+ 2    = BaseCC ClientV  - This VOB is a normal client VOB (VOBs AdminVOB is not UCM)
+ 1    = UCM Client VOB  - This VOB is a UCM client VOB (VOBs AdminVOB is a PVOB)
+ 0    = Not identified  - This VOB could not be identified.
+        This usually means that it is a selfcontained VOB
+        (no AdminVOB hyperlink at all)</p>
+<p>
+</p>
+<h2><a name="get_restriction___qualified_lbtype___resultref__">get_restriction( $qualified_lbtype, $resultref )</a></h2>
+<p>Takes a fully qualified lbtype and retrives the brtype it's restricted to.</p>
+<p>Parameters:</p>
+<pre>
  $qualified_brtype = The label type to check in the format lbtype:name@\AdminVOB.
- $resultref        = A reference to the scalar the will contain the name of the 
+ $resultref        = A reference to the scalar the will contain the name of the
                      branch type which the labe type is restricted to, will contain an
-                     empty string &quot;&quot; if it's not restricted.</PRE>
-<P>Returns:</P>
-<PRE>
+                     empty string &quot;&quot; if it's not restricted.</pre>
+<p>Returns:</p>
+<pre>
  1 = Suceedes
- 0 = Some error occured, the value of $resultref is not valid.</PRE>
-<P>
-<H2><A NAME="split_dir_file( $path )">split_dir_file( $path )</A></H2>
-<P>Splits a path in two: the directory part and the file name part</P>
-<P>Parameters:</P>
-<PRE>
- $path = The path to split.</PRE>
-<P>Returns:</P>
-<PRE>
- ($dir, $file) A two-item array.</PRE>
-<P>
-<H2><A NAME="get_hlinks( $obj, $direction, $hltype )">get_hlinks( $obj, $direction, $hltype )</A></H2>
-<P>retrieves the hyperlinks of a certain type from og to an object.</P>
-<P>Parameters:</P>
-<PRE>
+ 0 = Some error occured, the value of $resultref is not valid.</pre>
+<p>
+</p>
+<h2><a name="split_dir_file___path__">split_dir_file( $path )</a></h2>
+<p>Splits a path in two: the directory part and the file name part</p>
+<p>Parameters:</p>
+<pre>
+ $path = The path to split.</pre>
+<p>Returns:</p>
+<pre>
+ ($dir, $file) A two-item array.</pre>
+<p>
+</p>
+<h2><a name="get_hlinks___obj___direction___hltype__">get_hlinks( $obj, $direction, $hltype )</a></h2>
+<p>retrieves the hyperlinks of a certain type from og to an object.</p>
+<p>Parameters:</p>
+<pre>
  $obj       =  The fully qualified object in the format type:name@\vob.
  $direction =  The direction to look for legal values are &quot;-&gt;&quot; and &quot;&lt;-&quot;
- $hltype    =  The hyperlink to look for</PRE>
-<P>Returns:</P>
-<PRE>
- @objects   =  An array containing the objects pointed to or from by the specifiec hyperlinks.</PRE>
-<P>
-<H2><A NAME="is_frozen( \$fqlbtype)">is_frozen(  \$fqlbtype)</A></H2>
-<P>Check a label type to see if it's 
-already frozen.</P>
-<P>Parameters:</P>
-<PRE>
- $fqlbtype       =  The fully qualified lbtype in the format fully qualifed (lbtype:btyptype@vob).
-</PRE>
-<PRE>
-
-Returns:</PRE>
-<PRE>
+ $hltype    =  The hyperlink to look for</pre>
+<p>Returns:</p>
+<pre>
+ @objects   =  An array containing the objects pointed to or from by the specifiec hyperlinks.</pre>
+<p>
+</p>
+<h2><a name="is_frozen____fqlbtype_">is_frozen(  \$fqlbtype)</a></h2>
+<p>Check a label type to see if it's
+already frozen.</p>
+<p>Parameters:</p>
+<pre>
+ $fqlbtype       =  The fully qualified lbtype in the format fully qualifed (lbtype:btyptype@vob).</pre>
+<p>Returns:</p>
+<pre>
  1     =  The type is frozen.
- 0     =  The type isn't frozen (or some error occured)</PRE>
-<P>
-<H2><A NAME="get_from_hlinks( $typeref, $hltyperef, $returnarrref )">get_from_hlinks(  $typeref, $hltyperef, $returnarrref )</A></H2>
-<P>Retrieves the objects pointet to by hyperlinks of a certain type pointing from an object.</P>
-<P>Parameters:</P>
-<PRE>
+ 0     =  The type isn't frozen (or some error occured)</pre>
+<p>
+</p>
+<h2><a name="get_from_hlinks___typeref___hltyperef___returnarrref__">get_from_hlinks(  $typeref, $hltyperef, $returnarrref )</a></h2>
+<p>Retrieves the objects pointet to by hyperlinks of a certain type pointing from an object.</p>
+<p>Parameters:</p>
+<pre>
  $typeref        =  A reference to the The fully qualified object in the format type:name@\vob.
  $hltyperef      =  A reference to the hltype to search for.
- $returnarrayref =  A reference to an arry where the objects pointed to will be placed</PRE>
-<P>Returns:</P>
-<PRE>
+ $returnarrayref =  A reference to an arry where the objects pointed to will be placed</pre>
+<p>Returns:</p>
+<pre>
  -1    =  An error occured - the content of the returnarray is not valid
- 0...n =  The number of objects pointed to</PRE>
-<P>
-<H2><A NAME="get_to_hlinks( $typeref, $hltyperef, $returnarrref )">get_to_hlinks(  $typeref, $hltyperef, $returnarrref )</A></H2>
-<P>Retrieves the objects pointet from by hyperlinks of a certain type pointing to an object.</P>
-<P>Parameters:</P>
-<PRE>
+ 0...n =  The number of objects pointed to</pre>
+<p>
+</p>
+<h2><a name="get_to_hlinks___typeref___hltyperef___returnarrref__">get_to_hlinks(  $typeref, $hltyperef, $returnarrref )</a></h2>
+<p>Retrieves the objects pointet from by hyperlinks of a certain type pointing to an object.</p>
+<p>Parameters:</p>
+<pre>
  $typeref        =  A reference to the The fully qualified object in the format type:name@\vob.
  $hltyperef      =  A reference to the hltype to search for.
- $returnarrayref =  A reference to an arry where the objects pointed from will be placed</PRE>
-<P>Returns:</P>
-<PRE>
+ $returnarrayref =  A reference to an arry where the objects pointed from will be placed</pre>
+<p>Returns:</p>
+<pre>
  -1    =  An error occured - the content of the returnarray is not valid
- 0...n =  The number of objects pointed from</PRE>
-<P>
-<H2><A NAME="mkrestriction( $lbtyperef, $brtyperef, $vobref )">mkrestriction(  $lbtyperef, $brtyperef, $vobref )</A></H2>
-<P>Makes a a lbtype restricted to a branchtype. Meaning that the label only cna be applied to versions that resides on that 
-particulare branch type.</P>
-<P>Parameters:</P>
-<PRE>
+ 0...n =  The number of objects pointed from</pre>
+<p>
+</p>
+<h2><a name="mkrestriction___lbtyperef___brtyperef___vobref__">mkrestriction(  $lbtyperef, $brtyperef, $vobref )</a></h2>
+<p>Makes a a lbtype restricted to a branchtype. Meaning that the label only cna be applied to versions that resides on that
+particulare branch type.</p>
+<p>Parameters:</p>
+<pre>
  $lbtyperef      =  A reference to the lbtype (only it's name - not fully qualified).
  $brtyperef      =  A reference to the brtype (only it's name - not fully qualified).
- $returnarrayref =  A reference to the VOB (an ACC meta data VOB)</PRE>
-<P>Returns:</P>
-<PRE>
+ $returnarrayref =  A reference to the VOB (an ACC meta data VOB)</pre>
+<p>Returns:</p>
+<pre>
  1     =  Restriction is either created or existed already
- 0     =  ERROR the restriction couldn't be created.</PRE>
-<P>
-<H2><A NAME="scalar_dump( \$scalar )">scalar_dump(  \$scalar  )</A></H2>
-<P>Prints debug information about a scalar. (scalar name, package, linie number and value).</P>
-<P>Parameters:</P>
-<PRE>
- $scalar      =  The scalar to dump.</PRE>
-<P>Returns:</P>
-<PRE>
- void</PRE>
-<P>
-<H2><A NAME="objexist( \$obj )">objexist(  \$obj  )</A></H2>
-<P>Prints debug information about a scalar. (scalar name, package, linie number and value).</P>
-<P>Parameters:</P>
-<PRE>
- $obj      =  object to test existence for.</PRE>
-<P>Returns:</P>
-<PRE>
- 1         =  Object exist;
- 0         =  Object doesn't exist</PRE>
-<P>
-<H2><A NAME="mkhlink_unique( \$fromobj, \$toobj, \$hltype )">mkhlink_unique(  \$fromobj, \$toobj, \$hltype )</A></H2>
-<P>creates a hyperlink if it doesn't  already exist. Will not create it if it's already there.</P>
-<P>Parameters:</P>
-<PRE>
+ 0     =  ERROR the restriction couldn´t be created.</pre>
+<p>
+</p>
+<h2><a name="scalar_dump____scalar__">scalar_dump(  \$scalar  )</a></h2>
+<p>Prints debug information about a scalar. (scalar name, package, linie number and value).</p>
+<p>Parameters:</p>
+<pre>
+ $scalar      =  The scalar to dump.</pre>
+<p>Returns:</p>
+<pre>
+ void</pre>
+<p>
+</p>
+<h2><a name="objexist____obj__">objexist(  \$obj  )</a></h2>
+<p>Prints debug information about a scalar. (scalar name, package, linie number and value).</p>
+<p>Parameters:</p>
+<pre>
+ $obj      =  object to test existence for.</pre>
+<p>Returns:</p>
+<pre>
+ <span class="number">1</span>         <span class="operator">=</span>  <span class="variable">Object</span> <span class="variable">exist</span><span class="operator">;</span>
+ <span class="number">0</span>         <span class="operator">=</span>  <span class="variable">Object</span> <span class="variable">doesn't</span> <span class="variable">exist</span>
+</pre>
+<p>
+</p>
+<h2><a name="mkhlink_unique____fromobj____toobj____hltype__">mkhlink_unique(  \$fromobj, \$toobj, \$hltype )</a></h2>
+<p>creates a hyperlink if it doesn't  already exist. Will not create it if it's already there.</p>
+<p>Parameters:</p>
+<pre>
  $fromobj     = The fully qualified name of the from object (type:name@vob).
  $toobj       = The fully qualified name of the to object (type:name@vob).
- $hltype      = The name of the hlink type to create.</PRE>
-<P>Returns:</P>
-<PRE>
+ $hltype      = The name of the hlink type to create.</pre>
+<p>Returns:</p>
+<pre>
  1     =  Succes - created the hyperlink  or validated that it already existed.
- 0     =  ERROR - hyperlink doesn't exist and couldn't be created.</PRE>
-<P>
-<H2><A NAME="mkattr_unique( \$attype, \$obj )">mkattr_unique(  \$attype, \$obj )</A></H2>
-<P>creates an attribute using the attypes default value it doesn't  already exist. Will not create it if it's already there.</P>
-<P>Parameters:</P>
-<PRE>
+ 0     =  ERROR - hyperlink doesn't exist and couldn't be created.</pre>
+<p>
+</p>
+<h2><a name="mkattr_unique____attype____obj__">mkattr_unique(  \$attype, \$obj )</a></h2>
+<p>creates an attribute using the attypes default value it doesn´t  already exist. Will not create it if it´s already there.</p>
+<p>Parameters:</p>
+<pre>
  $attype      = The name of the attribute type to create.
- $obj         = The fully qualified name of the object to which the attribute shall be attached.</PRE>
-<P>Returns:</P>
-<PRE>
+ $obj         = The fully qualified name of the object to which the attribute shall be attached.</pre>
+<p>Returns:</p>
+<pre>
  1     =  Succes - created the attribute or validated that it already existed.
- 0     =  ERROR - attribute doesn't exist and couldn't be created.</PRE>
-<P>
-<H2><A NAME="rmhlink_all( $fromobjref, $toobjref, $hltyperef )">rmhlink_all(  $fromobjref, $toobjref, $hltyperef )</A></H2>
-<P>Will remove all hyperlink of the specifiec hltype pointing from one object to another.</P>
-<P>Parameters:</P>
-<PRE>
+ 0     =  ERROR - attribute doesn´t exist and couldn´t be created.</pre>
+<p>
+</p>
+<h2><a name="rmhlink_all___fromobjref___toobjref___hltyperef__">rmhlink_all(  $fromobjref, $toobjref, $hltyperef )</a></h2>
+<p>Will remove all hyperlink of the specifiec hltype pointing from one object to another.</p>
+<p>Parameters:</p>
+<pre>
  $fromobjref     = The fully qualified name of the from object (type:name@vob).
  $toobjref       = The fully qualified name of the to object (type:name@vob).
- $hltyperef      = The name of the hlink type to remove.</PRE>
-<P>Returns:</P>
-<PRE>
+ $hltyperef      = The name of the hlink type to remove.</pre>
+<p>Returns:</p>
+<pre>
  1     =  Succes - removed all hyperlinks or validated that no one existed.
- 0     =  ERROR -  Couldn't remove all hyperlinks.</PRE>
-<P>
-<H2><A NAME="list_published( $vobref, $long )">list_published(  $vobref, $long )</A></H2>
-<P>Will print all published labels from a VOB in short or long format.</P>
-<P>Parameters:</P>
-<PRE>
+ 0     =  ERROR -  Couldn´t remove all hyperlinks.</pre>
+<p>
+</p>
+<h2><a name="list_published___vobref___long__">list_published(  $vobref, $long )</a></h2>
+<p>Will print all published labels from a VOB in short or long format.</p>
+<p>Parameters:</p>
+<pre>
  $vobref         = The VOB (ACC Meta data) to retrive published labels from.
- $long           = Boolean, true indicates long format, false means short.</PRE>
-<P>Returns:</P>
-<PRE>
+ $long           = Boolean, true indicates long format, false means short.</pre>
+<p>Returns:</p>
+<pre>
  0     =  Succes - removed all hyperlinks or validated that no one existed.
- 1     =  ERROR -  Couldn't remove all hyperlinks.</PRE>
-<P>
-<H2><A NAME="get_acc_meta_data_vobs( \@returnlist )">get_acc_meta_data_vobs( \@returnlist )</A></H2>
-<P>Will return all ACC Meta Data VOBs that are tagged up in the region where it's executed.</P>
-<P>Parameters:</P>
-<PRE>
- @returnlist     = The result.</PRE>
-<P>Returns:</P>
-<PRE>
- 1     =  Succes the value of @returnlist is valid;
- 0     =  ERROR -  Some error occured don't trust content of @returnlist.</PRE>
-<P>
-<H2><A NAME="get_published( $vobref, $long, $returnarrayref )">get_published(  $vobref, $long, $returnarrayref  )</A></H2>
-<P>Will return an array with all published labels from a VOB in short or long format.</P>
-<P>Parameters:</P>
-<PRE>
+ 1     =  ERROR -  Couldn't remove all hyperlinks.</pre>
+<p>
+</p>
+<h2><a name="get_acc_meta_data_vobs____returnlist__">get_acc_meta_data_vobs( \@returnlist )</a></h2>
+<p>Will return all ACC Meta Data VOBs that are tagged up in the region where it's executed.</p>
+<p>Parameters:</p>
+<pre>
+ @returnlist     = The result.</pre>
+<p>Returns:</p>
+<pre>
+ <span class="number">1</span>     <span class="operator">=</span>  <span class="variable">Succes</span> <span class="variable">the</span> <span class="variable">value</span> <span class="variable">of</span> <span class="variable">@returnlist</span> <span class="variable">is</span> <span class="variable">valid</span><span class="operator">;</span>
+ <span class="number">0</span>     <span class="operator">=</span>  <span class="variable">ERROR</span> <span class="operator">-</span>  <span class="variable">Some</span> <span class="variable">error</span> <span class="variable">occured</span> <span class="variable">don't</span> <span class="variable">trust</span> <span class="variable">content</span> <span class="variable">of</span> <span class="variable">@returnlist</span><span class="operator">.</span>
+</pre>
+<p>
+</p>
+<h2><a name="get_published___vobref___long___returnarrayref__">get_published(  $vobref, $long, $returnarrayref  )</a></h2>
+<p>Will return an array with all published labels from a VOB in short or long format.</p>
+<p>Parameters:</p>
+<pre>
  $vobref         = The VOB (ACC Meta data) to retrive published labels from.
  $long           = Boolean, true indicates long format, false means short.
- $returnarrayref = A reference to the array that will store the result.</PRE>
-<P>Returns:</P>
-<PRE>
+ $returnarrayref = A reference to the array that will store the result.</pre>
+<p>Returns:</p>
+<pre>
  0     =  Succes - removed all hyperlinks or validated that no one existed.
- 1     =  ERROR -  Couldn't remove all hyperlinks.</PRE>
-<P>
-<H2><A NAME="get_composite( $lbtype, $level, $resultref )">get_composite( $lbtype, $level, $resultref )</A></H2>
-<P>Returns the composite structure of a lbtype into an array. The functino calls itself recursively.</P>
-<P>Parameters:</P>
-<PRE>
+ 1     =  ERROR -  Couldn't remove all hyperlinks.</pre>
+<p>
+</p>
+<h2><a name="get_composite___lbtype___level___resultref__">get_composite( $lbtype, $level, $resultref )</a></h2>
+<p>Returns the composite structure of a lbtype into an array. The functino calls itself recursively.</p>
+<p>Parameters:</p>
+<pre>
   $lbtype        = The label to construct
   $level         = The indent level to construct (stepped on for each recursive call)
-  $resultref     = A reference to the array that will hold the result</PRE>
-<P>Returns:</P>
-<PRE>
- void  =  Noting, empty, not used!</PRE>
-<P>
-<H2><A NAME="validate_lbtype( $lbtype, $retvalref )">validate_lbtype( $lbtype, $retvalref )</A></H2>
-<P>Validates the lbtype as a global type in the adminvob, will return the 
-fully qualified name to the global type.</P>
-<P>Parameters:</P>
-<PRE>
+  $resultref     = A reference to the array that will hold the result</pre>
+<p>Returns:</p>
+<pre>
+ void  =  Noting, empty, not used!</pre>
+<p>
+</p>
+<h2><a name="validate_lbtype___lbtype___retvalref__">validate_lbtype( $lbtype, $retvalref )</a></h2>
+<p>Validates the lbtype as a global type in the adminvob, will return the
+fully qualified name to the global type.</p>
+<p>Parameters:</p>
+<pre>
  $lbtype         = The type to validate.
- $retvalref      = A reference to the scalar that will contain the result.</PRE>
-<P>Returns:</P>
-<PRE>
+ $retvalref      = A reference to the scalar that will contain the result.</pre>
+<p>Returns:</p>
+<pre>
  1     =  Succes - validated that the type is global.
- 0     =  ERROR -  Type doesn't exist or isn't global.</PRE>
-<P>
-<H2><A NAME="freeze( $lbtyperef )">freeze( $lbtyperef )</A></H2>
-<P>Takes a reference to a fully qualified label type and applies the
-Frozen attribute to it.</P>
-<P>Parameters:</P>
-<PRE>
- $lbtyperef     =  A FQ lbtype.</PRE>
-<P>Returns:</P>
-<PRE>
+ 0     =  ERROR -  Type doesn't exist or isn't global.</pre>
+<p>
+</p>
+<h2><a name="freeze___lbtyperef__">freeze( $lbtyperef )</a></h2>
+<p>Takes a reference to a fully qualified label type and applies the
+Frozen attribute to it.</p>
+<p>Parameters:</p>
+<pre>
+ $lbtyperef     =  A FQ lbtype.</pre>
+<p>Returns:</p>
+<pre>
  1 =  Success
- 0 =  Some error occured.</PRE>
-<P>
-<H2><A NAME="labels_to_cs( $labelcsv, $branch, $csref )">labels_to_cs( $labelcsv, $branch, $csref )</A></H2>
-<P>Takes a comma separated list of label types, and potentially a working branch 
-and returns a valid config spec. if the working branch is specified as an empty 
-string, the config spec will be read only.</P>
-<P>Note that that this method doesn't the $branch, you should do that before you 
-call the function.</P>
-<P>Parameters:</P>
-<PRE>
- $labelscsv     =  A prioritzed comma separated list of label 
+ 0 =  Some error occured.</pre>
+<p>
+</p>
+<h2><a name="labels_to_cs___labelcsv___branch___csref__">labels_to_cs( $labelcsv, $branch, $csref )</a></h2>
+<p>Takes a comma separated list of label types, and potentially a working branch
+and returns a valid config spec. if the working branch is specified as an empty
+string, the config spec will be read only.</p>
+<p>Note that that this method doesn't the $branch, you should do that before you
+call the function.</p>
+<p>Parameters:</p>
+<pre>
+ $labelscsv     =  A prioritzed comma separated list of label
                    types to adress in the config spec.
  $branch        =  The branch to use as work branch, if this parameter
-                   is an empty string (&quot;&quot; as opposed to not defined) then 
+                   is an empty string (&quot;&quot; as opposed to not defined) then
                    the generated config spec will be read-only
- $csref         =  Outparameter, A reference to the scalar that 
-                   will contain the config spec.</PRE>
-<P>Returns:</P>
-<PRE>
+ $csref         =  Outparameter, A reference to the scalar that
+                   will contain the config spec.</pre>
+<p>Returns:</p>
+<pre>
  1 =  Success
- 0 =  Some error occured, the content of $csref is not valid.</PRE>
-<P>
-<H2><A NAME="lbtype_to_csrule( $lbref, $retref )">lbtype_to_csrule( $lbref, $retref )</A></H2>
-<P>Converts a label name into the corresponding Config Spec rule. (in the format ``element * &lt;lbtype&gt;'')</P>
-<P>Parameters:</P>
-<PRE>
+ 0 =  Some error occured, the content of $csref is not valid.</pre>
+<p>
+</p>
+<h2><a name="lbtype_to_csrule___lbref___retref__">lbtype_to_csrule( $lbref, $retref )</a></h2>
+<p>Converts a label name into the corresponding Config Spec rule. (in the format &quot;element * &lt;lbtype&gt;&quot;)</p>
+<p>Parameters:</p>
+<pre>
  $qualified_brtype = The label type to convert.
- $$retref          = A reference to the scalar the will contain the name of the 
-                     config spec rule.</PRE>
-<P>Returns:</P>
-<PRE>
+ $$retref          = A reference to the scalar the will contain the name of the
+                     config spec rule.</pre>
+<p>Returns:</p>
+<pre>
  1 = Suceedes
- 0 = Some error occured, the value of $retref is not valid.</PRE>
-<P>
-<H2><A NAME="set_default_acc_meta( \$vob,\$region )">set_default_acc_meta( \$vob,\$region )</A></H2>
-<P>Assigns the role ``default Acc Meta VOB'' to a VOB within an existing region.
-if another VOB already has that role it will be revoked from the current VOB and assigned to the new one.</P>
-<P>Parameters:</P>
-<PRE>
+ 0 = Some error occured, the value of $retref is not valid.</pre>
+<p>
+</p>
+<h2><a name="initmeta____vob__">initmeta( \$vob )</a></h2>
+<p>Creates or replaces the reguired meta data (types) to a vob (ACC Meta Data VOB). Also Attaches the AccMetaData attribute to the VOB.</p>
+<p>Parameters:</p>
+<pre>
+ $vob     =  A vob tag.</pre>
+<p>Returns:</p>
+<pre>
+ 1 =  Success - types are created or validated
+ 0 =  Some error occured.</pre>
+<p>
+</p>
+<h2><a name="set_default_acc_meta____vob___region__">set_default_acc_meta( \$vob,\$region )</a></h2>
+<p>Assigns the role &quot;default Acc Meta VOB&quot; to a VOB within an existing region.
+if another VOB already has that role it will be revoked from the current VOB and assigned to the new one.</p>
+<p>Parameters:</p>
+<pre>
  $vob        =  A vob tag.
- $region     =  A region tag</PRE>
-<P>Returns:</P>
-<PRE>
+ $region     =  A region tag</pre>
+<p>Returns:</p>
+<pre>
  1 =  Success - default meta data VOB role assigend
- 0 =  Some error occured.</PRE>
-<P>
-<H2><A NAME="get_default_acc_meta( \$result )">get_default_acc_meta( \$result )</A></H2>
-<P>Returns the ``default Acc Meta VOB'' within the context from where
-it's executed.</P>
-<P>Parameters:</P>
-<PRE>
-  $result</PRE>
-<P>Returns:</P>
-<PRE>
+ 0 =  Some error occured.</pre>
+<p>
+</p>
+<h2><a name="get_default_acc_meta____result__">get_default_acc_meta( \$result )</a></h2>
+<p>Returns the &quot;default Acc Meta VOB&quot; within the context from where
+it's executed.</p>
+<p>Parameters:</p>
+<pre>
+  $result</pre>
+<p>Returns:</p>
+<pre>
  1 =  Success - default meta data VOB is stored in $result
- 0 =  There is no default meta data VOB defined.</PRE>
-<P>
-<H2><A NAME="validate_global_invob( $vobref, $typeref, $kindref, $paramsref )">validate_global_invob( $vobref, $typeref, $kindref, $paramsref )</A></H2>
-<P>validates that a certain type exist as global in a VOB (ACC meta VOB). if it doesn't it will be created as a global type.
-if the type exist but is not global it will be replaced</P>
-<P>Parameters:</P>
-<PRE>
+ 0 =  There is no default meta data VOB defined.</pre>
+<p>
+</p>
+<h2><a name="validate_global_invob___vobref___typeref___kindref___paramsref__">validate_global_invob( $vobref, $typeref, $kindref, $paramsref )</a></h2>
+<p>validates that a certain type exist as global in a VOB (ACC meta VOB). if it doesn't it will be created as a global type.
+if the type exist but is not global it will be replaced</p>
+<p>Parameters:</p>
+<pre>
  $vobref     =  A vob tag.
  $typeref    =  The type to validate/create.
  $kindref    =  The kind of the type, must be one of &quot;lbtype&quot;, &quot;attype&quot;, &quot;hltype&quot;
- $paramsref  =  The additional parameters that will be passed to the mkxxtype command if any.</PRE>
-<P>Returns:</P>
-<PRE>
+ $paramsref  =  The additional parameters that will be passed to the mkxxtype command if any.
+
+</pre>
+<p>Returns:</p>
+<pre>
  3 =  Success - type existed as local - changed to global
  2 =  Success - Type existed as global - type is validated
  1 =  Success - type is created as global
- 0 =  Some error occured.</PRE>
+ 0 =  Some error occured.
 
-</BODY>
+</pre>
 
-</HTML>
+</body>
+
+</html>
