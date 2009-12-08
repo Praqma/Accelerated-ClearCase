@@ -1,34 +1,30 @@
 package scriptlog;
 
+require 5.001;
+require Exporter;
 use strict;
 
-require 5.001;
-our ( $scriptdir, $scriptfile );
-
-BEGIN {
-    $scriptdir  = ".\\";
-    $scriptfile = $0;      # Assume the module is called from 'current directory' (no leading path - $0 is the file)
-    $scriptfile =~ /(.*\\)(.*)$/
-      && do { $scriptdir = $1; $scriptfile = $2; }    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+our ($scriptdir, $scriptfile);
+BEGIN{
+	$scriptdir =".\\";$scriptfile = $0;                                # Assume the module is called from 'current directory' (no leading path - $0 is the file)
+	$scriptfile =~/(.*\\)(.*)$/ &&  do{$scriptdir=$1;$scriptfile=$2;}  # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
-
-use Exporter;
-use lib "$scriptdir";
+use lib "$scriptdir..";
 
 our @ISA    = qw(Exporter);
-our @EXPORT = qw(new);                                #Export only the constructor
+our @EXPORT = qw(new);  #Export only the constructor
 
-my $Info_count = 0;                                   #Increased by one every time an information is issued
-my $Warn_count = 0;                                   #Increased by one every time a warning is issued
-my $Err_count  = 0;                                   #Increased by one every time an error is issued
-my $Enabled    = 0;                                   #When logging is only done when it's enabled;
-my $Verbose    = 0;                                   #When verbose is on messages are wittten to console as well as logfile
-my $Logfile    = "";                                  #Updated with the logfile pname once log is enabled os set manually using set_logfile
-my $LogIsOpen  = 0;                                   #Flag indicating wether the log is succesfully open or not.
+my $Info_count = 0;     #Increased by one every time an information is issued
+my $Warn_count = 0;     #Increased by one every time a warning is issued
+my $Err_count  = 0;     #Increased by one every time an error is issued
+my $Enabled    = 0;     #When logging is only done when it's enabled;
+my $Verbose    = 0;     #When verbose is on messages are wittten to console as well as logfile
+my $Logfile    = "";    #Updated with the logfile pname once log is enabled os set manually using set_logfile
+my $LogIsOpen  = 0;     #Flag indicating wether the log is succesfully open or not.
 
 # Module version
 our $VERSION = "1.0";
-our $BUILD   = "5";
+our $BUILD   = "6";
 our $header  = <<ENDHEADER;
 #########################################################################
 #     This module contains a class which enables easy script logging
@@ -50,6 +46,10 @@ DATE        EDITOR  NOTE
 2009-08-19  Lars Kruse     Changed the printing subs (i+w+e) so they only
                            print the timestamp to the log - not STDOUT.
                            Added information_always() (version 1.0.5)
+2009-11-10  Lars Kruse     Changed the behaviour of the set_verbose.
+                           It now check for environment variables
+                           SCRIPTLOG_VERBOSE or CLEARCASE_TRIGGER_VERBOSE
+                           (version 1.0.6)
 -------------------------------------------------------------------------
 ENDREVISION
 
@@ -71,12 +71,14 @@ sub get_accumulated_errorlevel { return ($Err_count) ? 2 : ($Warn_count) ? 1 : 0
 
 sub set_verbose() {
     my $self = shift;
-    $Verbose = shift;    # boolean
+    $Verbose = shift; # boolean
+    $Verbose && return;
+    if ( defined( $ENV{SCRIPTLOG_VERBOSE} ) || defined( $ENV{CLEARCASE_TRIGGER_VERBOSE} ) ) { $Verbose = 1; }
 }
 
 sub set_logfile() {
     my $self = shift;
-    $Logfile = shift;    # valid path+file
+    $Logfile = shift; # valid path+file
 }
 
 ####### Methods #############
@@ -102,10 +104,10 @@ sub disable {
 
 sub information() {
     ( $Enabled || $Verbose ) && do {
-        my $self   = shift;
-        my $msg    = shift;
-        my $prefix = $self->timestamp . " [I]:\t";
-        $Enabled && print LOGFILE $prefix . indent_msg($msg);
+        my $self = shift;
+        my $msg  = shift;
+        my $prefix  = $self->timestamp . " [I]:\t";
+        $Enabled && print LOGFILE $prefix.indent_msg($msg);
         $Verbose && print STDOUT $msg;
         $Info_count++;
         return $Verbose;
@@ -113,51 +115,51 @@ sub information() {
 }
 
 sub information_always() {
-    my $self   = shift;
-    my $msg    = shift;
-    my $prefix = $self->timestamp . " [I]:\t";
-    $Enabled && print LOGFILE $prefix . indent_msg($msg);
-    print STDERR $msg;    #unconditional print
-    $Info_count++;
-    return $Verbose;
+   my $self = shift;
+   my $msg  = shift;
+   my $prefix  = $self->timestamp . " [I]:\t";
+   $Enabled && print LOGFILE $prefix.indent_msg($msg);
+   print STDERR $msg; #unconditional print
+   $Info_count++;
+   return $Verbose;
 }
+
 
 sub warning($) {
     ( $Enabled || $Verbose ) && do {
-        my $self   = shift;
-        my $msg    = shift;
-        my $prefix = $self->timestamp . " [W]:\t";
-        $Enabled && print LOGFILE $prefix . indent_msg($msg);
-        $Verbose && print STDERR $msg;
+        my $self = shift;
+        my $msg  = shift;
+        my $prefix  = $self->timestamp . " [W]:\t";
+        $Enabled && print LOGFILE $prefix.indent_msg($msg);
+        print STDERR $msg;
         $Warn_count++;
         return $Verbose;
       }
 }
 
 sub error($) {
-    ( $Enabled || $Verbose ) && do {
-        my $self   = shift;
-        my $msg    = shift;
-        my $prefix = $self->timestamp . " [E]:\t";
-        $Enabled && print LOGFILE $prefix . indent_msg($msg);
-        $Verbose && print STDERR $msg;
-        $Err_count++;
-        return $Verbose;
-      }
+    my $self = shift;
+    my $msg  = shift;
+    my $prefix  = $self->timestamp . " [E]:\t";
+    $Enabled && print LOGFILE $prefix.indent_msg($msg);
+    print STDERR $msg;
+    $Err_count++;
+    return $Verbose;
+
 }
 
-sub indent_msg() {
-    my $msg = shift;
-    chomp($msg);
-    $msg =~ s/\n/\n\t\t/g;
-    return $msg . "\n";
+sub indent_msg(){
+	my $msg = shift;
+	chomp($msg);
+	$msg =~ s/\n/\n\t\t/g;
+	return $msg."\n";
 }
 
 sub assertion_failed($) {
-    my $self   = shift;
-    my $msg    = shift;
-    my $prefix = $self->timestamp . " [ASSERTION FAILED]:\n";
-    $LogIsOpen && print LOGFILE $prefix . $msg;
+    my $self = shift;
+        my $msg  = shift;
+        my $prefix  = $self->timestamp . " [ASSERTION FAILED]:\n";
+    $LogIsOpen && print LOGFILE $prefix.$msg;
     die $msg;
 }
 
@@ -180,13 +182,7 @@ sub dump_ccvars {
         @_ = `set CLEARCASE`;
         $self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
         $self->dump_array( \@_ );
-
-        #$Enabled && $self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
-        #$Enabled && $self->dump_array( \@_ );
-
-        #$Verbose && $self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
-        #$Verbose && $self->dump_array( \@_ );
-      }
+     }
 }
 
 ######## (...designed to be) Private ###########
@@ -200,11 +196,11 @@ sub timestamp {
 
     # my $mon_name = $mon_names[$mon];
     $mon++;
-    if ( $mon < 10 )  { $mon  = "0" . $mon }
-    if ( $mday < 10 ) { $mday = "0$mday" }
-    if ( $hour < 10 ) { $hour = "0$hour" }
-    if ( $min < 10 )  { $min  = "0$min" }
-    if ( $sec < 10 )  { $sec  = "0$sec" }
+    if ( $mon  < 10 )  { $mon  = "0" . $mon }
+    if ( $mday < 10 )  { $mday = "0$mday" }
+    if ( $hour < 10 )  { $hour = "0$hour" }
+    if ( $min  < 10 )  { $min  = "0$min" }
+    if ( $sec  < 10 )  { $sec  = "0$sec" }
     return "$hour.$min:$sec";
 }
 
@@ -227,15 +223,10 @@ sub openlog() {
     open LOGFILE, ">>$Logfile" or assertion_failed("Couldn't open \"$Logfile\"\n");
     $LogIsOpen = 1;
     print LOGFILE "\n#######################################################\n"
-      . "This log is created (or appended) on "
-      . datestamp() . " \@ "
-      . timestamp() . "\n"
-      . "Executing script:\t"
-      . $scriptfile . "\n"
-      . "Process ID (PID):\t"
-      . $$ . "\n"
-      . "Executing user:  \t"
-      . $ENV{USERNAME} . "\n\n";
+      . "This log is created (or appended) on ".datestamp()." \@ ".timestamp()."\n"
+      . "Executing script:\t".     $scriptfile . "\n"
+      . "Process ID (PID):\t".     $$ . "\n"
+      . "Executing user:  \t".     $ENV{USERNAME} . "\n\n";
     print STDOUT "Log of execution:\"$Logfile\"\n";
 }
 
@@ -264,7 +255,7 @@ Used to ease the logging of perl scripts.
 =head2 Setters
 
  set_logfile(pname)
- set_verbose(0|1)
+ set_verbose(0|1)  (reads environment variables SCRIPTLOG_VERBOSE and CLEARCASE_TRIGGER_VERBOSE)
 
 =head2 Getters
 
@@ -277,7 +268,7 @@ Used to ease the logging of perl scripts.
 =head2 Methods
 
  enable
- conditional_enable([flag])
+ conditional_enable([boolean]) (reads environment variables SCRIPTLOG_ENABLE and CLEARCASE_TRIGGER_DEBUG)
  disable
  information(msg)
  information_always(msg)
@@ -321,7 +312,7 @@ file pathnames - The assumption is that if you are using the scriptlog
 class it's because you want a log to be created. Thus if the log
 creation fails then the executing script is dragged into the fall - and dies!
 
-There is and alternative enable method you can use. It's called conditional_enable
+There is and alternative enable method you can use. It's called C<conditional_enable>
 
   $log->conditional_enable
 
@@ -428,4 +419,5 @@ See the website for the Accelerated ClearCase project at http://launchpad.net/ac
 This program is distributed under the GNU GPL v3.0 license
 
 =cut
-1;
+
+
