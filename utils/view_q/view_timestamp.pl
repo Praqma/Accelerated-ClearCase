@@ -576,7 +576,7 @@ None
         if ( -e $_ ) {
             push @fulllog, "$_";
         } else {
-            $log->information("Ignoring listed view storage at [$_], it has probabably been deleted\n");
+            $log->information("Ignoring listed view storage at [$_], it has probably been deleted\n");
         }
     }
 
