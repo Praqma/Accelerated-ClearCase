@@ -96,7 +96,8 @@ my $debug        = 0;    # Set 1 for testing purpose
 my $verbose_mode = 0;
 my $log_enabled  = 1;
 
-# Default setting 0-0-1 (script execution will generate NO output unless explicitly told to, but logs to default location [Temp dir]\view_q.pl.[PID].log
+# Default setting 0-0-1 (script execution will generate NO output unless explicitly told to,
+# but logs to default location [Temp dir]\view_q.pl.[PID].log
 
 # Header history
 our $header = <<ENDHEADER;
@@ -139,7 +140,7 @@ DATE        EDITOR  NOTE
 2009-12-10  Jens Brejner   Version 0.5.10: Add support for web-views
 2009-12-10  Jens Brejner   Version 0.6.11: Interface changed. Adding for support
                            number of days, see option -days
-                           
+
 -------------------------------------------------------------------------
 
 ENDREVISION
@@ -159,55 +160,73 @@ ENDUSAGE
 my $doc = <<ENDDOC;
 
 -help                   Get help with the script syntax etc. (you are watching it now)
+
 -lsquarantine           List views that are currently in quarantine.
+
                         NOTE: This switch is only supporten when executed on
                         ClearCase Registry server.
+
 -autopurge              Optional switch only valid together with -lsquarantine.
                         When -autopurge is applied the storages found by -lsquarantine
                         will automatically be purged (permanently deleted)
+
 -autorecover            Optional switch only valid together with -lsquarantine.
                         When -autorecover is applied the storages found by -lsquarantine
                         will automatically be recovered.
--nasince date           Lists views that are not accessed since date. Date must
-                        be in the format YYYY-MM-DD.
+
+-days NUMBER            Optional Switch, think "age in days" Valid with -lsquarantine
+                        together with -autopurge or -autorecover
+                        If -days is used with -autopurge, only views that have
+                        been quarantined for more than -days NUMBER will be listed
+                        and only those views will be available for -autopurge.
+                        If used together with -autorecover the opposite occurs,
+                        only views that have been in quarantine less than -days will
+                        be recovered.
+
+-nasince date|number    Lists views that are not accessed since date. Date must
+                        either be in the format YYYY-MM-DD or a positive integer.
+                        If a number is used is meant as a number of days since, and
+                        the number of days will be subtracted from todays date and
+                        the resulting date will be used.
+
 -autoquarantine         Optional swith only valid together with -nasince. When
                         -autoquarantine is applied the views found be -nasince will be
                         put into quarantine.
--days NUMBER            Optional Switch, think "age in days" Valid with -lsquarantine or -nasince.
-                        If -days is used together with -lsquarantine, only views that have
-                        been quarantined for more than -days NUMBER will be listed
-                        and only those views will be available for -autopurge or
-                        -autorecover.
-                        If -days is used together with -nasince the NUMBER is sub-
-                        tracted from todays date and that calculated date is used instead of
-                        the usual YYYY-MM-DD format.
+
 -quarantine stgloc      Will put the viewstg applied as stglog into quarantine. The format
                         of stgloc must be the global path (as listed with lsview).
+
 -recover stgloc         Will recover the viewstg applied as stgloc out of quarantine. The
                         format of stgloc can be the global path (as listed with lsview).
                         or the local path (as listed by rgy_check, stranded views).
+
 -purge stgloc           Will purge (rmview) the viewstg applied as stgloc. The
                         format of stgloc can be the global path (as listed with lsview).
                         or the local path (as listed by rgy_check, stranded views).
+
 -[no]ignore viewtag     -ignore will make the view ignoring any attempt to put it into
                         quarantine until the ignore flag is removed using -noignore.
                         -nasince will still report he correct last accessed date.
                         multible viewtags can be use, by adding more -ignore option
                         or seperating with ";" eg. "... -ignore tag1;tag2 -ignore tag3"
+
 -region region          Optional switch only valid together with -[no]ignore.
                         The region switch is used to qualify the viewtag applied with
                         -[un]ignore if necessary. if -region is omitted, the viewtag is
                         searched in the current region.
 
                         --- Auxiliary switches (can be omitted or used on all functions)---
+
 -[no]logfile [location] Sets whether or not to create a logfile.
                         May define the name [and location] of the logfile.
-                        Default value is the temp dir (usually under users "doc&set") and "view_q.pl[PID].log"
+                        Default value is the temp dir (usually under
+                        users "doc&set") and "view_q.pl[PID].log"
+
 -[no]verbose            Toggles verbose mode (log to STDOUT)
                         Default is off (for manual execution, verbose is recommended)
+
 -[no]debug              Toggles debug mode (additional information + force logfile + verbose)
                         Default is off
-
 
 ENDDOC
 
@@ -405,7 +424,7 @@ sub enable_log () {
 "Dumping all switch variables \n autoq = '$sw_autoquarantine' \n lsq = '$sw_lsquarantine' \n nas = '$sw_nasince' \n help = '$sw_help' \n quaran = '$sw_quarantine' \n recov = '$sw_recover' \n purge = '$sw_purge' \n autop = '$sw_autopurge' \n autor = '$sw_autorecover' \n igno = '@sw_ignore' \n reg = '$sw_region' \n noigno = '@sw_noignore' \n reg = '$sw_region' \n log = '$sw_logfile'+"
               . $log->get_logfile()
               . " \n debug = '$sw_debug' \n ver = '$sw_verbose' \n ARGV = $argv_values \n" );
-        $log->information("ARGV value checks OK");
+        $log->information("ARGV value checks OK\n");
       };
     $log->information( "Called with " . $argstring . "\n" );
 
@@ -477,6 +496,13 @@ sub lsquarantine_mode () {
           && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
         ( defined($sw_autorecover) && defined($sw_autopurge) )
           && do { $log->assertion_failed( "-autopurge and -autorecover can't be used together\n" . $usage ); };
+det her driller :
+
+        ( defined($sw_days) && ( !defined($sw_autorecover) || !defined($sw_autopurge) )  )
+
+		&& do { $log->assertion_failed( "Using -days requires either -autopurge or -autorecover\n" . $usage ); };
+
+
         foreach ( lsquarantined() ) {
             $log->information($_);
             defined($sw_autopurge) && do {
@@ -516,8 +542,23 @@ sub nasince_mode () {
         ( defined($sw_quarantine) || defined(@sw_ignore) || defined($sw_autopurge) || defined($sw_region) || defined($sw_autorecover) )
           && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
 
+        if ( $sw_nasince =~ /^\d+$/ ) {
+
+            # change meaning of nasince date
+
+            my $cutdays = int($sw_nasince);    # only integers accepted
+
+            $log->error("Number of days $cutdays is not valid\n") unless ( $cutdays gt 0 );
+            my $offset    = $cutdays * 60 * 60 * 24;    # Convert to epoch by multiply with seconds per days
+            my $timesince = time() - $offset;
+
+            # slice date, month, year of time since
+            my ( $day, $month, $year ) = ( localtime($timesince) )[ 3, 4, 5 ];
+            $sw_nasince = sprintf( "%04d-%02d-%02d", $year + 1900, $month + 1, $day );
+            $debug && $log->information("Calculated cutdate is [$sw_nasince]\n");
+        }
         my @views;
-        $log->assertion_failed("ERROR: Wrong date format (use YYYY-DD-MM)\n") unless vwsstgs_nasince( $sw_nasince, \@views );
+        $log->assertion_failed("ERROR: Wrong date forma  t (use YYYY-DD-MM)\n") unless vwsstgs_nasince( $sw_nasince, \@views );
         foreach ( sort @views ) {
             $log->information($_);
             defined($sw_autoquarantine) && do {
@@ -656,6 +697,21 @@ sub recover_stg ($) {
     chomp($stg);
     my $view_q_file_loc = "$stg\\admin\\$view_q_file";
     return 0 unless ( -e $view_q_file_loc );
+
+        if ($sw_days) {
+        my $age = int( sprintf "%f", -C $view_q_file_loc );
+
+        if ( $age ge $sw_days ) {    # too old to recover (given number of days)
+            $log->information("Too old; '$stg' has been quarantined for $age days, igoring for recovering\n");
+            return 0;
+        }
+
+    }
+
+
+
+
+
     open VIEW_Q_FILE, "$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
     foreach (<VIEW_Q_FILE>) {
         $log->information($_);
@@ -702,6 +758,16 @@ sub purge_stg ($) {
         $log->error("ERROR: '$stg' is not a quarantined storage\n");
         return 0;
     };
+
+    if ($sw_days) {
+        my $age = int( sprintf "%f", -C $view_q_file_loc );
+
+        if ( $age lt $sw_days ) {    # too young to purge
+            $log->information("Too new; '$stg' has only been quarantined for $age days, igoring for purge\n");
+            return 1;
+        }
+
+    }
 
     my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
     ( -e $ignore_file_loc ) && do {
