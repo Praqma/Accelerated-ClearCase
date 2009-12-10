@@ -254,6 +254,32 @@ Returns:
 
 =cut
 
+sub isolatepath ($) {
+
+    #Isolate the path part of lsview output
+    #input is the output from cleartool lsview, which looks like
+    #returns the filesystem path  or
+    # 0 for failure
+
+    my $lsview_reply = shift;
+
+    if ( $lsview_reply =~ /$ENV{'COMPUTERNAME'}:/i ) {    # CC LT and WebView format
+        $lsview_reply =~ /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
+        $sw_debug && $log->information("\tlsview reply [$lsview_reply], path isolatede to [$2]\n");
+        return $2 if ( -e $2 );
+    } elsif ( $lsview_reply =~ /\\\\$ENV{'COMPUTERNAME'}\\/i ) {    # Base CC format
+
+        $lsview_reply =~ /^[\s\*]*(\S*)\s*(\S*)$/;
+        $sw_debug && $log->information("\tlsview reply [$lsview_reply], path isolatede to [$2]\n");
+        return $2 if ( -e $2 );
+
+    } else {
+
+        return 0;
+    }
+
+}
+
 sub validate_options () {
     my %options = (
         "autoquarantine" => \$sw_autoquarantine,
@@ -524,15 +550,21 @@ sub ignore_mode () {
             $_ = `cleartool lsview $region_switch $viewtag`;
             $? && $log->error( $? . $_ . "\nCould not find view $viewtag to ignore\n" );
 
-            if (acc::is_cclt) {
-                /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
-                $stg = $2;
-            } else {
-
-                #  Base ClearCase
-                /^[\s\*]*(\S*)\s*(\S*)$/;
-                $stg = $2;
+            $stg = isolatepath($_);
+            unless ($stg) {    #
+                $log->warning("Could determine storage for viewtag [$region_switch $viewtag], skipping it\n");
+                next;
             }
+
+            #            if (acc::is_cclt) {
+            #                /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
+            #                $stg = $2;
+            #            } else {
+
+            #                #  Base ClearCase
+            #                /^[\s\*]*(\S*)\s*(\S*)$/;
+            #                $stg = $2;
+            #            }
 
             my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
 
@@ -555,15 +587,21 @@ sub ignore_mode () {
 
             $? && $log->assertion_failed( "\n" . $usage );
 
-            if (acc::is_cclt) {
-                /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
-                $stg = $2;
-            } else {
-
-                #  Base ClearCase
-                /^[\s\*]*(\S*)\s*(\S*)$/;
-                $stg = $2;
+            $stg = isolatepath($_);
+            unless ($stg) {    #
+                $log->warning("Could determine storage for viewtag [$region_switch $viewtag], skipping it\n");
+                next;
             }
+
+            #            if (acc::is_cclt) {
+            #                /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
+            #                $stg = $2;
+            #            } else {
+
+            #                #  Base ClearCase
+            #                /^[\s\*]*(\S*)\s*(\S*)$/;
+            #                $stg = $2;
+            #            }
 
             my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
             unlink $ignore_file_loc;
@@ -683,10 +721,11 @@ sub purge_stg ($) {
     @_ = <VIEW_Q_FILE>;
     close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
     $_ = $_[0];    # Cache the first entry (we really just need the global storage, so any entry will do)
+    my $ngpath = ($_ =~ /-ngpath/)  ?  "-ngpath " : "" ;
     /\s(\S*)$/;    # The stg is the last part (whitespace separated) of the stream;
 
     my $temptag    = "VIEW_Q_TEMP_TAG";
-    my $mktagcmd   = "cleartool mktag -view -nstart -tag $temptag $1";
+    my $mktagcmd   = "cleartool mktag -view -nstart $ngpath -tag $temptag $1";
     my $endviewcmd = "cleartool endview -server $temptag";
     my $rmtagcmd   = "cleartool rmtag -view $temptag";
 
@@ -814,19 +853,12 @@ sub quarantine_stg ($) {
     $_ = $_[0];                                           # Get a region/tag pair (anyone will do, so we just grab the first)
     s/-tag//;                                             # strip the -tag switch, it's not used in lsview
 
-    if ( grep { /^Properties+.*dynamic/ } `cleartool lsview -pro -full $_` ) {
-        $log->information("View \"$stg\" is a dynamic view\n");
-    }
-
-    if ( grep { /^Properties+.*snapshot/ } `cleartool lsview -pro -full $_` ) {
-        $log->information("View \"$stg\" is a snapshot view\n");
-    }
-
     my @rmtags;
     my @mktags;
     foreach ( split( /;/, $stg_directory{"$stg"} ) ) {
-        push( @mktags, "cleartool mktag -view " . $_ . " " . $stg . "\n" );
+        push( @mktags, "cleartool mktag -view -nstart " . $_ . " " . $stg . "\n" );
         s/-tag //;    # strip the -tag which isn't used in rmtag
+        s/-ngpath //; # strip the -ngpath which isn't used in rmtag
         push( @rmtags, "cleartool rmtag -view " . $_ );
     }
     my $view_q_file_loc = $stg . "\\admin\\" . $view_q_file;
@@ -869,6 +901,7 @@ sub vwsstgs_nasince ($$) {
         @_ = split( /;/, $stg_directory{"$stg"} );    # Turn the semi-colon seprated list of tags into an array
         $_ = $_[0];                                   # Get a region/tag pair (anyone will do, so we just grab the first)
         s/-tag//;                                     # strip the -tag switch, it's not used in lsview
+        s/-ngpath//;                                  # strip the -ngpath switch, it's not used in lsview
         @_ = split( /\n/, `cleartool lsview -age $_` );    # lsview with the -age switch return two lines
         $_ = $_[1];                                        # Grab the second line (where the relevant timestamp is listed)
         /(\d\d\d\d-\d\d-\d\d)/;                            # Get the date in the format YYYY-MM-DD
@@ -915,9 +948,10 @@ Returns:
 sub prepare_stg_directory () {
     return 0 if keys(%stg_directory);    # Someone else already prepared the directory, reuse it! Let's get out.
 
-    # report syntax is different on LT versus Base CC
-
-    if (acc::is_cclt) {
+    # build a unique list of view storages containing the tags in all regions
+    # syntax is different whether on ClearCase LT or not.
+    # The view storage is key in the hash
+    if (acc::is_cclt) {                  # report syntax is different on LT versus Base CC
 
         # This is ClearCase LT
         foreach (`cleartool lsview `) {
@@ -937,20 +971,34 @@ sub prepare_stg_directory () {
         #  Base ClearCase
         foreach my $region (`cleartool lsregion`) {
             chomp($region);
-            foreach (`cleartool lsview -region $region`) {
 
-                # Any number of whitespaces or * (if the view is started)
-                # followed by non-whitespace chars (the view tag) followed
-                # by some whitespaces and tne another set of non-whitespace chars (the view storage)
-                /^[\s\*]*(\S*)\s*(\S*)$/;
+            # Build hash table
+            foreach (`cleartool lsview -host $ENV{'COMPUTERNAME'} -region $region`) {
 
-                #build a unique list of view storages containing the tags in all regions
-                $stg_directory{"$2"} = $stg_directory{"$2"} . "-region \"$region\" -tag \"$1\";";
+                # Cleartool lsview reports in different formats, web-views are reported differently than
+                # snapshot views and dynamic views. Actually the format is like CC LT reports views ...
+                #  see below for example
+
+                #    * student_view         \\cccq7\ccstorage\views\CCCQ7\student\student_view.vws
+                #      student_snap         \\cccq7\ccstorage\views\CCCQ7\student\student_snap.vws
+                #      student_web          CCCQ7:C:\ccweb\student\student_web\view.stg
+
+                if (/$ENV{'COMPUTERNAME'}:/i) {    # think it is is web-view
+                    /^[\s\*]*(\S*)\s*$ENV{'COMPUTERNAME'}:(\S*)$/i;
+                    $stg_directory{"$2"} = $stg_directory{"$2"} . "-ngpath -region \"$region\" -tag \"$1\";";
+                } else {                           # normal snap dynamic view, not on CC LT
+                                                   # Any number of whitespaces or * (if the view is started)
+                                                   # followed by non-whitespace chars (the view tag) followed
+                                                   # by some whitespaces and tne another set of non-whitespace chars (the view storage)
+
+                    /^[\s\*]*(\S*)\s*(\S*)$/;
+                    $stg_directory{"$2"} = $stg_directory{"$2"} . "-region \"$region\" -tag \"$1\";";
+                }
             }
         }
 
     }
-
+    $log->assertion_failed("No views are hosted on this machine [$ENV{'COMPUTERNAME'}]\n.") unless keys(%stg_directory);
     return 1;
 }
 
