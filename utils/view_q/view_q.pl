@@ -88,15 +88,15 @@ use praqma::scriptlog;
 use praqma::acc;
 
 # File version
-our $VERSION = "0.5";
-our $BUILD   = "10";
+our $VERSION = "0.6";
+our $BUILD   = "11";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;    # Set 1 for testing purpose
 my $verbose_mode = 0;
 my $log_enabled  = 1;
 
-# Default setting 0-0-1 (script executio9n will generate NO output unless explicitly told to, but logs to default location [Temp dir]\view_q.pl.[PID].log
+# Default setting 0-0-1 (script execution will generate NO output unless explicitly told to, but logs to default location [Temp dir]\view_q.pl.[PID].log
 
 # Header history
 our $header = <<ENDHEADER;
@@ -137,14 +137,16 @@ DATE        EDITOR  NOTE
 2009-11-16  Jens Brejner   Version 0.5.6: Add support for snapshot views
 2009-11-18  Jens Brejner   Version 0.5.7: Add support for ClearCase LT
 2009-12-10  Jens Brejner   Version 0.5.10: Add support for web-views
-
+2009-12-10  Jens Brejner   Version 0.6.11: Interface changed. Adding for support
+                           number of days, see option -days
+                           
 -------------------------------------------------------------------------
 
 ENDREVISION
 
 my $usage = <<ENDUSAGE;
-  $Scriptfile -lsquarantine [-autopurge | -autorecover]
-  $Scriptfile -nasince YYYY-MM-DD [-autoquarantine]
+  $Scriptfile -lsquarantine [-days DD] [-autopurge  | -autorecover]
+  $Scriptfile -nasince YYYY-MM-DD | -nasince -days DD [-autoquarantine]
   $Scriptfile -quarantine stgloc
   $Scriptfile -recover stgloc
   $Scriptfile -purge stgloc
@@ -171,6 +173,14 @@ my $doc = <<ENDDOC;
 -autoquarantine         Optional swith only valid together with -nasince. When
                         -autoquarantine is applied the views found be -nasince will be
                         put into quarantine.
+-days NUMBER            Optional Switch, think "age in days" Valid with -lsquarantine or -nasince.
+                        If -days is used together with -lsquarantine, only views that have
+                        been quarantined for more than -days NUMBER will be listed
+                        and only those views will be available for -autopurge or
+                        -autorecover.
+                        If -days is used together with -nasince the NUMBER is sub-
+                        tracted from todays date and that calculated date is used instead of
+                        the usual YYYY-MM-DD format.
 -quarantine stgloc      Will put the viewstg applied as stglog into quarantine. The format
                         of stgloc must be the global path (as listed with lsview).
 -recover stgloc         Will recover the viewstg applied as stgloc out of quarantine. The
@@ -209,7 +219,7 @@ our $view_q_file        = ".view_quarantine";
 our $view_q_ignore_file = ".view_q_ignore";
 our (
     $sw_lsquarantine, $sw_recover, $sw_purge,    $sw_nasince,     $sw_quarantine, $sw_autoquarantine, $sw_autopurge, $sw_help,
-    $sw_region,       @sw_ignore,  @sw_noignore, $sw_autorecover, $sw_logfile,    $sw_verbose,        $sw_debug
+    $sw_region,       @sw_ignore,  @sw_noignore, $sw_autorecover, $sw_logfile,    $sw_verbose,        $sw_debug,     $sw_days
 );
 our $argstring;
 
@@ -285,6 +295,7 @@ sub validate_options () {
     my %options = (
         "autoquarantine" => \$sw_autoquarantine,
         "lsquarantine"   => \$sw_lsquarantine,
+        "days=i"         => \$sw_days,
         "nasince=s"      => \$sw_nasince,
         "help"           => \$sw_help,
         "quarantine=s"   => \$sw_quarantine,
@@ -557,16 +568,6 @@ sub ignore_mode () {
                 next;
             }
 
-            #            if (acc::is_cclt) {
-            #                /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
-            #                $stg = $2;
-            #            } else {
-
-            #                #  Base ClearCase
-            #                /^[\s\*]*(\S*)\s*(\S*)$/;
-            #                $stg = $2;
-            #            }
-
             my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
 
             open VIEW_Q_IGNORE_FILE, ">$ignore_file_loc" or $log->assertion_failed("Couldn't open '$ignore_file_loc'\n");
@@ -593,16 +594,6 @@ sub ignore_mode () {
                 $log->warning("Could determine storage for viewtag [$region_switch $viewtag], skipping it\n");
                 next;
             }
-
-            #            if (acc::is_cclt) {
-            #                /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
-            #                $stg = $2;
-            #            } else {
-
-            #                #  Base ClearCase
-            #                /^[\s\*]*(\S*)\s*(\S*)$/;
-            #                $stg = $2;
-            #            }
 
             my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
             unlink $ignore_file_loc;
@@ -722,7 +713,7 @@ sub purge_stg ($) {
     @_ = <VIEW_Q_FILE>;
     close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
     $_ = $_[0];    # Cache the first entry (we really just need the global storage, so any entry will do)
-    my $ngpath = ($_ =~ /-ngpath/)  ?  "-ngpath " : "" ;
+    my $ngpath = ( $_ =~ /-ngpath/ ) ? "-ngpath " : "";
     /\s(\S*)$/;    # The stg is the last part (whitespace separated) of the stream;
 
     my $temptag    = "VIEW_Q_TEMP_TAG";
@@ -858,8 +849,8 @@ sub quarantine_stg ($) {
     my @mktags;
     foreach ( split( /;/, $stg_directory{"$stg"} ) ) {
         push( @mktags, "cleartool mktag -view -nstart " . $_ . " " . $stg . "\n" );
-        s/-tag //;    # strip the -tag which isn't used in rmtag
-        s/-ngpath //; # strip the -ngpath which isn't used in rmtag
+        s/-tag //;                                        # strip the -tag which isn't used in rmtag
+        s/-ngpath //;                                     # strip the -ngpath which isn't used in rmtag
         push( @rmtags, "cleartool rmtag -view " . $_ );
     }
     my $view_q_file_loc = $stg . "\\admin\\" . $view_q_file;
