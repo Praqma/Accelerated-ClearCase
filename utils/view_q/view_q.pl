@@ -89,7 +89,7 @@ use praqma::acc;
 
 # File version
 our $VERSION = "0.5";
-our $BUILD   = "9";
+our $BUILD   = "10";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;    # Set 1 for testing purpose
@@ -136,6 +136,7 @@ DATE        EDITOR  NOTE
                            Source formatting, minor syntax changes weeding out some warnings.
 2009-11-16  Jens Brejner   Version 0.5.6: Add support for snapshot views
 2009-11-18  Jens Brejner   Version 0.5.7: Add support for ClearCase LT
+2009-12-10  Jens Brejner   Version 0.5.10: Add support for web-views
 
 -------------------------------------------------------------------------
 
