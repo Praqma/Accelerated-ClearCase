@@ -148,7 +148,7 @@ ENDREVISION
 
 my $usage = <<ENDUSAGE;
   $Scriptfile -lsquarantine [-days DD] [-autopurge  | -autorecover]
-  $Scriptfile -nasince YYYY-MM-DD | -nasince -days DD [-autoquarantine]
+  $Scriptfile -nasince YYYY-MM-DD | -nasince number [-autoquarantine]
   $Scriptfile -quarantine stgloc
   $Scriptfile -recover stgloc
   $Scriptfile -purge stgloc
