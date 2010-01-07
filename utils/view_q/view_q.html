@@ -19,6 +19,36 @@
 	<li><a href="#name">NAME</a></li>
 	<li><a href="#synopsis">SYNOPSIS</a></li>
 	<li><a href="#description">DESCRIPTION</a></li>
+	<li><a href="#examples">Examples</a></li>
+	<ul>
+
+		<li><a href="#putting_a_view_in_quarantine">Putting a view in Quarantine</a></li>
+		<li><a href="#listing_view_that_have_not_been_used_since____">Listing view that have not been used since ...</a></li>
+		<ul>
+
+			<li><a href="#__and_putting_them_in_quarantine">- and putting them in quarantine</a></li>
+		</ul>
+
+		<li><a href="#listing_views_in_quarantine">Listing views in quarantine</a></li>
+		<ul>
+
+			<li><a href="#_have_all_quarantined_views_purged__deleted_____">-have all quarantined views purged (deleted ...)</a></li>
+			<li><a href="#purge_only_views_that_have_been_for_long_enough">purge only views that have been for long enough</a></li>
+			<li><a href="#or_autorecover_quarantined_views">or autorecover quarantined views</a></li>
+		</ul>
+
+		<li><a href="#one_view_at_a_time">One view at a time</a></li>
+		<ul>
+
+			<li><a href="#quarantine_">quarantine:</a></li>
+			<li><a href="#recover_">recover:</a></li>
+			<li><a href="#purge_">purge:</a></li>
+		</ul>
+
+		<li><a href="#ignoring_views">Ignoring views</a></li>
+		<li><a href="#un_ignoring_views">Un-ignoring views</a></li>
+	</ul>
+
 	<li><a href="#support">SUPPORT</a></li>
 	<li><a href="#script_implementation">Script Implementation</a></li>
 	<ul>
@@ -66,8 +96,7 @@ view tags in any region.</p>
 <p>Stranded views are unavailable for use, but can easily be brought back to availability by using:</p>
 <pre>
   cleartool mktag -view ...</pre>
-<p>Clearcase has a feature called rgy_check (which is only available on ClearCase registry servers
-though!). Rgy_check utility can report stranded views.</p>
+<p>Clearcase has a feature called rgy_check which can report stranded views.</p>
 <pre>
   rgy_check -views</pre>
 <p>Run cleartool man rgy_check to learn more.</p>
@@ -77,8 +106,7 @@ and views put into quarantine by view_q.pl is the file called</p>
 <pre>
   .view_quarantine</pre>
 <p>which view_q.pl creates in the the 'admin' subfolder in the view storage. This file contains the history
-of tags in all regions from where they were deleted. and enables a complete restore of which can be done from
-any machine with ClearCase installed.</p>
+of tags in all regions from where they were deleted. and enables a complete restore.</p>
 <p>View_q.pl can be run in a mode where it lists all views not accessed since a certain date. if you whish you
 can even tell view_q.pl to automatically put these views into quarantine.</p>
 <p>View_q.pl has a different mode which lists all views that are currently in quarantine (As you may have figured
@@ -91,6 +119,101 @@ delete the view storage too.</p>
 <p>When a view is recovered by view_q.pl it simply restores all tags in all the regions where it was removed from.</p>
 <p>Some views aren't supposed to be deleted even when they haven't been accessed for a long time. View_q.pl can
 be instructed to disable quarantine of these views.</p>
+<p>View_q.pl will only process views hosted on the machine where the script is being executed.</p>
+<p>
+</p>
+<hr />
+<h1><a name="examples">Examples</a></h1>
+<p>
+</p>
+<h2><a name="putting_a_view_in_quarantine">Putting a view in Quarantine</a></h2>
+<pre>
+ ratlperl view_p.pl -quarantine \\server\share\views\viewstorage</pre>
+<p>The view storage can in either Local File Path notation (d:\views\...) or UNC style</p>
+<p>
+</p>
+<h2><a name="listing_view_that_have_not_been_used_since____">Listing view that have not been used since ...</a></h2>
+<p>This operation is achieved by the swithc -nasince. The argument to -nasince can either be
+a date in the form YYYY-MM-DD or a number of days. In the latter case the number of days
+will be subtracted from the current date. This feature adresses the possibility to
+set-up scheduled jobs. So if you call</p>
+<pre>
+ ratlperl view_q.pl -nasince 90</pre>
+<p>all views that have not been used for 90 dayss or more will be listed. You can add -autoquarantine
+to the command to have all these views quarantined in one operation.</p>
+<p>
+</p>
+<h3><a name="__and_putting_them_in_quarantine">- and putting them in quarantine</a></h3>
+<pre>
+ ratlperl view_q.pl -nasince 90 -autoquaratine</pre>
+<p>
+</p>
+<h2><a name="listing_views_in_quarantine">Listing views in quarantine</a></h2>
+<p>So you have used view_q.pl to put views in quarantine. How to know which views are in quarantine ?
+Simple, used the -lsquarantine:</p>
+<pre>
+ ratlperl view_q.pl -lsquarantine</pre>
+<p>
+</p>
+<h3><a name="_have_all_quarantined_views_purged__deleted_____">-have all quarantined views purged (deleted ...)</a></h3>
+<p>Use -autopurge:</p>
+<pre>
+ ratlperl view_q.pl -lsq -autopurge</pre>
+<p>Any view in quarantine will be removed.</p>
+<p>
+</p>
+<h3><a name="purge_only_views_that_have_been_for_long_enough">purge only views that have been for long enough</a></h3>
+<p>add the -days switch which is only valid together with -lsq -autopurge (or -autorecover )
+With -autopurge the days switch will filter the quarantined views and only purge those
+that have been in quarantine for MORE than <em>days</em></p>
+<pre>
+ ratlperl view_q.pl -lsq -autopurge -days 180</pre>
+<p>will remove views that have been in quarantine for more than 180 days</p>
+<p>
+</p>
+<h3><a name="or_autorecover_quarantined_views">or autorecover quarantined views</a></h3>
+<p>Use the -autorecover switch with -lsquarantine. When autorecovering the meaning of
+the -days switch is changed to mean less than, <em>days</em>. So</p>
+<pre>
+ ratlperl view_q.pl -lsq -autorecover -days 30</pre>
+<p>Will recover quarantined views that have been quarantined less than 30 days</p>
+<p>
+</p>
+<h2><a name="one_view_at_a_time">One view at a time</a></h2>
+<p>Views can be processed one at a time with:</p>
+<p>
+</p>
+<h3><a name="quarantine_">quarantine:</a></h3>
+<pre>
+ ratlperl view_q.pl  -quarantine stgloc</pre>
+<p>
+</p>
+<h3><a name="recover_">recover:</a></h3>
+<pre>
+ ratlperl view_q.pl -recover stgloc</pre>
+<p>
+</p>
+<h3><a name="purge_">purge:</a></h3>
+<pre>
+ ratlperl view_q.pl  -purge stgloc</pre>
+<p>Where <strong>stgloc</strong> can be in eiter UNC style or local file system notation.</p>
+<p>
+</p>
+<h2><a name="ignoring_views">Ignoring views</a></h2>
+<p>Some views are not accessed - but should however not be quarantined, they build-views
+or have some other purpose for the organization.</p>
+<pre>
+ ratlperl view_q.pl  -ignore I&lt;viewtag&gt;</pre>
+<p>as the view may not be in the current region, the switch -region is supported</p>
+<pre>
+ ratlperl view_q.pl  -ignore I&lt;viewtag&gt; -region I&lt;region&gt;</pre>
+<p>
+</p>
+<h2><a name="un_ignoring_views">Un-ignoring views</a></h2>
+<p>To remove the ignore flag from a view, just run</p>
+<pre>
+  ratlperl view_q.pl  -noignore I&lt;viewtag&gt; -region I&lt;region&gt;</pre>
+<p>-and that view will be back in consideration for view_q.pl</p>
 <p>
 </p>
 <hr />

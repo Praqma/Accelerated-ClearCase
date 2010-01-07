@@ -53,7 +53,7 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
 2009-03-25  Mikael Jensen  Initial development version
-2009-08-13  Jens Brejner   Bugfixes. Bumped major version. Updated doc-
+2009-08-13  Jens Brejner   Bugfixes. Bumped major version. Updated docu-
                            mentation to explain that snapshot views are not sup-
                            ported.
 2009-08-13  Jens Brejner   Remove -since switch, it was not implemented, not use-
@@ -61,7 +61,7 @@ DATE        EDITOR         NOTE
                            Adding a new switch (-run).
                            Document that snapshot views are not supported.
 2009-11-09  Jens Brejner   Version 0.2.6 Add support for snapshot views, some
-                           rewriting.
+                           major rewriting.
 
 -------------------------------------------------------------------------
 
@@ -301,7 +301,7 @@ non-zero on failure
     if ( -e $infofile ) {    # expected file exists ?
         if ( unlink $infofile ) {    # unlink returns Number of files deleted
             $sw_verbose && $log->information("Succesfully deleted [$infofile]\n");
-            $log->information("OK. Last access stamp on snapshot at [$lpath] is now current\n");
+            $log->information("OK. Last access stamp on snapshot at [$lpath] is now reset\n");
             return 0;
         } else {
             $log->warning("Could not delete $infofile\n");
@@ -485,8 +485,12 @@ None
             stampdynamic($viewtag);
 
         } elsif ( $cmd[0] =~ m/snapshot/i ) {
-            $sw_debug && $log->information("Found snapshot view [$viewtag] at [$viewlocal], calling stampsnapshot\n");
-            stampsnapshot( $viewlocal, $viewtag );
+            $sw_debug && $log->information("Found snapshot or web view [$viewtag] at [$viewlocal]\n");
+            if ($prev_exe_datetime eq  " -full" ) { # only process snapshots first time we are executed
+            	stampsnapshot( $viewlocal, $viewtag )   ;
+            }else{
+				$sw_debug && $log->information("Ignoring snap view, Found snapshot or web view [$viewtag] at [$viewlocal]\n");
+            }
         } else {
             $log->warning("View type at [$viewlocal] not recognized, view not processed\n");
         }
