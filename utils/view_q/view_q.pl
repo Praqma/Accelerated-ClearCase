@@ -25,8 +25,7 @@ Stranded views are unavailable for use, but can easily be brought back to availa
 
   cleartool mktag -view ...
 
-Clearcase has a feature called rgy_check (which is only available on ClearCase registry servers
-though!). Rgy_check utility can report stranded views.
+Clearcase has a feature called rgy_check which can report stranded views.
 
   rgy_check -views
 
@@ -39,8 +38,7 @@ and views put into quarantine by view_q.pl is the file called
   .view_quarantine
 
 which view_q.pl creates in the the 'admin' subfolder in the view storage. This file contains the history
-of tags in all regions from where they were deleted. and enables a complete restore of which can be done from
-any machine with ClearCase installed.
+of tags in all regions from where they were deleted. and enables a complete restore.
 
 View_q.pl can be run in a mode where it lists all views not accessed since a certain date. if you whish you
 can even tell view_q.pl to automatically put these views into quarantine.
@@ -60,6 +58,108 @@ When a view is recovered by view_q.pl it simply restores all tags in all the reg
 
 Some views aren't supposed to be deleted even when they haven't been accessed for a long time. View_q.pl can
 be instructed to disable quarantine of these views.
+
+View_q.pl will only process views hosted on the machine where the script is being executed.
+
+
+=head1 Examples
+
+=head2 Putting a view in Quarantine
+
+ ratlperl view_p.pl -quarantine \\server\share\views\viewstorage
+
+The view storage can in either Local File Path notation (d:\views\...) or UNC style
+
+=head2 Listing view that have not been used since ...
+
+This operation is achieved by the swithc -nasince. The argument to -nasince can either be
+a date in the form YYYY-MM-DD or a number of days. In the latter case the number of days
+will be subtracted from the current date. This feature adresses the possibility to
+set-up scheduled jobs. So if you call
+
+ ratlperl view_q.pl -nasince 90
+
+all views that have not been used for 90 dayss or more will be listed. You can add -autoquarantine
+to the command to have all these views quarantined in one operation.
+
+=head3 - and putting them in quarantine
+
+ ratlperl view_q.pl -nasince 90 -autoquaratine
+
+=head2 Listing views in quarantine
+
+So you have used view_q.pl to put views in quarantine. How to know which views are in quarantine ?
+Simple, used the -lsquarantine:
+
+ ratlperl view_q.pl -lsquarantine
+
+=head3 -have all quarantined views purged (deleted ...)
+
+Use -autopurge:
+
+ ratlperl view_q.pl -lsq -autopurge
+
+Any view in quarantine will be removed.
+
+
+=head3 purge only views that have been for long enough
+
+add the -days switch which is only valid together with -lsq -autopurge (or -autorecover )
+With -autopurge the days switch will filter the quarantined views and only purge those
+that have been in quarantine for MORE than I<days>
+
+ ratlperl view_q.pl -lsq -autopurge -days 180
+
+will remove views that have been in quarantine for more than 180 days
+
+=head3 or autorecover quarantined views
+
+Use the -autorecover switch with -lsquarantine. When autorecovering the meaning of
+the -days switch is changed to mean less than, I<days>. So
+
+ ratlperl view_q.pl -lsq -autorecover -days 30
+
+Will recover quarantined views that have been quarantined less than 30 days
+
+=head2 One view at a time
+
+Views can be processed one at a time with:
+
+=head3 quarantine:
+
+ ratlperl view_q.pl  -quarantine stgloc
+
+=head3 recover:
+
+ ratlperl view_q.pl -recover stgloc
+
+=head3 purge:
+
+ ratlperl view_q.pl  -purge stgloc
+
+Where B<stgloc> can be in eiter UNC style or local file system notation.
+
+=head2 Ignoring views
+
+Some views are not accessed - but should however not be quarantined, they build-views
+or have some other purpose for the organization.
+
+ ratlperl view_q.pl  -ignore I<viewtag>
+
+as the view may not be in the current region, the switch -region is supported
+
+ ratlperl view_q.pl  -ignore I<viewtag> -region I<region>
+
+
+=head2 Un-ignoring views
+
+To remove the ignore flag from a view, just run
+
+  ratlperl view_q.pl  -noignore I<viewtag> -region I<region>
+
+-and that view will be back in consideration for view_q.pl
+
+
 
 =head1 SUPPORT
 
