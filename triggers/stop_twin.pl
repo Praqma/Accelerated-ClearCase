@@ -10,7 +10,7 @@ BEGIN {
     }
 }
 
-our ( $Scriptdir, $Scriptfile );
+our( $Scriptdir, $Scriptfile );
 
 BEGIN {
     $Scriptdir  = ".\\";
@@ -38,7 +38,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "23";
+our $REVISION = "24";
 
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 
@@ -73,6 +73,8 @@ DATE        EDITOR         NOTE
                            Minor edits and cleanup after Novo internal
                            review.
 2009-12-07  Jens Brejner   Isoloate POD information (v1.0.23)
+2010-01-27  Jens Brejner   Escape "[" or "]" in regexp, remove review comments,
+                           remove clearprompt (v1.0.24)
 -------------------------  ----------------------------------------------
 ENDREVISION
 
@@ -137,28 +139,19 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
         $pattern = "(?i)$element";
     }
 
-    # get lines from lshist that begins with non-whitespace and ends with digit
-    my @lines =
-      grep { /^\S.*\\\d+$/ } qx(cleartool lshist -nop -min -nco -dir -fmt "%Nc%Vn\\n" "$parent_dna");
+    # Need to escape square brackets, as this string will be used as a regexp.
+    $pattern =~ s/\[|\]/\\$&/g;
 
-    #REV lak: It seems like you are only interested in lines starting with Added og Uncat.
-    #         It also seems the he new-line you are adding to output is used for nothing except chomping it again a few lines later
-    #         And even later your run another grep to see if the element is part of the Add/Uncat action)
-    #         So why no go:
-    #
-    # my @lines =
-    #   grep { /^Added.*?$element.*\\\d+$|^Uncat.*?$element.*\\\d+$/ } qx(cleartool lshist -nop -min -nco -dir -fmt "%Nc%Vn" "$parent_dna");
-    #
-    # HEY!!! I didn't actually test the reg-exp above ...might need adjustment, but point is it's possible to grep ONLY what actually interesting in one go!
+    ($logfile) && $log->information("The Search pattern looks like:\'$pattern\'\n");
 
-    # REV lak: If you @lines only hold what is truely interesting you don't need the two hashes
+    # get lines from lshist that begins with either added or uncat and ends with digit
+    my @lines = grep { /^added.*?$element.*\\\d+$|^uncat.*?$element.*\\\d+$/i } qx(cleartool lshist -nop -min -nco -dir -fmt "%Nc%Vn\\n" "$parent_dna");
+    chomp @lines;
+
     my %added        = ();    #  table of latest version where NAME was added
-    my %uncatalogued = ();    #  table of latest version where NAME was seen before uncatalog
+    my %uncatalogued = ();    #  table of latest version where NAME was seen before uncatalogue
 
     foreach (@lines) {
-
-        # REV lak: You could save yourself this reg exp match (see prev REV comment)
-        next unless /^Added|^Uncat/i;
 
         # isolate elementname and branch version
         my ( $action, $name, $junk, $branch ) = /(.*")(.*)("\.)(.*)/;
@@ -179,23 +172,14 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
         }
     }
 
-    #  REV lak: You put the newline there in your -fmt switch to lshistory a few lines up
-    #           If you drop it, you won't need a chomp in the next line.
-    #           in fact you can drop the entire grep and check directly on @lines
-    chomp( my @match = grep /^$pattern$/, keys %added );
+    my @match = grep /^$pattern$/, keys %added;
+
     if (@match) {
         $dupver = $match[$#match];
 
         $found = $dupver;
 
     }
-
-    # REV lak:
-    # I realize the if you implement the the 'improvement' I argued for then the code will be much harder to read, review and maintain
-    # BUT you save a lot a pattern matching and that is known to be fairly expensive.
-    # Performance ought to improve - which is our main goal ...everything else being equal ;-)
-    #
-    # All in all it looks neat - well done ...I have no more comments below this point
 
     # No duplicate element is found on invisible branches
     # Allow the creation of the element.
@@ -207,13 +191,13 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
     my $pop_kind  = "$ENV{'CLEARCASE_POP_KIND'}";
     my $vob_owner = `cleartool desc -fmt %u vob:$ENV{'CLEARCASE_VOB_PN'}`;
 
-    my $prompt = " Trigger $TRIGGER_NAME prevented operation [$pop_kind]\\n";
-    $prompt = "$prompt because an evil twin possibility was detected:\\n\\n";
+    my $prompt = " Trigger $TRIGGER_NAME prevented operation [$pop_kind]\n";
+    $prompt = "$prompt because an evil twin possibility was detected:\n\n";
 
     if ( $pop_kind eq "mkelem" ) {
 
         # From a mkelem command
-        $prompt = "$prompt The name: [$element]\\n";
+        $prompt = "$prompt The name: [$element]\n";
 
     } else {
 
@@ -221,40 +205,38 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
         if ( !$pop_kind || ( $pop_kind eq "rmname" ) || ( $pop_kind eq "mkslink" ) ) {
 
             $log->information( "DEBUG\tLine " . __LINE__ . " Operation is not mkelem, but $pop_kind\n" );
-            $prompt = "$prompt The element name [$element]\\n";
+            $prompt = "$prompt The element name [$element]\n";
 
         }
     }
 
-    $prompt = "$prompt ALREADY exists for the directory:\\n [$parent]\\n";
-    $prompt = "$prompt That name was added in branch version:\\n";
-    $prompt = "$prompt [$added{$element}].\\n";
-    $prompt = "$prompt \\n";
+    $prompt = "$prompt ALREADY exists for the directory:\n [$parent]\n";
+    $prompt = "$prompt That name was added in branch version:\n";
+    $prompt = "$prompt [$added{$element}].\n";
+    $prompt = "$prompt \n";
 
     # check if it has been uncatogued
     chomp( my @lastseen = grep /$pattern$/, keys %uncatalogued );
 
     if (@lastseen) {
-        $prompt = "$prompt The name has last been seen in: \\n";
-        $prompt = "$prompt [$uncatalogued{$element}].\\n";
-        $prompt = "$prompt \\n";
+        $prompt = "$prompt The name has last been seen in: \n";
+        $prompt = "$prompt [$uncatalogued{$element}].\n";
+        $prompt = "$prompt \n";
     }
 
-    $prompt = "$prompt NOTE:  If you feel you really need to perform this action\\n";
-    $prompt = "$prompt e-mail the VOB_OWNER ($vob_owner).\\n\\n";
+    $prompt = "$prompt NOTE:  If you feel you really need to perform this action\n";
+    $prompt = "$prompt e-mail the VOB_OWNER ($vob_owner).\n\n";
 
-    foreach ( split( /\\n/, $prompt ) ) {
+    foreach ( split ( /\n/, $prompt ) ) {
         $log->warning("$_\n");
     }
 
-    $prompt = "$prompt Action is logged in logfile:\\n " . $log->get_logfile;
-
-    `clearprompt yes_no -pro \"$prompt\" -type error -mask abort -default abort -newline -prefer_gui`;
+    $prompt = "$prompt Action is logged in logfile:\n " . $log->get_logfile . "\n";
+    print $prompt;
 
     # prevent the operation
     exit 1;
 
 }    #
+
 __END__
-
-
