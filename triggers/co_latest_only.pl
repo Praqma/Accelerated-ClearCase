@@ -1,6 +1,6 @@
 require 5.000;
 use strict;
-our ( $Scriptdir, $Scriptfile );
+our( $Scriptdir, $Scriptfile );
 
 BEGIN {
     $Scriptdir  = ".\\";
@@ -11,6 +11,9 @@ BEGIN {
 use lib $Scriptdir. "..";
 use praqma::scriptlog;
 use praqma::trigger_helper;
+
+# if version being checked out is being created, we have nothing to do here.
+exit 0 if ( $ENV{'CLEARCASE_ID_STR'} =~ /.*\\$ENV{'CLEARCASE_BRTYPE'}\\0$/ );
 
 #Required if you call trigger_helper->enable_install
 our $TRIGGER_NAME = "ACC_CO_LATEST_ONLY";
@@ -23,7 +26,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "3";
+our $REVISION = "4";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -53,12 +56,13 @@ ENDHEADER
 #########################################################################
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
-----------  -------------  ----------------------------------------------
+----------  -------------  -----------------------------------------------------
 2009-11-26  Lars Kruse     1st release prepared for Novo (version 0.1.1)
 2009-12-02  Jens Brejner   Fix bug, fails on vob root (version 0.1.2), isolate
                            pod information in separate file.
 2009-12-03  Jens Brejner   Fix bug, fails if checkout creates a branch (v0.1.3).
--------------------------  ----------------------------------------------
+2010-12-28  Jens Brejner   Fix bug, first version on branch fails (v0.1.4).
+-------------------------  -----------------------------------------------------
 ENDREVISION
 
 #Enable the features in trigger_helper
@@ -102,4 +106,3 @@ if ( ( $ENV{'CLEARCASE_VIEW_KIND'} eq "snapshot" ) && ( $ENV{'CLEARCASE_OP_KIND'
     exit 0;
 }
 __END__
-
