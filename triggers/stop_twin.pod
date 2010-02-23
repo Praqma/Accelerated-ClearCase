@@ -78,6 +78,43 @@ It goes without saying, that to avoid misuse of this ability ClearCase administr
 that triggers are executed - and semaphore files ar looked-up - at locations where common users only
 have read access.
 
+Trigger script stop_twin.pl respects a local semaphore directory. That means that any user can create the environment varible
+with a value of a existing directory.
+
+To utilize this functionality follow these steps.
+
+=over
+
+=item *
+
+Select a directory, and create an User Environment Variable called B<CLEARCASE_USE_LOCAL_SEMAPHORE> and assign it a value of the directory selected.
+In the CLI you could do:
+
+=back
+
+ set CLEARCASE_USE_LOCAL_SEMAPHORE=C:\Documents and Settings\student\My Documents\My Pictures
+
+=over
+
+=item *
+
+Then create a file named after the user i.e. "student" in the selected directory
+
+=item *
+
+Edit the file, and add the line stop_twin.pl to it. Close the file.
+
+=item *
+
+Now for the next 4 hours (approximately) C<ACC_STOP_TWIN> will exit silently for without checking for evil twins.
+
+=item *
+
+If more time is required, the semaphore file must be recreated (not copied, delete it and create a new with the same contents.)
+
+=back
+
+
 =head1 AUTHOR
 
 Jens Brejner, E<lt>jbr@praqma.netE<gt>.
@@ -95,4 +132,3 @@ Support:    http://launchpad.net/acc
 =for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
 
 =cut
-

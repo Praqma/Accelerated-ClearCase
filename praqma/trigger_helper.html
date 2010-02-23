@@ -1,18 +1,16 @@
-<?xml version="1.0" ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <title>ACC - trigger helper module</title>
-<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" href="C:/Program Files/OptiPerl/Pod2Html.css" type="text/css" />
 <link rev="made" href="mailto:" />
 </head>
 
-<body style="background-color: white">
+<body>
 
-
-<!-- INDEX BEGIN -->
-<div name="index">
 <p><a name="__index__"></a></p>
+<!-- INDEX BEGIN -->
+<!--
 
 <ul>
 
@@ -23,7 +21,7 @@
 	<ul>
 
 		<li><a href="#putting_trigger_helper_to_work">Putting <em>trigger_helper</em> to work</a></li>
-		<li><a href="#making_triggers_support_the__install_switch">Making Triggers Support the <em>-install</em> Switch</a></li>
+		<li><a href="#making_triggers_support_the_install_switch">Making Triggers Support the <em>-install</em> Switch</a></li>
 		<li><a href="#make_the_triggers_support_silent_exit_when_semaphore_files_exist">Make the Triggers Support Silent Exit When Semaphore Files Exist</a></li>
 	</ul>
 
@@ -33,6 +31,11 @@
 
 		<li><a href="#enable_install___install_params_"><code>enable_install (%install_params)</code></a></li>
 		<li><a href="#enable_semaphore_backdoor"><code>enable_semaphore_backdoor</code></a></li>
+		<ul>
+
+			<li><a href="#overriding_the_semaphore_file_directory_via_environment_variable"><code>Overriding the semaphore file directory via environment variable</code></a></li>
+		</ul>
+
 	</ul>
 
 	<li><a href="#examples">EXAMPLES</a></li>
@@ -40,9 +43,7 @@
 	<li><a href="#support_and_bugs_report">SUPPORT AND BUGS REPORT</a></li>
 	<li><a href="#copyright_and_license">COPYRIGHT and LICENSE</a></li>
 </ul>
-
-<hr name="index" />
-</div>
+-->
 <!-- INDEX END -->
 
 <p>
@@ -62,17 +63,17 @@
 <hr />
 <h1><a name="synopsis">SYNOPSIS</a></h1>
 <p><strong>Disable Triggers Using Semaphore Files</strong></p>
-<p><code>trigger_helper</code> enables you to make triggers that doesn't execute if semaphores file has been created. This is useful if you have batch job 
-or some scheduled maintenance jobs that runs regularly and you want to allow them to run without triggering the triggers. The semaphores 
-could also prove helpful if you have a bad trigger, that's misbehaving in the environement, then the semaphore will enable you to <em>disable</em> it temporarily 
+<p><code>trigger_helper</code> enables you to make triggers that doesn't execute if semaphores file has been created. This is useful if you have batch job
+or some scheduled maintenance jobs that runs regularly and you want to allow them to run without triggering the triggers. The semaphores
+could also prove helpful if you have a bad trigger, that's misbehaving in the environement, then the semaphore will enable you to <em>disable</em> it temporarily
 until you have time to fix without actually <em>unisnstalling</em> it.</p>
-<p>The semaphore files are located in a dedicated directory underneath the trigger directory. Normally users only have read access to this directory. 
-So security and policy enforcement handled by triggers is still intact - users still can't disable triggers as the whish, they'll need approval 
+<p>The semaphore files are located in a dedicated directory underneath the trigger directory. Normally users only have read access to this directory.
+So security and policy enforcement handled by triggers is still intact - users still can't disable triggers as the whish, they'll need approval
 form the admins.</p>
 <p><strong>Trigger Installation and Trigger Deployment</strong></p>
-<p><code>trigger_helper</code> also has a feature that enables you to easily install triggers. We have devided VOBs into four types af genericly meaningful chunks: PVOBs, AdminVOBs, UCM component vobs and Base ClearCase client VOBs. Alle VOB will 
-match one (and only one) of the types. When you define trigges simply state what type(s) og VOS it should be installed on - and if you want to define your 
-own type (e.g. &quot;MyKindOfSpecialDocumentVob&quot;) then that is supported too.</p>
+<p><code>trigger_helper</code> also has a feature that enables you to easily install triggers. We have devided VOBs into four types af genericly meaningful chunks: PVOBs, AdminVOBs, UCM component vobs and Base ClearCase client VOBs. Alle VOB will
+match one (and only one) of the types. When you define trigges simply state what <code>type(s)</code> og VOS it should be installed on - and if you want to define your
+own type (e.g. ``MyKindOfSpecialDocumentVob'') then that is supported too.</p>
 <p>All you have to do in your trigger scripts is to define a hash of key+value pairs which you pass to the trigger_helper. The trigger_helper will
 know what to do with it and all you triggers will support an install  syntax like the following:</p>
 <pre>
@@ -81,7 +82,7 @@ know what to do with it and all you triggers will support an install  syntax lik
 on <em>all</em> your VOBs - and they will only be installed where they are designed to be installed.</p>
 <p>Imagin the ease of trigger maintenance this provides e.g. across MultiSites and for creating new VOBs.</p>
 <p><strong>Self-explaining Trigger Scripts</strong></p>
-<p>The trigger_helper also makes your trigger scripts behave naturally from a <em>regular</em> perl-script point-of.-view. Trigger_helper identifies if the perl-script is 
+<p>The trigger_helper also makes your trigger scripts behave naturally from a <em>regular</em> perl-script point-of.-view. Trigger_helper identifies if the perl-script is
 executeed outside a trigger-context and if it is - it will just show you a nice syntax/usage message insted af doing nothing or something unexpected.</p>
 <p>
 </p>
@@ -98,22 +99,28 @@ The trigger_helper is designed to be executed in a structure like the one in the
 <p>To put the trigger_helper in use, you'll need to add an <code>use lib</code> <em>&lt;the parent directory</em>&gt; statement to your current script and then include the <code>praqma::trigger_helper</code>.
 Therefore you'll need to determine the location of your running script. It can all be done in a pre-compiled block using a setup like this:</p>
 <pre>
- <span class="keyword">our</span> <span class="operator">(</span><span class="variable">$Scriptdir</span><span class="operator">,</span> <span class="variable">$Scriptfile</span><span class="operator">);</span><span class="keyword">BEGIN</span><span class="operator">{</span><span class="variable">$Scriptdir</span> <span class="operator">=</span><span class="string">".\\"</span><span class="operator">;</span><span class="variable">$Scriptfile</span> <span class="operator">=</span> <span class="variable">$0</span><span class="operator">;</span> <span class="variable">$Scriptfile</span> <span class="operator">=~</span><span class="regex">/(.*\\)(.*)$/</span> <span class="operator">&amp;&amp;</span>  <span class="keyword">do</span><span class="operator">{</span><span class="variable">$Scriptdir</span><span class="operator">=</span><span class="variable">$1</span><span class="operator">;</span><span class="variable">$Scriptfile</span><span class="operator">=</span><span class="variable">$2</span><span class="operator">;}}</span>
- <span class="keyword">use</span> <span class="variable">lib</span> <span class="string">"</span><span class="variable">$Scriptdir</span><span class="string">.."</span><span class="operator">;</span>
- <span class="keyword">use</span> <span class="variable">praqma::trigger_helper</span><span class="operator">;</span>
-</pre>
-<p>Then to utilize the functionallity from the trigger helper you can throw in the following stetements:</p>
+ our ($Scriptdir, $Scriptfile);
+ BEGIN{
+        $Scriptdir =&quot;.\\&quot;;
+        $Scriptfile = $0;
+        $Scriptfile =~/(.*\\)(.*)$/ &amp;&amp;  do {
+                $Scriptdir=$1;
+                $Scriptfile=$2;
+        }
+ }
+ use lib &quot;$Scriptdir..&quot;;
+ use praqma::trigger_helper;</pre>
+<p>Then to utilize the functionallity from the trigger helper you can throw in the following statements:</p>
 <pre>
- <span class="keyword">our</span> <span class="variable">$thelp</span><span class="operator">=</span><span class="variable">trigger_helper</span><span class="operator">-&gt;</span><span class="variable">new</span><span class="operator">;</span>          <span class="comment"># Instantiates the trigger helper</span>
- <span class="variable">$thelp</span><span class="operator">-&gt;</span><span class="variable">enable_install</span><span class="operator">(</span><span class="variable">%install_params</span><span class="operator">);</span> <span class="comment"># See more under "enable_install"</span>
- <span class="variable">$thelp</span><span class="operator">-&gt;</span><span class="variable">require_trigger_context</span><span class="operator">;</span>         <span class="comment"># Simple check, that exits if the script is not called as a trigger</span>
- <span class="variable">$thelp</span><span class="operator">-&gt;</span><span class="variable">enable_semaphore_backdoor</span><span class="operator">;</span>       <span class="comment"># See more under "enable_semaphore_backdoor"</span>
-</pre>
+ our $thelp=trigger_helper-&gt;new;          # Instantiates the trigger helper
+ $thelp-&gt;enable_install(%install_params); # See more under &quot;enable_install&quot;
+ $thelp-&gt;require_trigger_context;         # Simple check, that exits if the script is not called as a trigger
+ $thelp-&gt;enable_semaphore_backdoor;       # See more under &quot;enable_semaphore_backdoor&quot;</pre>
 <p>Plese note that <code>trigger_helper</code> requires access to <code>acc.pm</code> in the <em>ACC perl utility library</em>, as it uses subs and constants from it!</p>
 <p>
 </p>
-<h2><a name="making_triggers_support_the__install_switch">Making Triggers Support the <em>-install</em> Switch</a></h2>
-<p>When you call <code>enable_install(%install_params)</code> on your newly created trigger_helper object script, as shown above, then 
+<h2><a name="making_triggers_support_the_install_switch">Making Triggers Support the <em>-install</em> Switch</a></h2>
+<p>When you call <code>enable_install(%install_params)</code> on your newly created trigger_helper object script, as shown above, then
 you actually make your trigger scripts support the following syntax (when executed outside a trigger context):</p>
 <pre>
  YourScriptName.pl -install -vob vob_tag [-script script_pname]
@@ -121,18 +128,18 @@ you actually make your trigger scripts support the following syntax (when execut
 <pre>
  -install                Required to run the script in install mode
  -vob vob_tag            The VOB where the trigger should be installed
- -script script_pname    The loation of the trigger script defaults to 
-                         the script´s own current path name ($0 as seen 
-                         from the perl script). Since triggers must be executed 
+ -script script_pname    The loation of the trigger script defaults to
+                         the script´s own current path name ($0 as seen
+                         from the perl script). Since triggers must be executed
                          from a loaction that is globally supported  - on Windows
-                         it´s UNC path in the format \\server\share\... - the 
+                         it´s UNC path in the format \\server\share\... - the
                          path name to the trigger script be given in UNC format-
-                         The switch is only used to override the default value 
-                         N.B: Show caution if you use this switch, you could 
-                         probably just go with the script´s default location 
+                         The switch is only used to override the default value
+                         N.B: Show caution if you use this switch, you could
+                         probably just go with the script´s default location
                          unless you´re testing or debugging!
- -trigger trigger_name   The name of the trigger. The trigger has a default name, 
-                         as stated by the designer inside the script, this is only 
+ -trigger trigger_name   The name of the trigger. The trigger has a default name,
+                         as stated by the designer inside the script, this is only
                          used if you wish to override the triggers default name.
  -preview                Displays the cleartool command that installs the trigger,
                          but does not actually execute it. This switch allows you to
@@ -140,8 +147,8 @@ you actually make your trigger scripts support the following syntax (when execut
 <p>
 </p>
 <h2><a name="make_the_triggers_support_silent_exit_when_semaphore_files_exist">Make the Triggers Support Silent Exit When Semaphore Files Exist</a></h2>
-<p>The trigger helper can make your triggers support a concept of semaphore files, which will allow the triggers to 
-exit silently under certain conditions. The concept is simply that when then semaphore backdoor is enabled in your scripts 
+<p>The trigger helper can make your triggers support a concept of semaphore files, which will allow the triggers to
+exit silently under certain conditions. The concept is simply that when then semaphore backdoor is enabled in your scripts
 it will check to see if a valid semaphore file exist - and if does - then the script exits silently with exit code 0.</p>
 <p>The effect is always that the script is disabled - nothing happens.</p>
 <p>The use of semaphore files should obviously be used with caution, since the triggers are designed to run, disabeling them means that
@@ -150,15 +157,15 @@ validating states, enforcing policies etc.</p>
 <p>Imagine that you have a nightly scheduled job that is doing some kind of maintenance work, and that work is causing some of the triggers to run - event though
 you know for sure, that the maintenance script is compliant with you policies. In that case you can simply bypass the script - without actually uninstalling it.
 It will continue to run for all users - except for the user running the maintenance script.</p>
-<p>Another scenario where we use the semaphore files is in cases where triggers turn out to be buggy, and these bugs are discoverd by end-users in the 
-environment. Imagine that the fault in the trigger script is of such a nature that the most common regular use is supported allright, but a few users has 
-enterered a more complex scenario which - for some reason - wasn´t tested and not these users are stuck due to the misbehaving triggers. Obviously you must 
+<p>Another scenario where we use the semaphore files is in cases where triggers turn out to be buggy, and these bugs are discoverd by end-users in the
+environment. Imagine that the fault in the trigger script is of such a nature that the most common regular use is supported allright, but a few users has
+enterered a more complex scenario which - for some reason - wasn´t tested and not these users are stuck due to the misbehaving triggers. Obviously you must
 fix it, but you afe prevented from doing it right <em>now</em>. If you trigger enabels the semaphore backdoore you can now disable the script only for the few
 users who are affected by the micbehaviour - while the rest of the users still execute it.</p>
 <p>Lets have a look at how it works.</p>
 <p>What you do is that you call the <code>enable_semaphore_backdoor</code> class method on the trigger_helper object you just created.</p>
-<p>The method will locate directory where the valid semaphores are supposed to be. This location is defined by a constant named <code>SEMAPHORE_DIR</code> and the value must 
-be a search path that is relative to lovcation of the current script (the trigger script). The default value that we use in our script is <code>/semaphores</code>. Thus a recap 
+<p>The method will locate directory where the valid semaphores are supposed to be. This location is defined by a constant named <code>SEMAPHORE_DIR</code> and the value must
+be a search path that is relative to lovcation of the current script (the trigger script). The default value that we use in our script is <code>/semaphores</code>. Thus a recap
 of the ACC file structure now lokks like this:</p>
 <pre>
  acc
@@ -167,12 +174,10 @@ of the ACC file structure now lokks like this:</p>
    praqma
    utils</pre>
 <p>OK, so the <code>enable_semaphore_backdoor</code> method will look for files which are named with the userid of the current user in this location.</p>
-<p>If the file exist the method will validate that it's not too old. The definition of what <em>too old</em> means is defined by another constant named 
-<code>MAX_SEMAPHORE_FILE_AGE_DAYS</code>. We use 0.168 as our default value, taht equals to appromimately 4 hours. So if the semaphore file exists and it's not 
+<p>If the file exist the method will validate that it's not too old. The definition of what <em>too old</em> means is defined by another constant named
+<code>MAX_SEMAPHORE_FILE_AGE_DAYS</code>. We use 0.168 as our default value, taht equals to appromimately 4 hours. So if the semaphore file exists and it's not
 too old the the method reads it to see if the name of the current scripts is listed in there - and if it is then then it exists silently.</p>
-<pre>
-
-You can lean more details about the semaphore backdoor in the section about the C&lt;enable_semaphore_backdoor&gt; class.</pre>
+<p>You can lean more details about the semaphore backdoor in the section about the <code>enable_semaphore_backdoor</code> class.</p>
 <p>
 </p>
 <hr />
@@ -180,7 +185,7 @@ You can lean more details about the semaphore backdoor in the section about the 
 <p>When the script runs autside a trigger context, it's designed to install triggers, and therefore it has the same restrictions as applies to trigger installation in general. That is; it can
 only run if it is executed by the VOB owner or the ClearCase account (albd). Execptions are if the script is run with the <code>-preview</code> switch, in which case
 any ClearCase user can run it. Another exception is if you are replacing an existing trigger, then the current owner of the trigger is also allowed to execute.</p>
-<p>I the current version, the installation procedure only support <a href="#mktrtype"><code>mktrtype</code></a> - that is triggers attached to VOBs. If you which to use it for 
+<p>I the current version, the installation procedure only support <a href="#item_mktrtype"><code>mktrtype</code></a> - that is triggers attached to VOBs. If you which to use it for
 creating triggers on other objects - which implies using the <code>mktrigger</code> command - then you need to do some hacking yourself.</p>
 <p>There is still more details revealed about the installation of triggers in the section comming up regarding the <code>enabel_install</code> class method.</p>
 <p>
@@ -194,29 +199,28 @@ creating triggers on other objects - which implies using the <code>mktrigger</co
 <p>Inside your script you will have to create a hash of key+value pairs and pass it to the <code>enable_install</code> method. The hash must - in the current version - contain</p>
 <p>The following three keys:</p>
 <ul>
-<li><strong><a name="name" class="item">name</a></strong>
-
-<li><strong><a name="mktrtype" class="item">mktrtype</a></strong>
-
-<li><strong><a name="supports" class="item">supports</a></strong>
-
+<li><strong><a name="item_name">name</a></strong><br />
+</li>
+<li><strong><a name="item_mktrtype">mktrtype</a></strong><br />
+</li>
+<li><strong><a name="item_supports">supports</a></strong><br />
+</li>
 </ul>
 <p><strong>name</strong></p>
 <p>Is the name of the trigger to be installed. If the trigger already exists it will be replaced.</p>
 <p><strong>mktrtype</strong></p>
-<p>Is the part of the cleartool <a href="#mktrtype"><code>mktrtype</code></a> sub-command that you would normally want to execute, 
+<p>Is the part of the cleartool <a href="#item_mktrtype"><code>mktrtype</code></a> sub-command that you would normally want to execute,
 but stripped for the following switches:</p>
 <pre>
-  <span class="operator">[</span><span class="keyword">-c</span> <span class="variable">comment</span> <span class="operator">|</span> <span class="operator">-</span><span class="variable">cfile</span> <span class="variable">pname</span> <span class="operator">|</span> <span class="operator">-</span><span class="variable">cq</span> <span class="operator">|</span> <span class="operator">-</span><span class="variable">cqe</span> <span class="operator">|</span> <span class="operator">-</span><span class="variable">nc</span><span class="operator">]</span>
-  <span class="operator">{</span><span class="operator">-</span><span class="keyword">exec</span> <span class="variable">command</span><span class="operator">-</span><span class="variable">invocation</span> <span class="operator">|</span>
-     <span class="operator">-</span><span class="variable">execunix</span> <span class="variable">command</span><span class="operator">-</span><span class="variable">invocation</span> <span class="operator">|</span>
-     <span class="operator">-</span><span class="variable">execwin</span> <span class="variable">command</span><span class="operator">-</span><span class="variable">invocation</span> <span class="operator">|</span>
-     <span class="operator">-</span><span class="variable">mklabel</span> <span class="variable">label</span><span class="operator">-</span><span class="variable">type</span><span class="operator">-</span><span class="variable">selector</span> <span class="operator">|</span>
-     <span class="operator">-</span><span class="variable">mkattr</span> <span class="variable">attr</span><span class="operator">-</span><span class="variable">type</span><span class="operator">-</span><span class="variable">selector</span><span class="operator">=</span><span class="variable">value</span> <span class="operator">|</span>
-     <span class="operator">-</span><span class="variable">mkhlink</span> <span class="variable">hlink</span><span class="operator">-</span><span class="variable">type</span><span class="operator">-</span><span class="variable">selector</span><span class="operator">,</span><span class="operator">{</span><span class="variable">to</span><span class="operator">|</span><span class="variable">from</span><span class="operator">}</span><span class="operator">=</span><span class="variable">pname</span><span class="operator">}</span> <span class="operator">...</span>
-  <span class="operator">[</span><span class="operator">-</span><span class="variable">replace</span><span class="operator">]</span>
-  <span class="variable">type</span><span class="operator">-</span><span class="variable">selector</span> <span class="operator">...</span>
-</pre>
+  [-c comment | -cfile pname | -cq | -cqe | -nc]
+  {-exec command-invocation |
+     -execunix command-invocation |
+     -execwin command-invocation |
+     -mklabel label-type-selector |
+     -mkattr attr-type-selector=value |
+     -mkhlink hlink-type-selector,{to|from}=pname} ...
+  [-replace]
+  type-selector ...</pre>
 <p>These switches are all derived automatically from the context of the execution.</p>
 <p><strong>supports</strong></p>
 <p>The value os this key is a list (array) of VOB types that supports this trigger.</p>
@@ -227,61 +231,74 @@ to exactly one of the types. These generic types are:</p>
   adminvob           = The definition is a VOB pointed to by one or more AdminVOB hyperlinks and which is not an UCM Project VOB
   ucmvob             = A Vob containing UCM components, defined as a VOB pointing to a UCM Project VOB with an AdminVOB hyperlink
   bccvob             = All VOBs that doesn't fall into one of the above categories</pre>
-<p>If your world of VOB types is more sophisticated than the four generic types above then you can simpy define your own VOB types by 
+<p>If your world of VOB types is more sophisticated than the four generic types above then you can simpy define your own VOB types by
 attaching the VOB type name you have invented to the VOB object by use of the <code>attype:ACC_VOBType</code> - like this:</p>
 <pre>
-  cleartool mkattr ACC_VOBType &quot;\&quot;documentvob\&quot;&quot; vob:\MyDocVob
-  
-Once you have done that, you are free to refer to the self-invented VOB type 'documentvob' in your I&lt;supports&gt; list.</pre>
+  cleartool mkattr ACC_VOBType &quot;\&quot;documentvob\&quot;&quot; vob:\MyDocVob</pre>
+<p>Once you have done that, you are free to refer to the self-invented VOB type 'documentvob' in your <em>supports</em> list.</p>
 <p>The <em>supports</em> list implicitly includes the trigger name itself, that meant, if a VOB has included a trigger name in the c&lt;ACC_VOBType&gt; attribute
 then that particular trigger will install. like this:</p>
 <pre>
   cleartool mkattr ACC_VOBType &quot;\&quot;ACC_RMEMPTYBR,ACC_CHOW_ON_MKELEM\&quot;&quot; vob:\MyVob</pre>
 <p>Will enable then installation of two triggers triggers on \MyVob.</p>
-<p>If a trigger is supporting more than one type of VOBs (e.g remove empty branch trigger) then you simply add all types to the list. Just make a not that the trigger 
+<p>If a trigger is supporting more than one type of VOBs (e.g remove empty branch trigger) then you simply add all types to the list. Just make a not that the trigger
 installs if it maps to <em>any</em> of the listed types. So if you have invented your own VOB types as described above, you might want to consider
 using those as your only references in the trigger install prodecures.</p>
 <p><em><strong>Note</strong></em>:</p>
-<p>The generic VOB type names listed above are and the then name of the attribute type that defineds custom VOB types are defined by constants 
+<p>The generic VOB type names listed above are and the then name of the attribute type that defineds custom VOB types are defined by constants
 in the <code>acc.pm</code> module like this:</p>
 <pre>
-  <span class="keyword">use</span> <span class="variable">constant</span> <span class="string">VOBTYPE_PVOB</span>                <span class="operator">=&gt;</span> <span class="string">'pvob'</span><span class="operator">;</span>       
-  <span class="keyword">use</span> <span class="variable">constant</span> <span class="string">VOBTYPE_ADMINVOB</span>            <span class="operator">=&gt;</span> <span class="string">'adminvob'</span><span class="operator">;</span>       
-  <span class="keyword">use</span> <span class="variable">constant</span> <span class="string">VOBTYPE_UCM_CLIENT</span>          <span class="operator">=&gt;</span> <span class="string">'ucmvob'</span><span class="operator">;</span>       
-  <span class="keyword">use</span> <span class="variable">constant</span> <span class="string">VOBTYPE_BCC_CLIENT</span>          <span class="operator">=&gt;</span> <span class="string">'bccvob'</span><span class="operator">;</span>
-  <span class="keyword">use</span> <span class="variable">constant</span> <span class="string">ATTYPE_CUSTOM_VOBTYPE</span>       <span class="operator">=&gt;</span> <span class="string">'ACC_VOBType'</span><span class="operator">;</span>
-</pre>
+  use constant VOBTYPE_PVOB                =&gt; 'pvob';
+  use constant VOBTYPE_ADMINVOB            =&gt; 'adminvob';
+  use constant VOBTYPE_UCM_CLIENT          =&gt; 'ucmvob';
+  use constant VOBTYPE_BCC_CLIENT          =&gt; 'bccvob';
+  use constant ATTYPE_CUSTOM_VOBTYPE       =&gt; 'ACC_VOBType';</pre>
 <p>An example of how the hash that is passed to <code>enable_install</code> is constructed could be:</p>
 <pre>
- <span class="keyword">my</span> <span class="variable">%install_params</span> <span class="operator">=</span> <span class="operator">(</span>
-    <span class="string">'name'</span>        <span class="operator">=&gt;</span> <span class="string">'TRIGGER_NAME'</span><span class="operator">,</span>                          <span class="comment"># string - no whitespaces</span>
-    <span class="string">'mktrtype'</span>    <span class="operator">=&gt;</span> <span class="string">'-element -all postop mkelem'</span><span class="operator">,</span>           <span class="comment"># string - with whitespaces</span>
-    <span class="string">'supports'</span>    <span class="operator">=&gt;</span> <span class="operator">(</span><span class="string">'bccvob'</span><span class="operator">,</span><span class="string">'ucmvob'</span><span class="operator">);</span>                        <span class="comment"># Array of generic and/or custom VOB types</span>
-</pre>
+ my %install_params = (
+    'name'        =&gt; 'TRIGGER_NAME',                          # string - no whitespaces
+    'mktrtype'    =&gt; '-element -all postop mkelem',           # string - with whitespaces
+    'supports'    =&gt; ('bccvob','ucmvob');                        # Array of generic and/or custom VOB types</pre>
 <p>
 </p>
 <h2><a name="enable_semaphore_backdoor"><code>enable_semaphore_backdoor</code></a></h2>
 <p>To support the semaphore backdoor your trigger script needs to call the <code>enable_semaphore_backdoor</code> method as described earlier.</p>
-<p>In order for a semaphore file to be valid - and effectively disable the trigger the following  properties must me met:</p>
+<pre>
+ In order for a semaphore file to be valid - and effectively disable the trigger the following  properties must me met:</pre>
 <ul>
-<li>
-<p>A semaphore file named after the user must exist</p>
-</li>
-<li>
-<p>The semaphore file must be located in a subfolder of the actual trigger loctaion named  <code>semaphores</code></p>
-</li>
-<li>
-<p>The semaphore file must have been created (not accessed, or updated, but CREATED) within the last 4 hours</p>
-</li>
-<li>
-<p>The semaphore file must contain a line stating the name of the perl script it is supposed to detronize (eg. no_rmelem_rmver.pl), the
-same semaphore file can list many scritps.</p>
-</li>
-</ul>
+<li></li>
+A semaphore file named after the user must exist
+<p></p>
+<li></li>
+The semaphore file must be located in a subfolder of the actual trigger loctaion named  <code>semaphores</code>
+<p></p>
+<li></li>
+The semaphore file must have been created (not accessed, or updated, but CREATED) within the last 4 hours
+<p></p>
+<li></li>
+The semaphore file must contain a line stating the name of the perl script it is supposed to detronize (eg. no_rmelem_rmver.pl), the
+same semaphore file can list many scritps.
+<p></p></ul>
 <p>If a valid semaphore exist the trigger execution is canceled.</p>
 <p><em><strong>Note</strong></em>:</p>
-<p>The location of the <code>semaphores</code> directory can be tweak by setting the constant <code>trigger_helper::SEMAPHORE_DIR</code>.</p>
+<p>The location of the <code>semaphores</code> directory can be tweaked overriding the default via an environment variable, while the above mentioned requirements still apply.</p>
 <p>This time span defining how long time a sempahore file is valid can be tweaked by setting the constant <code>trigger_helper::MAX_SEMAPHORE_FILE_AGE_DAYS</code>.</p>
+<p>
+</p>
+<h3><a name="overriding_the_semaphore_file_directory_via_environment_variable"><code>Overriding the semaphore file directory via environment variable</code></a></h3>
+<p>Supposed you need users to be able to create a valid semaphore in their local file system, while assuring that the time validation is still active.</p>
+<p>Normally you would enable the check for a semaphore file by adding the lines</p>
+<pre>
+ our $thelp=trigger_helper-&gt;new;          # Instantiates the trigger helper
+ $thelp-&gt;enable_install(%install_params); # See more under &quot;enable_install&quot;
+ $thelp-&gt;require_trigger_context;         # Simple check, that exits if the script is not called as a trigger
+ $thelp-&gt;enable_semaphore_backdoor;       # See more under &quot;enable_semaphore_backdoor&quot;</pre>
+<p>to your trigger script, and as such only the protected storage location can be used for semaphores. But creating the semaphore is, shold only be possible by CC administratiors, non administrators should only have read access to the trigger share.</p>
+<p>But you can call $thelp-&gt;enable_semaphore_backdoor with a parameter from your trigger script, for example like this:</p>
+<pre>
+ $thelp-&gt;enable_semaphore_backdoor($ENV{'ACC_USE_LOCAL_SEMAPHORE'});</pre>
+<p>Then the trigger script will pass the value of environment value ACC_USE_LOCAL_SEMAPHORE to enable_semaphore_backdoor, which then will also look for at valid semaphore file in that directory.
+The directory passed in will be searched first, and the usual or common directory will be searched last.</p>
 <p>
 </p>
 <hr />
@@ -291,7 +308,7 @@ same semaphore file can list many scritps.</p>
 </p>
 <hr />
 <h1><a name="author">AUTHOR</a></h1>
-<p>&quot;Lars Kruse&quot; &lt;<a href="mailto:lak@praqma.net">lak@praqma.net</a>&gt;.</p>
+<p>``Lars Kruse'' &lt;<a href="mailto:lak@praqma.net">lak@praqma.net</a>&gt;.</p>
 <p>
 </p>
 <hr />

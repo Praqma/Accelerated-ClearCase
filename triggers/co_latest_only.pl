@@ -61,7 +61,7 @@ DATE        EDITOR         NOTE
 2009-12-02  Jens Brejner   Fix bug, fails on vob root (version 0.1.2), isolate
                            pod information in separate file.
 2009-12-03  Jens Brejner   Fix bug, fails if checkout creates a branch (v0.1.3).
-2010-12-28  Jens Brejner   Fix bug, first version on branch fails (v0.1.4).
+2009-12-28  Jens Brejner   Fix bug, first version on branch fails (v0.1.4).
 -------------------------  -----------------------------------------------------
 ENDREVISION
 
