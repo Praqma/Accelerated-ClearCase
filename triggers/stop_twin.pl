@@ -38,7 +38,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "24";
+our $REVISION = "25";
 
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 
@@ -75,14 +75,18 @@ DATE        EDITOR         NOTE
 2009-12-07  Jens Brejner   Isoloate POD information (v1.0.23)
 2010-01-27  Jens Brejner   Escape "[" or "]" in regexp, remove review comments,
                            remove clearprompt (v1.0.24)
+2010-02-22  Jens Brejner   Enable semaphore directory via environment variable.
+                           Please see documentation for usage. (v1.0.25)
 -------------------------  ----------------------------------------------
+
 ENDREVISION
 
 #Enable the features in trigger_helper
 our $thelp = trigger_helper->new;
 $thelp->enable_install( \%install_params );    #Pass a reference to the install-options
 $thelp->require_trigger_context;
-our $semaphore_status = $thelp->enable_semaphore_backdoor;
+# Look for semaphore, respecting a local semaphore path via env. var.
+our $semaphore_status = $thelp->enable_semaphore_backdoor($ENV{'CLEARCASE_USE_LOCAL_SEMAPHORE'});
 
 #Enable the features in scriptlog
 our $log = scriptlog->new;
