@@ -24,7 +24,7 @@ our $TRIGGER_NAME = "ACC_NO_UNRES_CO";
 our %install_params = (
     "name"     => $TRIGGER_NAME,                                # The name og the trigger
     "mktrtype" => "-element -all -preop checkout,unreserve",    # The stripped-down mktrtype command
-    "supports" => "bccvob,ucmvob",                              # csv list of generic and/or custom VOB types (case insensetive)
+    "supports" => "nnDocVOB",                              # csv list of generic and/or custom VOB types (case insensetive)
 );
 
 # File version

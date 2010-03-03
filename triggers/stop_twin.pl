@@ -38,7 +38,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "25";
+our $REVISION = "27";
 
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 
@@ -77,6 +77,7 @@ DATE        EDITOR         NOTE
                            remove clearprompt (v1.0.24)
 2010-02-22  Jens Brejner   Enable semaphore directory via environment variable.
                            Please see documentation for usage. (v1.0.25)
+2010-03-03  Jens Brejner   Fixed double printed message (v1.0.27) 
 -------------------------  ----------------------------------------------
 
 ENDREVISION
@@ -234,10 +235,7 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
     foreach ( split ( /\n/, $prompt ) ) {
         $log->warning("$_\n");
     }
-
-    $prompt = "$prompt Action is logged in logfile:\n " . $log->get_logfile . "\n";
-    print $prompt;
-
+   
     # prevent the operation
     exit 1;
 
