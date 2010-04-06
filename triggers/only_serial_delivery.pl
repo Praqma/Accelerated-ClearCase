@@ -105,57 +105,62 @@ my $src_stream = $ENV{'CLEARCASE_SRC_STREAM'};
 # pvob from project name
 my ($pvob) = ( $project =~ m{\@(.+)$} );
 
-# do not permit a delivery from a development stream to another project's
-# integration stream
-my ($src_proj) = split '\n', qx{cleartool lsstream -fmt "%[project]p" $src_stream};
+# Rebase cheaph is 'cheapes' we'll chech that first.
 
-if ( $project ne "$src_proj\@$pvob" ) {
-    my ( $istream, $src_istream ) = split '\n', qx{cleartool lsproject -fmt "%[istream]p\\n" $project $src_proj\@$pvob};
-
-    if ( $src_stream ne "$src_istream\@$pvob" and $stream eq "$istream\@$pvob" ) {
-        $log->enable(1);
-        $log->error("\n");
-        $log->error("***Interproject deliveries from development streams\n");
-        $log->error("***to another project's integation stream is prohibited.\n");
-        $log->error("\n");
-        exit 1;
-    }
-}
-
-# first look for a rebase operation in the integration stream
-my $rebase = qx{cleartool rebase -status -stream $stream};
-
-my $baseline = ( $rebase =~ /\s+baseline:(.+)\@/ );
+my $rebase = run("cleartool rebase -status -stream $stream");
 
 if ( $rebase !~ /No rebase in progress/ ) {    #        Rebase is in progress
     $log->enable(1);
-    $log->error("A rebase is already in progress from '$baseline'. Please try again later.");
+    $log->error("*******A rebase operation is aready in progress. Details about the rebase:\n\n$rebase\n*******Please try again later.\n");
     exit 1;
 }
 
+# Deliver activities are named in the format deliver.<stream>.<YYYYMMDD>.<HHMMSS>
 # regex to find deliver activity
 my $rx = 'deliver\.([^.]+)\.';
 
-# get the last activity, and if it is a delivery, get the development stream
-my @activities = map { chomp; $_ } grep { /^$rx/o } qx{cleartool lsactivity -short -in $stream};
+# Get the delivery activities on the integration stream
+#   cleartool desc -fmt \%[activities]p stream:$stream
+# Is significantly faster than
+#   cleartool lsactivity -short -in $stream
+# But return value is a space separated string
+my $delim = ' '; # a single space;
+
+my @activities = map { chomp; $_ } grep { /^$rx/o } split /$delim/,run("cleartool desc -fmt \%[activities]p stream:$stream");
 
 # look at the three last delivery activities
-for ( my $i = 0 ; scalar( @activities - $i ) and $i < 3 ; $i++ ) {
-    my $activity = $activities[ $#activities - $i ];
+my $i = 0;
+my $activity = pop(@activities);
+while ( $activity && $i++ <3){
 
     # get status of stream which originated the activity
     my ($ostream) = ( $activity =~ /$rx/o );
-    my $delivery = qx{cleartool deliver -status -stream $ostream\@$pvob};
-
+    my $delivery = run("cleartool deliver -status -stream $ostream\@$pvob");
+    
     # if the activity name is in the status, then the delivery
     # is in progress
     if ( $delivery =~ /$activity/ ) {
-        my $colleague = qx(cleartool des -fmt %u activity:$activity\@$pvob);
         $log->enable(1);
-        $log->error("***A deliver initiated by '$colleague' is already in progress from '$ostream'. \n***Please try again later.\n\n");
+        $log->error("*******A DELIVER OPERATION IS ALREADY IN PROGRESS. Details about the delivery:\n\n$delivery\n*******Please try again later.\n");
         exit 1;
     }
+   $activity = pop(@activities);
 }
 
 # no deliver or rebase found, normal exit
 exit 0;
+
+sub run($$){
+	my $cmd = shift;
+	my $aslist = shift;
+	my $cmdex = $cmd.' 2>&1';
+	my @retval_list = qx{$cmdex};
+	my $retval_scl  = join '',@retval_list;
+	$? && do {
+  	$log->enable(1);
+	  $log->error("The command: $cmd failed!.\nIt returned:\n$retval_scl\n");
+	};
+	return @retval_list if $aslist;
+	return $retval_scl;
+}
+
