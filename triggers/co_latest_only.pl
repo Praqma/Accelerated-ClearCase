@@ -26,7 +26,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "4";
+our $REVISION = "5";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -62,7 +62,8 @@ DATE        EDITOR         NOTE
                            pod information in separate file.
 2009-12-03  Jens Brejner   Fix bug, fails if checkout creates a branch (v0.1.3).
 2009-12-28  Jens Brejner   Fix bug, first version on branch fails (v0.1.4).
--------------------------  -----------------------------------------------------
+2010-03-17  Jens Brejner   Allow unreserved checkouts (v0.1.5).
+----------  -------------  -----------------------------------------------------
 ENDREVISION
 
 #Enable the features in trigger_helper
@@ -84,6 +85,9 @@ $log->dump_ccvars;                                            # Run this stateme
 
 if ( ( $ENV{'CLEARCASE_VIEW_KIND'} eq "snapshot" ) && ( $ENV{'CLEARCASE_OP_KIND'} eq "checkout" ) )
 {                                                             #Check that the events that fired the trigger are the ones we support
+
+    # Allow unreserved Checkouts, CLEARCASE_RESERVED is 1 if reserved, 0 if unreserved
+    exit 0 if ( $ENV{'CLEARCASE_RESERVED'} eq 0 );
 
     # find on directory elements needs some filtering.
     my $dirswitch = ( lc( $ENV{'CLEARCASE_ELTYPE'} ) eq "directory" ) ? " -directory" : "";
