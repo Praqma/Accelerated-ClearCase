@@ -20,10 +20,10 @@ our $BULILD = "1";
 
 our $header = <<ENDHEADER;
 #########################################################################
-#     This module contains subs that are used to  support the      
+#     This module contains subs that are used to  support the
 #     ACC process
 #     Date:       #
-#     Author:     
+#     Author:
 #     Copyright:  GNU GPL v3.0
 #########################################################################
 ENDHEADER
@@ -33,7 +33,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE         EDITOR        NOTE
 -----------  ------------- ----------------------------------------------
-2009-06-26   Lars Kruse    Pulling stuff out of trigger_utils.pm, 
+2009-06-26   Lars Kruse    Pulling stuff out of trigger_utils.pm,
                            that was misplaced. Had nowhere else to put it!
                            (version 0.1.1)
 -------------------------------------------------------------------------
@@ -60,7 +60,7 @@ sub version_has_frozen_label($$){
   my $cc_pn = shift;                                       # The version to examine
   my $return_lbtype_ref = shift;                           # The lbtype to return
 
-  my $cmd = "cleartool desc -fmt \%Nl $cc_pn";             # Get the labels of the version 
+  my $cmd = "cleartool desc -fmt \%Nl $cc_pn";             # Get the labels of the version
   my @labels_on_version = split / /,`$cmd`;
   foreach my $label (@labels_on_version){
     if (lbtype_is_frozen("lbtype:$label\@$ENV{CLEARCASE_VOB_PN}")){
@@ -83,18 +83,18 @@ sub version_has_subtree_with_frozen_label($$$){
 }
 
 sub get_versiontree_below_version($$){
-  my $cc_pn = shift;                                       
+  my $cc_pn = shift;
   my $return_array_ref = shift;
-  
+
   my $cmd = "cleartool desc -fmt \%Vn $cc_pn";             # Get the version id
-  my $versionid = `$cmd`; 
-  my $escvid = quotemeta($versionid);   
+  my $versionid = `$cmd`;
+  my $escvid = quotemeta($versionid);
   return 0 unless ($versionid =~ /(.+?)\\(\d+)/);            # exit as FALSE if you don't have a valid version id
   my $br = $1;                                             # ...the branch is part of the match
   my $rev = $_= $2;                                        # ...and so it the revision number
   my $expected_successor = "$br\\".++$_;                   # construct the id of the next successor
-  $cmd = "cleartool lsvtree -all -branch $br $cc_pn"; 
-  @$return_array_ref = `$cmd`;                             # Get the version tree - below the branch of the version 
+  $cmd = "cleartool lsvtree -all -branch $br $cc_pn";
+  @$return_array_ref = `$cmd`;                             # Get the version tree - below the branch of the version
 
   return 0 unless not $?;                                    # Exit as FALSE if the cleartool command failed
   my $continue =1;                                         # A flag the allows us to exit the while loop when we've shifted'ed the uninteresting versions
@@ -139,7 +139,7 @@ sub frozen_label_in_version_tree(@$@){
       $debug && scalar_dump(\$version_pn);
       foreach my $lb ( split / /){
         $lbtype = "lbtype:".$lb."\@$vob";
-        $debug && scalar_dump(\$lbtype); 
+        $debug && scalar_dump(\$lbtype);
         lbtype_is_frozen($lbtype) && do {
            @$return_arr_ref[0] = $lbtype;
            @$return_arr_ref[1] = $version_pn;
@@ -148,7 +148,7 @@ sub frozen_label_in_version_tree(@$@){
       }
     }
   }
-  return 0;                                              # Exit as FALSE 
+  return 0;                                              # Exit as FALSE
 }
 
 sub scalar_dump($){
@@ -178,17 +178,17 @@ package: C<acc_pro>
 Module:  C<acc_pro.pm>
 
 ###TODO:
-###We need to review the POD 
+###We need to review the POD
 
 The trigger_utils package contains various functions that will come in handy when you write ClearCase triggers.
 
-It enables you to turn logging on and off after you have installet the triggers in the production environment, it 
+It enables you to turn logging on and off after you have installet the triggers in the production environment, it
 enables you to make triggers that doesn´t execute if semaphores have been set, and it makes you triggers install
 automatically.
 
 =head1 DESCRIPTION
 
-To ease the use of the trigger_utils.pm module it´s recommended that you keep your scripts and trigger_utils.pm 
+To ease the use of the trigger_utils.pm module it´s recommended that you keep your scripts and trigger_utils.pm
 close together and include the directory that contains the trigger_utils.pm module using a relative path.
 
 Example file structure:
@@ -202,11 +202,11 @@ In order to use a relative path, you´ll obviously need to determine the location
 
 You can achive that using a regulare BEGIN statement; below is an example on how you can set it up:
 
- our ($Scriptdir, $Scriptfile); 
+ our ($Scriptdir, $Scriptfile);
  BEGIN
  {
    $Scriptdir =".\\"; # Assume $0 only contain the script, not a fully qualified path. In this case the Scriptdir is set to ".\" (CD)
-   $Scriptfile = $0;  # Assume $0 only contain the script, not a fully qualified path. In this case the Scriptfile to $0  
+   $Scriptfile = $0;  # Assume $0 only contain the script, not a fully qualified path. In this case the Scriptfile to $0
    $Scriptfile =~/(.*\\)(.*)$/ &&  do{$Scriptdir=$1;$Scriptfile=$2;} # If $0 contains backslashes - it's split on the last occurence
  }
  use lib $Scriptdir."/../modules"; # From here it's up to the parent (..) and then down into modules
@@ -226,7 +226,7 @@ The recommended use is that you add the following to your ClearCase trigger scri
 
 B<NOTE:>
 
-The use of the variables C<$TRIGGER_NAME> and C<$TRIGGER_INSTALL> er described in more detail in the documentation 
+The use of the variables C<$TRIGGER_NAME> and C<$TRIGGER_INSTALL> er described in more detail in the documentation
 of the sub function C<install_trigger( )>
 
 And hereafter, but before you actually start doing any work in you script you add the following statements;
@@ -249,31 +249,31 @@ The module defines the following constants which you might consider to give diff
 
 C<MAX_SEMAPHORE_FILE_AGE_DAYS>        = C<0.168>
 
-Tha value  of C<MAX_SEMAPHORE_FILE_AGE_DAYS> determins how long time a semaphore file is valid. The value is given 
+Tha value  of C<MAX_SEMAPHORE_FILE_AGE_DAYS> determins how long time a semaphore file is valid. The value is given
 as number of days (1 hr ~ 0.042 --> 4 hrs ~ 0.168).
 
 
 C<SEMAPHORE_DIR>                      = C<'./semaphores'>
 
-The value of C<SEMAPHORE_DIR> is the relative to the script location directory where the semaphore file will be 
+The value of C<SEMAPHORE_DIR> is the relative to the script location directory where the semaphore file will be
 searched for.
 
 =head1 FUNCTIONS
 
-The following functions are defined in the module. they migh not all be exported. Have a look in the 
+The following functions are defined in the module. they migh not all be exported. Have a look in the
 module script so find out which ones that are.
 
 =cut
 
 =head2 require_trigger_context( )
 
-Looks for the CLEARCASE_VOB_PN variable which is always (but only) instantiatied if the scritp is 
+Looks for the CLEARCASE_VOB_PN variable which is always (but only) instantiatied if the scritp is
 executed from at trigger context.
 
 Returns:
    void
 
-The method doesn´t return anything but it simply dies if not in a trigger context. The sub function 
+The method doesn´t return anything but it simply dies if not in a trigger context. The sub function
 assumes that the caller ($main) has defined the following fore variabels:
 
   $header
@@ -312,22 +312,22 @@ One hour is apx 0.042 days, thus 0.168 ~ 4 hrs.
 
 Supports help installing the trigger using the following syntax:
 
-  Scriptfile -install -vob vob_tag [-script script_pname] 
+  Scriptfile -install -vob vob_tag [-script script_pname]
               [-trigger trigger_name] [-preview]
 
   -install                Required to run the script in install mode
   -vob vob_tag            The VOB where the trigger should be installed
-  -script script_pname    The fully qualified path to the script (must be a 
-                          UNC path or a drive that is mapped). 
-                          If this is omitted then script pname will be the one 
-                          used to execute it (this too must be a fully qualified 
+  -script script_pname    The fully qualified path to the script (must be a
+                          UNC path or a drive that is mapped).
+                          If this is omitted then script pname will be the one
+                          used to execute it (this too must be a fully qualified
                           path either using UNC or a mapped drive).
                           If the script pname does not exist the trigger installation
                           fails.
-  -trigger trigger_name   The name of the trigger. This is only used if you wish to 
+  -trigger trigger_name   The name of the trigger. This is only used if you wish to
                           override the triggers default name (which is already cached
                           in the script).
-  -preview                Displays the cleartool command that installs the trigger, 
+  -preview                Displays the cleartool command that installs the trigger,
                           but does not actually execute it.
 
 Prequsites are that the script file defines the following two variables (using our):
@@ -337,10 +337,10 @@ Prequsites are that the script file defines the following two variables (using o
 
 The $TRIGGER_NAME shall contain the default name of the trigger
 
-The $TRIGGER_INSTALL shall contain a formalized version of the mktrtype command using the 
+The $TRIGGER_INSTALL shall contain a formalized version of the mktrtype command using the
 following approach:
 
-=over 
+=over
 
 =item *
 
@@ -387,9 +387,9 @@ The install utility will examine if the trigger is already installed, and put a 
 =head2 get_versiontree_below_version( $cc_pn, \@result_array )
 
 This function returns a version tree below a certain version. The point is that
-A version tree is normally retrived for an element, not a particular version of 
-an element. The function retrives the version tree of the element and starts 
-shifting the version in the list until it finds the $cc_pn version - and then returns 
+A version tree is normally retrived for an element, not a particular version of
+an element. The function retrives the version tree of the element and starts
+shifting the version in the list until it finds the $cc_pn version - and then returns
 the rest.
 
 Parameters:
@@ -401,8 +401,8 @@ Parameters:
 Returns:
   1 = Success
   0 = Some error occured - content of @result_array is not to be trusted.
-  
- 
+
+
 
 =cut
 
