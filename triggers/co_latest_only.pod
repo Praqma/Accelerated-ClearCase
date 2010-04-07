@@ -40,6 +40,8 @@ will prevent it from happening, and the user is instructed to update the snapsho
 
 The trigger has no effect if you are in a dynamic view. Assuming that if this scenario occurs in a dynamic view, it's because the user want it to happen.
 
+Unreserved checkout's in a snapshot view are accepted, and the trigger will not stop the action.
+
 =head2 Bypassing the trigger.
 
 To bypass the script you must create the appropriate semaphore file first
