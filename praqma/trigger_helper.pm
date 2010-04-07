@@ -8,11 +8,12 @@ BEGIN {
     $scriptdir  = ".\\";
     $scriptfile = $0;      # Assume the module is called from 'current directory' (no leading path - $0 is the file)
     $scriptfile =~ /(.*\\)(.*)$/
-      && do { $scriptdir = $1; $scriptfile = $2; }    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
-}
+      && do { $scriptdir = $1; $scriptfile = $2; };    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+
+ }
 use lib "$scriptdir..";
 
-use praqma::acc;
+use praqma::acc ;
 use Getopt::Long;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK $BUILD);
@@ -22,11 +23,11 @@ require Exporter;
 @EXPORT = qw(new);
 
 use constant MAX_SEMAPHORE_FILE_AGE_DAYS => 0.168;             # real (1 hr ~ 0.042 --> 4 hrs ~ 0.168)
-use constant SEMAPHORE_DIR               => '\\semaphores';    # Relative to the script location dir
+use constant SEMAPHORE_DIR               => 'semaphores';      # Relative to the script location dir
 
 # File version
 $VERSION = "1.2";
-$BUILD   = "6";
+$BUILD   = "7";
 
 our $header = <<ENDHEADER;
 #########################################################################
@@ -95,7 +96,6 @@ sub enable_semaphore_backdoor($) {
     foreach my $semaphore_dir ( reverse @semaphorelocations ) {
 
         my $semaphore_file = $semaphore_dir . "\\" . lc( $ENV{'username'} );
-
         my ( $mainpath, $mainscript ) = acc::split_dir_file($main::0);
 
         if ( -e $semaphore_file ) {

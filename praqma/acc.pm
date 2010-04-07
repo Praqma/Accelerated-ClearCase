@@ -99,7 +99,7 @@ These constants defines environment variables which code may be looking for to o
  CLEARCASE_ADMINVOB          = 'CLEARCASE_ADMINVOB'          # -c "Environment Variable, when set it overrides the default ACC meta Data VOB - obsoletede - use CLEARCASE_ACCMETADATAVOB"
  CLEARCASE_ACCMETADATAVOBVOB = 'CLEARCASE_ACCMETADATAVOB'    # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
 
-=head2 Standart VOBtype definition
+=head2 Standard VOBtype definition
 
 ACC has some functions used to identify the VOB type.
 This functions are especially important for
@@ -166,6 +166,12 @@ use constant VOBTYPE_BCC_CLIENT          => 'bccvob';
 use constant ATTYPE_CUSTOM_VOBTYPE       => 'ACC_VOBType';                     # -vtype string -c "Used to define Custom VOB types to be used be the trigger_helper module"
 use constant ATTYPE_TRIGGER_BLACKLIST    => 'ACC_TriggerBlacklist';            # -vtype string -c "Used to blacklist explicit triggers on VOBs when istalled by the trigger_helper module"
 
+# These constants are use to allow for naming conventions
+use constant ATTYPE_ACTIVITY_NAME_TEMPLATE     => 'ACC_ActivityNameConvention';    # -vtype string -c "Used to define regex for allowed activity names"
+
+# These constants are use to allow for naming conventions
+use constant ATTYPE_UCM_INTEGRATORS     => 'ACC_UcmIntegrators';            # -vtype string -c "Used by trtype:ACC_PRE_SETACT. Defines semicolon seperated list of users that has elevated rights on a project's integration stream"
+
 # package globals
 use vars qw($clearcaselt);
 $clearcaselt = "";
@@ -173,7 +179,7 @@ my $self = {};    #Reference to an anonymous hash, Will be blessed later
 
 # Module version
 $VERSION = "1.0.";
-$BUILD   = "9";
+$BUILD   = "10";
 
 my $header = <<ENDHEADER;
 #########################################################################
@@ -207,7 +213,8 @@ DATE        EDITOR  NOTE
                            (v1.0.8)
 2009-11-18  Jens Brejner   Rebase from trunk. Interface changed, added is_cclt
                            (v1.0.9)
-
+2010-02-24  Jens Brejner   Added constant ATTYPE_ACTIVITY_NAME_TEMPLATE (v1.0.10)
+                           Added constant ATTYPE_UCM_INTEGRATORS (v1.0.10)
 -------------------------------------------------------------------------
 ENDREVISION
 
@@ -376,7 +383,6 @@ sub get_vobtypes{
 }
 
 ##############################################################################
-
 
 sub get_restriction($$) {
 
