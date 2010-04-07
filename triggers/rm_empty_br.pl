@@ -104,7 +104,7 @@ if ( $ENV{CLEARCASE_OP_KIND} =~ /uncheckout|rmver/ ) {   #Check that the events 
 if ( $ENV{CLEARCASE_OP_KIND} =~ /rmbranch/ ) {           #Check that the events that fired the trigger is of the kind we support
 
     # Get out if the parent branch is 'main'
-    my @brs = split( /[\\\/]/, $ENV{CLEARCASE_ID_STR} );    #split on delimers
+    my @brs = split( /[\\\/]/, $ENV{'CLEARCASE_ID_STR'} );    #split on delimers
     exit 0 if ( $brs[ $#brs - 1 ] eq 'main' );              # check that our parent (the second-to-last) isn't main
 
     $ENV{'CLEARCASE_XPN'} =~ /(.*)[\\\/].+/;                #Get the XPN to the parent branch of the element;
@@ -164,6 +164,6 @@ sub snap_load {
         }
         $log->information("Result was:\n\>\>\>\n$output\n\<\<\<\n");
         $ENV{CLEARCASE_XPN} =~ /.*\@\@(.+)/;
-        $log->information_always("Loading the predecossor to the removed version:\n  $1\n");
+        $log->information_always("Loading the predecessor to the removed version:\n  $1\n");
     }
 }
