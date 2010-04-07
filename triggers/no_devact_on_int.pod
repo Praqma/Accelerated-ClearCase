@@ -1,0 +1,143 @@
+=pod
+
+=head1 NAME
+
+no_devact_on_int.pl - A ClearCase trigger script
+
+Script:        F<no_devact_on_int.pl>
+
+Trigger name:  C<ACC_PRE_SETACT>
+
+This is an UCM ClearCase trigger script to control usage of UCM activities and eventually the naming of activities.
+
+=head1 SYNOPSIS
+
+Runs as ClearCase trigger script installed on UCM project VOBs.
+
+The script installs itself correctly when executed outside a trigger context using:
+
+  co_latest_only.pl -install -vob \thevob
+
+To learn the full syntax simply execute the the script without the -vob switch:
+
+  co_latest_only.pl -install
+
+=head2 Restrictions
+
+During the install process, that script is supposed to run under the account which owns the VOB.
+The script will fail if that is not the case.
+
+The script will only install the trigger on UCM project vobs.
+
+An exception is if you execute it in -preview mode
+
+
+=head1 DESCRIPTION
+
+By default ClearCase allows anybody to create and use activities in any stream. So sometimes it will occur
+that developers are creating development activities on the integration stream, and experience demonstrates that
+scenario as a common source for confusion and disturbancies.
+
+So the aim of the trigger is to keep developer activtities on development streams and integration activities on
+integration streams.
+
+Single stream projects does not differentiate between development or integration activities.
+
+=head1 Features
+
+
+
+=head2 Integrators:
+
+Each project can have one or more special users specified, and these users
+are not stopped by the trigger. Their user profiles should then be in a string
+atttibute value attached to the project
+
+To enable Integrators you should first define an attribute type in the PVOB (or
+that ones adminvob, if one exists.
+
+ cleartool mkattype -glo -acq -vtype string -c "Used by trtype:ACC_PRE_SETACT" ACC_UcmIntegrators@\PVOB
+
+(Look in acc.pm, and find the definition of constant ATTYPE_UCM_INTEGRATORS)
+
+Then if you want to allow specific users to bypassed by the trigger on a specific project, then attach the attribute to
+the project, and assign it a semicolon seperated string of users:
+
+ cleartool mkattr ACC_UcmIntegrators \"joe;tex\" project:rel@\PVOB
+
+The case of the users-login's does not matter, it will be converted to lower case in the trigger.
+
+Now if either joe or tEx are making the trigger fire - it will exit happily, and not attempting to verify the kind of activities used.
+
+=head2 Support for Activity Naming Policy
+
+Some development projects needs to have a Activity Naming Policy and C<ACC_PRE_SETACT> will let you enforce it, with a regular expression.
+It is not nessecary to create the attributes fo Activity Naming Policy if you don't need it.
+
+To create the attribute type
+
+ cleartool mkattype -glo -acq -vtype string -c "Useable by trtype:ACC_PRE_SETACT, Used to define regex for allowed activity names" attype:ACC_ActivityNameConvention@\PVOB
+
+Then attach it to the project:
+
+ cleartool mkattr ACC_ActivityNameConvention \"^CQ_\\d{6}.*$\" -c  project:rel@\PVOB
+
+would result in activity names been pattern matched against /^CQ_\d{6}.*$/ be useable if activity names must begin with CQ_ followed by exactly 6 digits and then something.
+Note that we have to escape the escape char backslash - that is just clearcase atttibute value assignment syntax.
+
+
+=head3 Activity Naming Policy restrictions
+
+Only simple patterns are supported in this version.
+
+And it is not possible to prevent the creation of developer activities with incorrect names - because the activity name is not published to the
+trigger by the event mkactivity, only in the setactivity event we can gain access to the environment variable CLEARCASE_ACTIIVITY.
+
+As a result, one may see activities that can not be used (setactivity operation will be prevented by the trigger). But the user can simply
+rename the incorrectly named activitity or eventually remove it. The GUI can only support with renaming (select properties of the activity)
+in the CLI one can use either:
+
+ cleartool rename activity:badname activity:goodname
+
+or
+
+ cleartool rmactivity activity:badname
+
+The latter will only succeed if there is not change set on the badly named activity.
+
+
+This too is a project specific property.
+
+
+
+=head2 Bypassing the trigger.
+
+To bypass the script you must create the appropriate semaphore file first
+(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
+
+It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
+that triggers are executed - and semaphore files ar looked-up - at locations where common users only
+have read access.
+
+=head2 Test suggestions
+
+Please refer to the description at the project homepage, see below for link
+
+
+=head1 AUTHOR
+
+Jens Brejner, E<lt>jbr@praqma.netE<gt>.
+
+=head1 BUGS
+
+See the website below.
+
+=head1 COPYRIGHT
+
+This program is distributed under the GNU General Pulic License v3.0
+
+Support:    http://launchpad.net/acc
+
+=for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
+
+=cut
