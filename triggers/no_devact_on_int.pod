@@ -16,11 +16,11 @@ Runs as ClearCase trigger script installed on UCM project VOBs.
 
 The script installs itself correctly when executed outside a trigger context using:
 
-  co_latest_only.pl -install -vob \thevob
+  ratlperl no_devact_on_int.pl -install -vob \thevob
 
 To learn the full syntax simply execute the the script without the -vob switch:
 
-  co_latest_only.pl -install
+  ratlperl no_devact_on_int.pl -install
 
 =head2 Restrictions
 
@@ -54,7 +54,7 @@ are not stopped by the trigger. Their user profiles should then be in a string
 atttibute value attached to the project
 
 To enable Integrators you should first define an attribute type in the PVOB (or
-that ones adminvob, if one exists.
+that one's adminvob, if one exists.
 
  cleartool mkattype -glo -acq -vtype string -c "Used by trtype:ACC_PRE_SETACT" ACC_UcmIntegrators@\PVOB
 
@@ -91,7 +91,7 @@ Note that we have to escape the escape char backslash - that is just clearcase a
 Only simple patterns are supported in this version.
 
 And it is not possible to prevent the creation of developer activities with incorrect names - because the activity name is not published to the
-trigger by the event mkactivity, only in the setactivity event we can gain access to the environment variable CLEARCASE_ACTIIVITY.
+trigger by the event mkactivity, only in the setactivity event we can gain access to the environment variable CLEARCASE_ACTIVITY.
 
 As a result, one may see activities that can not be used (setactivity operation will be prevented by the trigger). But the user can simply
 rename the incorrectly named activitity or eventually remove it. The GUI can only support with renaming (select properties of the activity)
@@ -105,9 +105,7 @@ or
 
 The latter will only succeed if there is not change set on the badly named activity.
 
-
-This too is a project specific property.
-
+This too, is a project specific property.
 
 
 =head2 Bypassing the trigger.
@@ -121,7 +119,9 @@ have read access.
 
 =head2 Test suggestions
 
-Please refer to the description at the project homepage, see below for link
+Please refer to the description at the project wiki page,
+
+=for html <a href="http://wiki.praqma.net/acc/comp/triggers/no_devact_on_int">The trigger's wiki page</a>
 
 
 =head1 AUTHOR

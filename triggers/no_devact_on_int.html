@@ -2,166 +2,215 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<title>no_devact_on_int.pl - A ClearCase trigger script</title>
-<meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link rev="made" href="mailto:" />
+    <title>no_devact_on_int.pl - A ClearCase trigger script</title>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <link rev="made" href="mailto:" />
 </head>
-
 <body style="background-color: white">
-
-
-<!-- INDEX BEGIN -->
-<div name="index">
-<p><a name="__index__"></a></p>
-
-<ul>
-
-	<li><a href="#name">NAME</a></li>
-	<li><a href="#synopsis">SYNOPSIS</a></li>
-	<ul>
-
-		<li><a href="#restrictions">Restrictions</a></li>
-	</ul>
-
-	<li><a href="#description">DESCRIPTION</a></li>
-	<li><a href="#features">Features</a></li>
-	<ul>
-
-		<li><a href="#integrators_">Integrators:</a></li>
-		<li><a href="#support_for_activity_naming_policy">Support for Activity Naming Policy</a></li>
-		<ul>
-
-			<li><a href="#activity_naming_policy_restrictions">Activity Naming Policy restrictions</a></li>
-		</ul>
-
-		<li><a href="#bypassing_the_trigger_">Bypassing the trigger.</a></li>
-		<li><a href="#test_suggestions">Test suggestions</a></li>
-	</ul>
-
-	<li><a href="#author">AUTHOR</a></li>
-	<li><a href="#bugs">BUGS</a></li>
-	<li><a href="#copyright">COPYRIGHT</a></li>
-</ul>
-
-<hr name="index" />
-</div>
-<!-- INDEX END -->
-
-<p>
-</p>
-<hr />
-<h1><a name="name">NAME</a></h1>
-<p>no_devact_on_int.pl - A ClearCase trigger script</p>
-<p>Script:        <em class="file">no_devact_on_int.pl</em></p>
-<p>Trigger name:  <code>ACC_PRE_SETACT</code></p>
-<p>This is an UCM ClearCase trigger script to control usage of UCM activities and eventually the naming of activities.</p>
-<p>
-</p>
-<hr />
-<h1><a name="synopsis">SYNOPSIS</a></h1>
-<p>Runs as ClearCase trigger script installed on UCM project VOBs.</p>
-<p>The script installs itself correctly when executed outside a trigger context using:</p>
-<pre>
-  co_latest_only.pl -install -vob \thevob</pre>
-<p>To learn the full syntax simply execute the the script without the -vob switch:</p>
-<pre>
-  co_latest_only.pl -install</pre>
-<p>
-</p>
-<h2><a name="restrictions">Restrictions</a></h2>
-<p>During the install process, that script is supposed to run under the account which owns the VOB.
-The script will fail if that is not the case.</p>
-<p>The script will only install the trigger on UCM project vobs.</p>
-<p>An exception is if you execute it in -preview mode</p>
-<p>
-</p>
-<hr />
-<h1><a name="description">DESCRIPTION</a></h1>
-<p>By default ClearCase allows anybody to create and use activities in any stream. So sometimes it will occur
-that developers are creating development activities on the integration stream, and experience demonstrates that
-scenario as a common source for confusion and disturbancies.</p>
-<p>So the aim of the trigger is to keep developer activtities on development streams and integration activities on
-integration streams.</p>
-<p>Single stream projects does not differentiate between development or integration activities.</p>
-<p>
-</p>
-<hr />
-<h1><a name="features">Features</a></h1>
-<p>
-</p>
-<h2><a name="integrators_">Integrators:</a></h2>
-<p>Each project can have one or more special users specified, and these users
-are not stopped by the trigger. Their user profiles should then be in a string
-atttibute value attached to the project</p>
-<p>To enable Integrators you should first define an attribute type in the PVOB (or
-that ones adminvob, if one exists.</p>
-<pre>
+    <!-- INDEX BEGIN -->
+    <div name="index">
+        <p>
+            <a name="__index__"></a>
+        </p>
+        <ul>
+            <li><a href="#name">NAME</a></li>
+            <li><a href="#synopsis">SYNOPSIS</a></li>
+            <ul>
+                <li><a href="#restrictions">Restrictions</a></li>
+            </ul>
+            <li><a href="#description">DESCRIPTION</a></li>
+            <li><a href="#features">Features</a></li>
+            <ul>
+                <li><a href="#integrators_">Integrators:</a></li>
+                <li><a href="#support_for_activity_naming_policy">Support for Activity Naming Policy</a></li>
+                <ul>
+                    <li><a href="#activity_naming_policy_restrictions">Activity Naming Policy restrictions</a></li>
+                </ul>
+                <li><a href="#bypassing_the_trigger_">Bypassing the trigger.</a></li>
+                <li><a href="#test_suggestions">Test suggestions</a></li>
+            </ul>
+            <li><a href="#author">AUTHOR</a></li>
+            <li><a href="#bugs">BUGS</a></li>
+            <li><a href="#copyright">COPYRIGHT</a></li>
+        </ul>
+        <hr name="index" />
+    </div>
+    <!-- INDEX END -->
+    <p>
+    </p>
+    <hr />
+    <h1>
+        <a name="name">NAME</a></h1>
+    <p>
+        no_devact_on_int.pl - A ClearCase trigger script</p>
+    <p>
+        Script: <em class="file">no_devact_on_int.pl</em></p>
+    <p>
+        Trigger name: <code>ACC_PRE_SETACT</code></p>
+    <p>
+        This is an UCM ClearCase trigger script to control usage of UCM activities and eventually
+        the naming of activities.</p>
+    <p>
+    </p>
+    <hr />
+    <h1>
+        <a name="synopsis">SYNOPSIS</a></h1>
+    <p>
+        Runs as ClearCase trigger script installed on UCM project VOBs.</p>
+    <p>
+        The script installs itself correctly when executed outside a trigger context using:</p>
+    <pre>
+  ratlperl no_devact_on_int.pl -install -vob \thevob</pre>
+    <p>
+        To learn the full syntax simply execute the the script without the -vob switch:</p>
+    <pre>
+  ratlperl no_devact_on_int.pl -install</pre>
+    <p>
+    </p>
+    <h2>
+        <a name="restrictions">Restrictions</a></h2>
+    <p>
+        During the install process, that script is supposed to run under the account which
+        owns the VOB. The script will fail if that is not the case.</p>
+    <p>
+        The script will only install the trigger on UCM project vobs.</p>
+    <p>
+        An exception is if you execute it in -preview mode</p>
+    <p>
+    </p>
+    <hr />
+    <h1>
+        <a name="description">DESCRIPTION</a></h1>
+    <p>
+        By default ClearCase allows anybody to create and use activities in any stream.
+        So sometimes it will occur that developers are creating development activities on
+        the integration stream, and experience demonstrates that scenario as a common source
+        for confusion and disturbancies.</p>
+    <p>
+        So the aim of the trigger is to keep developer activtities on development streams
+        and integration activities on integration streams.</p>
+    <p>
+        Single stream projects does not differentiate between development or integration
+        activities.</p>
+    <p>
+    </p>
+    <hr />
+    <h1>
+        <a name="features">Features</a></h1>
+    <p>
+    </p>
+    <h2>
+        <a name="integrators_">Integrators:</a></h2>
+    <p>
+        Each project can have one or more special users specified, and these users are not
+        stopped by the trigger. Their user profiles should then be in a string atttibute
+        value attached to the project</p>
+    <p>
+        To enable Integrators you should first define an attribute type in the PVOB (or
+        that one's adminvob, if one exists.</p>
+    <pre>
  cleartool mkattype -glo -acq -vtype string -c &quot;Used by trtype:ACC_PRE_SETACT&quot; ACC_UcmIntegrators@\PVOB</pre>
-<p>(Look in acc.pm, and find the definition of constant ATTYPE_UCM_INTEGRATORS)</p>
-<p>Then if you want to allow specific users to bypassed by the trigger on a specific project, then attach the attribute to
-the project, and assign it a semicolon seperated string of users:</p>
-<pre>
+    <p>
+        (Look in acc.pm, and find the definition of constant ATTYPE_UCM_INTEGRATORS)</p>
+    <p>
+        Then if you want to allow specific users to bypassed by the trigger on a specific
+        project, then attach the attribute to the project, and assign it a semicolon seperated
+        string of users:</p>
+    <pre>
  cleartool mkattr ACC_UcmIntegrators \&quot;joe;tex\&quot; project:rel@\PVOB</pre>
-<p>The case of the users-login's does not matter, it will be converted to lower case in the trigger.</p>
-<p>Now if either joe or tEx are making the trigger fire - it will exit happily, and not attempting to verify the kind of activities used.</p>
-<p>
-</p>
-<h2><a name="support_for_activity_naming_policy">Support for Activity Naming Policy</a></h2>
-<p>Some development projects needs to have a Activity Naming Policy and <code>ACC_PRE_SETACT</code> will let you enforce it, with a regular expression.
-It is not nessecary to create the attributes fo Activity Naming Policy if you don't need it.</p>
-<p>To create the attribute type</p>
-<pre>
+    <p>
+        The case of the users-login's does not matter, it will be converted to lower case
+        in the trigger.</p>
+    <p>
+        Now if either joe or tEx are making the trigger fire - it will exit happily, and
+        not attempting to verify the kind of activities used.</p>
+    <p>
+    </p>
+    <h2>
+        <a name="support_for_activity_naming_policy">Support for Activity Naming Policy</a></h2>
+    <p>
+        Some development projects needs to have a Activity Naming Policy and <code>ACC_PRE_SETACT</code>
+        will let you enforce it, with a regular expression. It is not nessecary to create
+        the attributes fo Activity Naming Policy if you don't need it.</p>
+    <p>
+        To create the attribute type</p>
+    <pre>
  cleartool mkattype -glo -acq -vtype string -c &quot;Useable by trtype:ACC_PRE_SETACT, Used to define regex for allowed activity names&quot; attype:ACC_ActivityNameConvention@\PVOB</pre>
-<p>Then attach it to the project:</p>
-<pre>
+    <p>
+        Then attach it to the project:</p>
+    <pre>
  cleartool mkattr ACC_ActivityNameConvention \&quot;^CQ_\\d{6}.*$\&quot; -c  project:rel@\PVOB</pre>
-<p>would result in activity names been pattern matched against /^CQ_\d{6}.*$/ be useable if activity names must begin with CQ_ followed by exactly 6 digits and then something.
-Note that we have to escape the escape char backslash - that is just clearcase atttibute value assignment syntax.</p>
-<p>
-</p>
-<h3><a name="activity_naming_policy_restrictions">Activity Naming Policy restrictions</a></h3>
-<p>Only simple patterns are supported in this version.</p>
-<p>And it is not possible to prevent the creation of developer activities with incorrect names - because the activity name is not published to the
-trigger by the event mkactivity, only in the setactivity event we can gain access to the environment variable CLEARCASE_ACTIIVITY.</p>
-<p>As a result, one may see activities that can not be used (setactivity operation will be prevented by the trigger). But the user can simply
-rename the incorrectly named activitity or eventually remove it. The GUI can only support with renaming (select properties of the activity)
-in the CLI one can use either:</p>
-<pre>
+    <p>
+        would result in activity names been pattern matched against /^CQ_\d{6}.*$/ be useable
+        if activity names must begin with CQ_ followed by exactly 6 digits and then something.
+        Note that we have to escape the escape char backslash - that is just clearcase atttibute
+        value assignment syntax.</p>
+    <p>
+    </p>
+    <h3>
+        <a name="activity_naming_policy_restrictions">Activity Naming Policy restrictions</a></h3>
+    <p>
+        Only simple patterns are supported in this version.</p>
+    <p>
+        And it is not possible to prevent the creation of developer activities with incorrect
+        names - because the activity name is not published to the trigger by the event mkactivity,
+        only in the setactivity event we can gain access to the environment variable CLEARCASE_ACTIVITY.</p>
+    <p>
+        As a result, one may see activities that can not be used (setactivity operation
+        will be prevented by the trigger). But the user can simply rename the incorrectly
+        named activitity or eventually remove it. The GUI can only support with renaming
+        (select properties of the activity) in the CLI one can use either:</p>
+    <pre>
  cleartool rename activity:badname activity:goodname</pre>
-<p>or</p>
-<pre>
+    <p>
+        or</p>
+    <pre>
  cleartool rmactivity activity:badname</pre>
-<p>The latter will only succeed if there is not change set on the badly named activity.</p>
-<p>This too is a project specific property.</p>
-<p>
-</p>
-<h2><a name="bypassing_the_trigger_">Bypassing the trigger.</a></h2>
-<p>To bypass the script you must create the appropriate semaphore file first
-(see the POD documentation for praqma::trigger_helper-&gt;enable_semaphore_backdoor).</p>
-<p>It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
-that triggers are executed - and semaphore files ar looked-up - at locations where common users only
-have read access.</p>
-<p>
-</p>
-<h2><a name="test_suggestions">Test suggestions</a></h2>
-<p>Please refer to the description at the project homepage, see below for link</p>
-<p>
-</p>
-<hr />
-<h1><a name="author">AUTHOR</a></h1>
-<p>Jens Brejner, &lt;<a href="mailto:jbr@praqma.net">jbr@praqma.net</a>&gt;.</p>
-<p>
-</p>
-<hr />
-<h1><a name="bugs">BUGS</a></h1>
-<p>See the website below.</p>
-<p>
-</p>
-<hr />
-<h1><a name="copyright">COPYRIGHT</a></h1>
-<p>This program is distributed under the GNU General Pulic License v3.0</p>
-<p>Support:    <a href="http://launchpad.net/acc">http://launchpad.net/acc</a></p>
-<a href="http://launchpad.net/acc">Project home at Launchpad</a>
+    <p>
+        The latter will only succeed if there is not change set on the badly named activity.</p>
+    <p>
+        This too, is a project specific property.</p>
+    <p>
+    </p>
+    <h2>
+        <a name="bypassing_the_trigger_">Bypassing the trigger.</a></h2>
+    <p>
+        To bypass the script you must create the appropriate semaphore file first (see the
+        POD documentation for praqma::trigger_helper-&gt;enable_semaphore_backdoor).</p>
+    <p>
+        It goes without saying, that to avoid misuse of this ability ClearCase administrators
+        should make sure that triggers are executed - and semaphore files ar looked-up -
+        at locations where common users only have read access.</p>
+    <p>
+    </p>
+    <h2>
+        <a name="test_suggestions">Test suggestions</a></h2>
+    <p>
+        Please refer to the description at the project wiki page,</p>
+    <a href="http://wiki.praqma.net/acc/comp/triggers/no_devact_on_int">The trigger's wiki
+        page</a><p>
+        </p>
+    <hr />
+    <h1>
+        <a name="author">AUTHOR</a></h1>
+    <p>
+        Jens Brejner, &lt;<a href="mailto:jbr@praqma.net">jbr@praqma.net</a>&gt;.</p>
+    <p>
+    </p>
+    <hr />
+    <h1>
+        <a name="bugs">BUGS</a></h1>
+    <p>
+        See the website below.</p>
+    <p>
+    </p>
+    <hr />
+    <h1>
+        <a name="copyright">COPYRIGHT</a></h1>
+    <p>
+        This program is distributed under the GNU General Pulic License v3.0</p>
+    <p>
+        Support: <a href="http://launchpad.net/acc">http://launchpad.net/acc</a></p>
+    <a href="http://launchpad.net/acc">Project home at Launchpad</a>
 </body>
-
 </html>

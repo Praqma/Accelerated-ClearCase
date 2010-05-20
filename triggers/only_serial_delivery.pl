@@ -107,7 +107,7 @@ my ($pvob) = ( $project =~ m{\@(.+)$} );
 
 # Rebase cheaph is 'cheapes' we'll chech that first.
 
-my $rebase = run("cleartool rebase -status -stream $stream");
+my $rebase = &run("cleartool rebase -status -stream $stream");
 
 if ( $rebase !~ /No rebase in progress/ ) {    #        Rebase is in progress
     $log->enable(1);
@@ -124,19 +124,19 @@ my $rx = 'deliver\.([^.]+)\.';
 # Is significantly faster than
 #   cleartool lsactivity -short -in $stream
 # But return value is a space separated string
-my $delim = ' '; # a single space;
+my $delim = ' ';    # a single space;
 
-my @activities = map { chomp; $_ } grep { /^$rx/o } split /$delim/,run("cleartool desc -fmt \%[activities]p stream:$stream");
+my @activities = map { chomp; $_ } grep { /^$rx/o } split /$delim/, &run("cleartool desc -fmt \%[activities]p stream:$stream");
 
 # look at the three last delivery activities
 my $i = 0;
-my $activity = pop(@activities);
-while ( $activity && $i++ <3){
+my $activity = pop (@activities);
+while ( $activity && $i++ < 3 ) {
 
     # get status of stream which originated the activity
     my ($ostream) = ( $activity =~ /$rx/o );
-    my $delivery = run("cleartool deliver -status -stream $ostream\@$pvob");
-    
+    my $delivery = &run("cleartool deliver -status -stream $ostream\@$pvob");
+
     # if the activity name is in the status, then the delivery
     # is in progress
     if ( $delivery =~ /$activity/ ) {
@@ -144,23 +144,22 @@ while ( $activity && $i++ <3){
         $log->error("*******A DELIVER OPERATION IS ALREADY IN PROGRESS. Details about the delivery:\n\n$delivery\n*******Please try again later.\n");
         exit 1;
     }
-   $activity = pop(@activities);
+    $activity = pop (@activities);
 }
 
 # no deliver or rebase found, normal exit
 exit 0;
 
-sub run($$){
-	my $cmd = shift;
-	my $aslist = shift;
-	my $cmdex = $cmd.' 2>&1';
-	my @retval_list = qx{$cmdex};
-	my $retval_scl  = join '',@retval_list;
-	$? && do {
-  	$log->enable(1);
-	  $log->error("The command: $cmd failed!.\nIt returned:\n$retval_scl\n");
-	};
-	return @retval_list if $aslist;
-	return $retval_scl;
+sub run($$) {
+    my $cmd         = shift;
+    my $aslist      = shift;
+    my $cmdex       = $cmd . ' 2>&1';
+    my @retval_list = qx{$cmdex};
+    my $retval_scl  = join '', @retval_list;
+    $? && do {
+        $log->enable(1);
+        $log->error("The command: $cmd failed!.\nIt returned:\n$retval_scl\n");
+    };
+    return @retval_list if $aslist;
+    return $retval_scl;
 }
-
