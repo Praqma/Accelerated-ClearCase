@@ -22,7 +22,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.1";
-our $REVISION = "3";
+our $REVISION = "4";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -55,6 +55,7 @@ DATE        EDITOR  NOTE
 2009-11-09  Lars Kruse     Making it compliant with the new trigger_helper
                            (version 1.1.2)
 2009-11-25  Jens Brejner   Isolate POD in separate file (v1.1.3)
+2010-05-24  Jens Brejner   Fix bug with vobtags that starts with digits. (v1.1.4)
 ------------------------------------------------------------------------------
 ENDREVISION
 
@@ -82,7 +83,7 @@ if ( $ENV{CLEARCASE_OP_KIND} =~ /uncheckout|rmver/ ) {   #Check that the events 
     # Get out if brtype is 'main' even if it was empty we wouldn't attempt to delete it
     exit 0 if ( $ENV{CLEARCASE_BRTYPE} eq 'main' );
 
-    $ENV{'CLEARCASE_XPN'} =~ /(.*?)[\\\/](\d+)/;         #split up to the element+branch part - and the the tailing integer;
+    $ENV{'CLEARCASE_XPN'} =~ /(.*?)[\\\/](\d+)$/;         #split up to the element+branch part - and the the tailing integer;
     our $elem_br = $1;
     our $verno   = $2;
 
