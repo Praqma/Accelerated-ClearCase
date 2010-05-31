@@ -1,7 +1,7 @@
 require 5.000;
 use strict;
 
-our ( $Scriptdir, $Scriptfile );
+our( $Scriptdir, $Scriptfile );
 
 BEGIN {
     $Scriptdir  = ".\\";
@@ -29,7 +29,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.1";
-our $REVISION = "3";
+our $REVISION = "4";
 
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 
@@ -59,6 +59,7 @@ DATE        EDITOR         NOTE
 2009-10-27  Mikael Jensen  Version 1.1.2 Added support for whitespaces in file
                            path and name
 2009-11-25  Jens Brejner   Isolated POD in separate file (v1.1.3)
+2010-05-31  Jens Brejner   Enhance error checking after system calls (v1.1.4)
 -------------------------  ----------------------------------------------
 ENDREVISION
 
@@ -70,8 +71,8 @@ our $semaphore_status = $thelp->enable_semaphore_backdoor;
 
 #Enable the features in scriptlog
 our $log = scriptlog->new;
-$log->conditional_enable();    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
-$log->set_verbose;             #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
+$log->conditional_enable();                    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->set_verbose;                             #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
 our $logfile = $log->get_logfile;
 ($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
@@ -79,34 +80,34 @@ $log->dump_ccvars;                                            # Run this stateme
 
 #########################################
 
-if ( ( $ENV{'CLEARCASE_OP_KIND'} eq "uncheckout" ) || ( $ENV{'CLEARCASE_OP_KIND'} eq "checkin" ) )
-{                                                             #Check that the events that fired the trigger are the ones we support
+if ( ( $ENV{'CLEARCASE_OP_KIND'} eq "uncheckout" ) || ( $ENV{'CLEARCASE_OP_KIND'} eq "checkin" ) ) {    #Check that the events that fired the trigger are the ones we support
 
     if ( "$ENV{'CLEARCASE_ELTYPE'}" eq "directory" ) { exit 0; }
 
     my $ELEMENT = "$ENV{'CLEARCASE_PN'}";
-    $ELEMENT =~ s/\\/\//g;                                    # replaces backslash with forwardslash
-    $ELEMENT =~ s/ /\\ /g;                                    # replaces whitespaces with escaped whitespaces ("\ ")
+    $ELEMENT =~ s/\\/\//g;                                                                              # replaces backslash with forwardslash
+    $ELEMENT =~ s/ /\\ /g;                                                                              # replaces whitespaces with escaped whitespaces ("\ ")
     my @CONTRIBS = glob( "$ELEMENT" . ".contrib*" );
     foreach my $CONTRIB (@CONTRIBS) {
-        if (   ( "$CONTRIB" =~ /\.contrib$/ )
-            or ( "$CONTRIB" =~ /\.contrib\.[0-9]+$/ ) )
-        {
-            $log->error("Could not get objecttype for $CONTRIB")
-              unless my $ob_type = `cleartool desc -fmt %m "$CONTRIB"`;
-            if ( "$ob_type" eq "view private object" ) {
-                ######################################################
-                # Inform of and remove any associated .contrib files #
-                ######################################################
-                $log->information("Removing \".contrib\" file \"$CONTRIB\"...\n");
-                unlink($CONTRIB);
+        my $ob_type;
+        if ( ( "$CONTRIB" =~ /\.contrib$/ ) or ( "$CONTRIB" =~ /\.contrib\.[0-9]+$/ ) ) {
+
+            my $cmd = "cleartool desc -fmt \%m \"$CONTRIB\"";
+            $ob_type = `$cmd`;
+            if ($?) {                                                                                   # Failed reading vob owner
+                $log->enable(1);
+                $log->error("The command: '$cmd' failed\n");
+                $log->error("Could not get objecttype for $CONTRIB");
             }
+        }
+
+        if ( "$ob_type" eq "view private object" ) {
+            $log->information("Removing \".contrib\" file \"$CONTRIB\"...\n");
+            unlink($CONTRIB);
         }
     }
 }
 exit 0;
 
 __END__
-
-
 

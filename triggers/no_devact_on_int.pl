@@ -29,7 +29,7 @@ our %install_params = (
 
 # File version
 our $VERSION = "1.0";
-our $BUILD   = "1";
+our $BUILD   = "2";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -62,6 +62,7 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
 2010-03-10  Jens Brejner   1st release prepared for Novo (version 1.0.1)
+2010-05-31  Jens Brejner   Enhance error checking after system calls (v1.0.2)
 -------------------------  ----------------------------------------------
 
 ENDREVISION
@@ -98,8 +99,14 @@ my $user       = lc( $ENV{'CLEARCASE_USER'} );                # lowercase, facil
 my $project    = "project:" . $ENV{'CLEARCASE_PROJECT'};
 my $thisstream = "stream:" . $ENV{'CLEARCASE_STREAM'};
 $cmd = "cleartool lsproj -fmt \%[istream]Xp\\n\%NS[" . acc::ATTYPE_UCM_INTEGRATORS . "]a $project";
+
 my ( $istream, $integrators ) = qx($cmd);
 
+if ($?) {                                                     # The cleartool lsproj failed
+    $log->enable(1);
+    $log->error("The command: '$cmd' failed\n");
+    exit 1;
+}
 if ( $op_kind =~ /mkactivity|setactivity/ ) {
 
     # Don't think if initiated by rebase_start or deliver_start
@@ -112,11 +119,18 @@ if ( $op_kind =~ /mkactivity|setactivity/ ) {
     my $activity = defined( $ENV{'CLEARCASE_ACTIVITY'} ) ? $ENV{'CLEARCASE_ACTIVITY'} : undef;
 
     if ( defined($activity) ) {    # operation is setactivity
-    # On dev streams, test activity name against naming regex, IF such exists for that projet
+
+        # On dev streams, test activity name against naming regex, IF such exists for that projet
         my $pattern;
         my $cmd = "cleartool des -fmt \%NS[" . acc::ATTYPE_ACTIVITY_NAME_TEMPLATE . "]a $project";
         $debug_on && $log->information("Query attribute value by calling [$cmd]\n");
         $pattern = qx($cmd);
+        if ($?) {                  # The cleartool des proj failed
+            $log->enable(1);
+            $log->error("The command: '$cmd' failed\n");
+            exit 1;
+        }
+
         $pattern =~ s/(^"|"$)//g;    # No lead- or trailing quote.
         $pattern && exit 1 unless ( &is_validname( $activity, $pattern ) );
         exit 0;
@@ -127,7 +141,16 @@ if ( $op_kind =~ /mkactivity|setactivity/ ) {
             # with project model = simple there's only one stream, which then also is the integration
             # stream. For these projects any activity name is valid (well if there isn't a name policy)
             my $projectmodel = "SIMPLE";
-            if ( (qx (cleartool lsproj -fmt %[model]p $project)) =~ /^$projectmodel$/i ) {
+            my $cmd          = "cleartool lsproj -fmt \%[model]p $project";
+            my $model        = qx ($cmd);
+
+            if ($?) {                # The cleartool lsproj failed
+                $log->enable(1);
+                $log->error("The command: '$cmd' failed\n");
+                exit 1;
+            }
+
+            if ( $model =~ /^$projectmodel$/i ) {
                 $log->information("Project model of $project is $projectmodel\n");
                 exit 0;
             }
@@ -184,11 +207,17 @@ sub is_intstream ($$) {
 
     my $project = shift;
     my $stream  = shift;
-    my $istream = qx(cleartool lsproj -fmt %[istream]Xp $project);
+
+    my $cmd     = "cleartool lsproj -fmt \%[istream]Xp $project";
+    my $istream = qx($cmd);
+
+    if ($?) {    # The cleartool des proj failed
+        $log->enable(1);
+        $log->error("The command: '$cmd' failed\n");
+        exit 1;
+    }
     chomp($istream);
-
     $debug_on && do {
-
         $log->information("Project integration stream of [$project] is [$istream] \n");
         $log->information("Current stream is [$istream] \n");
     };
@@ -219,10 +248,10 @@ sub is_integrator ($$) {
     my $user = shift;
     return 0 unless my $attrvalue = shift;    # If there is no value, we have noting to do here.
 
-    $attrvalue =~ s/(^"|"$)//g;               # No lead- or trailing quotes.
+    $attrvalue =~ s/(^"|"$)//g;        # No lead- or trailing quotes.
     if ( grep { /$user/i } split /;/, $attrvalue ) {    # is current user one of the integrators ?
         $debug_on && do {
-            $log->information( "User " . $ENV{'CLEARCASE_USER'} . " is an integrator on $project so script will exit now\n" );
+            $log->information("User $ENV{CLEARCASE_USER} is an integrator on $project so script will exit now\n");
         };
         return 1;
     }
@@ -255,4 +284,3 @@ sub is_okpopkind ($$) {
     $debug_on && $log->information("Not exiting on parent op kind\n");
     return 0;
 }
-

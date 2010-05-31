@@ -38,10 +38,13 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "29";
+our $REVISION = "30";
 
-my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
-my $debug_on = defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} ) ? $ENV{'CLEARCASE_TRIGGER_DEBUG'} : undef;
+my $verbose_mode = 0;                               # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
+my $debug_on     =
+  defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} )
+  ? $ENV{'CLEARCASE_TRIGGER_DEBUG'}
+  : undef;
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -81,6 +84,7 @@ DATE        EDITOR         NOTE
 2010-03-03  Jens Brejner   Fixed double printed message (v1.0.27)
 2010-03-03  Jens Brejner   Build commands to merge the name forward,
                            save them in logfile (v1.0.29)
+2010-05-31  Jens Brejner   Enhance error checking after system calls (v1.0.30
 -------------------------  ----------------------------------------------
 
 ENDREVISION
@@ -95,17 +99,17 @@ our $semaphore_status = $thelp->enable_semaphore_backdoor( $ENV{'CLEARCASE_USE_L
 
 #Enable the features in scriptlog
 our $log = scriptlog->new;
-$log->conditional_enable();    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
-$log->set_verbose;             #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
+$log->conditional_enable();                    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->set_verbose;                             #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
 our $logfile = $log->get_logfile;
 ($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 ($logfile) && $log->information($semaphore_status);
 ($logfile) && $log->dump_ccvars;                              # Run this statement to have the trigger dump the CLEARCASE variables
 
-if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if operation type is what we are intended for..
+if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) { # continue only if operation type is what we are intended for..
 
     # Here starts the actual trigger code.
-    my $case_sensitive = 1;                                   # 0 means Case IN-Sensitive name matching
+    my $case_sensitive = 1;                          # 0 means Case IN-Sensitive name matching
 
     my ( $dir_delim, $possible_dupe, $dupver );
     my $viewkind = $ENV{'CLEARCASE_VIEW_KIND'};
@@ -152,7 +156,15 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
     $debug_on && $log->information("The Search pattern looks like:\'$pattern\'\n");
 
     # get lines from lshist that begins with either added or uncat and ends with digit
-    my @lines = grep { /^added.*?$element.*\\\d+$|^uncat.*?$element.*\\\d+$/i } qx(cleartool lshist -nop -min -nco -dir -fmt "%Nc%Vn\\n" "$parent_dna");
+    my @history = qx(cleartool lshist -nop -min -nco -dir -fmt "%Nc%Vn\\n" "$parent_dna");
+
+    if ($?) {    # The cleartool lshist failed
+        $log->enable(1);
+        $log->error( "The command: 'cleartool lshist -nop -min -nco -dir -fmt \"%Nc%Vn\\n\" \"$parent_dna\"' failed\n" );
+        exit 1;
+    }
+    my @lines =
+      grep { /^added.*?$element.*\\\d+$|^uncat.*?$element.*\\\d+$/i } @history;
     chomp @lines;
     $debug_on && do {
         $log->information("\tThe following lines where selected from the history:\n");
@@ -211,7 +223,14 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
     $log->set_verbose($verbose_mode);
     my $user      = "$ENV{'CLEARCASE_USER'}";
     my $pop_kind  = "$ENV{'CLEARCASE_POP_KIND'}";
-    my $vob_owner = `cleartool desc -fmt %u vob:$ENV{'CLEARCASE_VOB_PN'}`;
+    my $cmd       = "cleartool desc -fmt \%u vob:$ENV{'CLEARCASE_VOB_PN'}";
+    my $vob_owner = `$cmd`;
+
+    if ($?) {    # The cleartool lshist failed
+        $log->enable(1);
+        $log->error("The command: '$cmd' failed\n, command output was $vob_owner\n");
+        exit 1;
+    }
 
     my ( $warning, $info );
 
@@ -227,7 +246,10 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
     } else {
 
         # From a "ln", "ln -s" or "mv" command
-        if ( !$pop_kind || ( $pop_kind eq "rmname" ) || ( $pop_kind eq "mkslink" ) ) {
+        if (   !$pop_kind
+            || ( $pop_kind eq "rmname" )
+            || ( $pop_kind eq "mkslink" ) )
+        {
 
             $info = "$info The element name [$element]\n";
 

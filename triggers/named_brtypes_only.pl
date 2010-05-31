@@ -1,7 +1,7 @@
 require 5.000;
 use strict;
 
-our ( $Scriptdir, $Scriptfile );
+our( $Scriptdir, $Scriptfile );
 
 BEGIN {
     $Scriptdir  = ".\\";
@@ -24,7 +24,7 @@ our $TRIGGER_NAME = "ACC_NAMED_BRTYPES_ONLY";
 our %install_params = (
     "name"     => $TRIGGER_NAME,                      # The name og the trigger
     "mktrtype" => "-element -all -preop mkbranch",    # The stripped-down mktrtype command
-    "supports" => "nnDocVOB",	                      # csv list of generic and/or custom VOB types (case insensetive)
+    "supports" => "nnDocVOB",                         # csv list of generic and/or custom VOB types (case insensetive)
 );
 
 # File version
@@ -69,8 +69,8 @@ our $semaphore_status = $thelp->enable_semaphore_backdoor;
 
 #Enable the features in scriptlog
 our $log = scriptlog->new;
-$log->conditional_enable();    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
-$log->set_verbose();           #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
+$log->conditional_enable();                    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->set_verbose();                           #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
 our $logfile = $log->get_logfile;
 ($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
@@ -91,6 +91,4 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq "mkbranch" ) ) {            #Check that the ev
 exit 0;
 
 __END__
-
-######################## DOCUMENTATION ##############################
 
