@@ -30,7 +30,7 @@ our %install_params = (
 
 # File version
 our $VERSION = "1.0";
-our $BUILD   = "1";
+our $BUILD   = "2";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -67,9 +67,12 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
 2010-03-10  Jens Brejner   1st release prepared for Novo (version 1.0.1)
+2010-06-02  Jens Brejner   Regex that extract stream name from activities
+                           has trouble if stream name contains decimal numbers
 -------------------------  ----------------------------------------------
 
 ENDREVISION
+print "Revision comment\n";
 
 my $verbose_mode = defined( $ENV{'CLEARCASE_TRIGGER_VERBOSE'} ) ? $ENV{'CLEARCASE_TRIGGER_VERBOSE'} : undef;
 my $debug_on     = defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} )   ? $ENV{'CLEARCASE_TRIGGER_DEBUG'}   : undef;
@@ -118,6 +121,10 @@ if ( $rebase !~ /No rebase in progress/ ) {    #        Rebase is in progress
 # Deliver activities are named in the format deliver.<stream>.<YYYYMMDD>.<HHMMSS>
 # regex to find deliver activity
 my $rx = 'deliver\.([^.]+)\.';
+# Version  1.0.2, try improved regex, accepts that a stream name can contain
+# a decimals like in "our_release_2.0" - that will confuse the previous
+# definition of $rx.
+$rx = 'deliver\.(\S+)\.\d{8}\.\d{6}$';
 
 # Get the delivery activities on the integration stream
 #   cleartool desc -fmt \%[activities]p stream:$stream
