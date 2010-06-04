@@ -2,18 +2,17 @@ require 5.001;
 
 package trigger_helper;
 use strict;
-our( $scriptdir, $scriptfile );
+our ( $scriptdir, $scriptfile );
 
 BEGIN {
     $scriptdir  = ".\\";
     $scriptfile = $0;      # Assume the module is called from 'current directory' (no leading path - $0 is the file)
     $scriptfile =~ /(.*\\)(.*)$/
-      && do { $scriptdir = $1; $scriptfile = $2; };    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
-
- }
+      && do { $scriptdir = $1; $scriptfile = $2; }    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+}
 use lib "$scriptdir..";
 
-use praqma::acc ;
+use praqma::acc;
 use Getopt::Long;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK $BUILD);
@@ -23,11 +22,11 @@ require Exporter;
 @EXPORT = qw(new);
 
 use constant MAX_SEMAPHORE_FILE_AGE_DAYS => 0.168;             # real (1 hr ~ 0.042 --> 4 hrs ~ 0.168)
-use constant SEMAPHORE_DIR               => 'semaphores';      # Relative to the script location dir
+use constant SEMAPHORE_DIR               => '\\semaphores';    # Relative to the script location dir
 
 # File version
-$VERSION = "1.2";
-$BUILD   = "7";
+$VERSION = "1.1";
+$BUILD   = "6";
 
 our $header = <<ENDHEADER;
 #########################################################################
@@ -44,7 +43,7 @@ ENDHEADER
 #########################################################################
 our $revision = <<ENDREVISION;
 DATE         EDITOR        NOTE
------------  ------------- ----------------------------------------------
+-----------  ------------- ----------------------------------------------------
 2009-06-26   Lars Kruse    First release of the module prepared for
                            Novo Nordisk A/s. It is based on the old
                            trigger_utils module (version 1.0.1)
@@ -53,11 +52,12 @@ DATE         EDITOR        NOTE
 2009-08-25   Lars Kruse    Changed the return value of enable_semaphore()
                            to be the status of the semaphore look-up.
                            (version 1.0.3)
-2009-11-06   Lars Kruse    Changed the interface and semantics of
+2009-11-06  Lars Kruse     Changed the interface and semantics of
                            enable_install. (version 1.1.4)
-2009-11-26   Jens Brejner  Add support for spaces in script path
-2010-02-22   Jens Brejner  Add support for local semaphore file. (v.1.2.6)
--------------------------------------------------------------------------
+2009-11-26  Jens Brejner   Add support for spaces in script path
+2010-06-04  Jens Brejner   Removed check for vob-owner in sub enable_install
+                           (version 1.1.6)
+-------------------------------------------------------------------------------
 ENDREVISION
 
 sub new {
@@ -72,61 +72,35 @@ sub require_trigger_context() {
 }
 
 sub enable_semaphore_backdoor($) {
+    my $msg = "";         #The status level of the semphore file.
 
-    # If the semaphore file exists and it's not older than MAX_SEMAPHORE_FILE_AGE_DAYS
+    # If the semaphor file exists and it's not older than MAX_SEMAPHORE_FILE_AGE_DAYS
     # then the trigger will exit silently with 0 - allowing the event the trigger subscribed to, to carry on
 
-    my $self              = shift;
-    my $uselocalsemaphore = shift;
-    my $msg               = "";      #The status level of the semphore file.
+    my $semaphore_dir  = $scriptdir . SEMAPHORE_DIR;
+    my $semaphore_file = $semaphore_dir . "\\" . lc( $ENV{'username'} );
 
-    push my @semaphorelocations, $scriptdir . SEMAPHORE_DIR;
-
-    ( defined($uselocalsemaphore) & ( -e $uselocalsemaphore ) ) && do {
-
-        # remove trailing backslash from local semaphorepath
-        $uselocalsemaphore =~ s/\\+$//;
-
-        # replace semaphore_dir
-        push @semaphorelocations, $uselocalsemaphore;
-    };
-
-
-
-    foreach my $semaphore_dir ( reverse @semaphorelocations ) {
-
-        my $semaphore_file = $semaphore_dir . "\\" . lc( $ENV{'username'} );
-        my ( $mainpath, $mainscript ) = acc::split_dir_file($main::0);
-
-        if ( -e $semaphore_file ) {
-            $msg = $msg . "Script '$mainscript' found semaphore file at '$semaphore_file'\n";
-            my $semaphore_file_age =  -M $semaphore_file;
-
-            if ($semaphore_file_age < 0) {
-            	# Negative age... ?
-                $msg = $msg . "...but it will be created in the future ? - to be ignored!\n";
-            }
-
-            elsif ( ( $semaphore_file_age ) > MAX_SEMAPHORE_FILE_AGE_DAYS ) {
-                $msg = $msg . "...but it's too old to stop us!\n";
-            } else {
-                open( SEMAPHORE, $semaphore_file ) || print $msg = $msg . "...Failed to open the semaphore file for read\n" && return;
-                my @sempahore = grep( /^\s*$mainscript\s*$/i, <SEMAPHORE> );
-                close(SEMAPHORE);
-
-                if ( scalar @sempahore ) {
-                    $msg = $msg . "...and found the script '$mainscript' listed in the semphore file\nThe trigger script is canceled by semaphore!\n";
-                    print $msg;
-                    exit 0;
-                }
-                $msg = $msg . "...but it doesn't mention '$mainscript' so the trigger is allowed to continue\n";
-            }
+    my ( $mainpath, $mainscript ) = acc::split_dir_file($main::0);
+    if ( -e $semaphore_file ) {
+        $msg = "Script '$mainscript' found semaphore file at '$semaphore_file'\n";
+        if ( ( -M $semaphore_file ) > MAX_SEMAPHORE_FILE_AGE_DAYS ) {
+            $msg = $msg . "...but it's too old to stop us!";
         } else {
-            $msg = $msg . "Script '$mainscript' looked for semaphore file at '$semaphore_file'\n...but there wasn't any\n";
+            open( SEMAPHORE, $semaphore_file ) || print $msg = $msg . "...Failed to open the semaphore file for read\n" && return;
+            my @sempahore = grep( /^\s*$mainscript\s*$/i, <SEMAPHORE> );
+            close(SEMAPHORE);
+
+            if ( scalar @sempahore ) {
+                $msg = $msg . "...and found the script '$mainscript' listed in the semphore file\nThe trigger script is canceled by semaphore!\n";
+                print $msg;
+                exit 0;
+            }
+            $msg = $msg . "...but it doesn't mention '$mainscript' so the trigger is allowed to continue\n";
         }
+    } else {
+        $msg = "Script '$mainscript' looked for semaphore file at '$semaphore_file'\n...but there wasn't any\n";
     }
     return $msg;
-
 }
 
 sub enable_install($$) {
@@ -197,11 +171,6 @@ ENDUSAGE
     die "ERROR $sw_vob is not accessible\n\n$usage\n"
       unless ( not $? );
 
-    #Assert current user is the VOB owner - or we're running in -preview mode
-    my $current_user = lc( $ENV{userdomain} . "\\" . $ENV{username} );
-    die "Ooooh! You ($current_user) aren't the VOB owner ($vobowner is) ...trying to hack you way in are you!\n\n$usage\n"
-      unless ( ( $vobowner eq $current_user ) || defined($sw_preview) );
-
     #Assert path to the trigger script is fully qualified
     my $trigger_pname = ( defined $sw_script ) ? $sw_script : $::Scriptdir . $::Scriptfile;
     die "Only fully qualified paths are allowed: '$trigger_pname' is not valid.\n\n$usage\n"
@@ -212,7 +181,7 @@ ENDUSAGE
       unless ( -e $trigger_pname );
 
     my @vobtypes = acc::get_vobtypes($sw_vob);
-    my @allowed_vob_context = split ( ',', $trigger_support );
+    my @allowed_vob_context = split( ',', $trigger_support );
     push @allowed_vob_context, lc($trigger_name);
 
     # match the two arrays against each other - get out as soon as a batchi is found
@@ -241,7 +210,7 @@ ENDUSAGE
     $? && die "Execution of: [$cmd] failed\n";    # assert success
     chomp($raw_triggerblattr);
     $raw_triggerblattr =~ s/\"//g;                # get rid of the 'required' quotes in CC string attributes
-    my @blacklist = split ( ',', $raw_triggerblattr );    # make a list;
+    my @blacklist = split( ',', $raw_triggerblattr );    # make a list;
 
     my $bl_match = 0;
     foreach my $bl (@blacklist) {
@@ -268,8 +237,9 @@ ENDUSAGE
     }
 
     #Compile the trigger installation command
-    my $trig_inst_com           = "\"Created using the -install switch of $::Scriptfile\"";
-    my $current_trigger_install = "cleartool"
+    my $trig_inst_com = "\"Created using the -install switch of $::Scriptfile\"";
+    my $current_trigger_install =
+        "cleartool"
       . " mktrtype $replace"
       . $trigger_mktrtype
       . " -c $trig_inst_com -exec \""
@@ -414,19 +384,11 @@ executeed outside a trigger-context and if it is - it will just show you a nice 
 To put the trigger_helper in use, you'll need to add an C<use lib> I<<the parent directory>> statement to your current script and then include the C<praqma::trigger_helper>.
 Therefore you'll need to determine the location of your running script. It can all be done in a pre-compiled block using a setup like this:
 
- our ($Scriptdir, $Scriptfile);
- BEGIN{
- 	$Scriptdir =".\\";
- 	$Scriptfile = $0;
- 	$Scriptfile =~/(.*\\)(.*)$/ &&  do {
- 		$Scriptdir=$1;
- 		$Scriptfile=$2;
- 	}
- }
+ our ($Scriptdir, $Scriptfile);BEGIN{$Scriptdir =".\\";$Scriptfile = $0; $Scriptfile =~/(.*\\)(.*)$/ &&  do{$Scriptdir=$1;$Scriptfile=$2;}}
  use lib "$Scriptdir..";
  use praqma::trigger_helper;
 
-Then to utilize the functionallity from the trigger helper you can throw in the following statements:
+Then to utilize the functionallity from the trigger helper you can throw in the following stetements:
 
  our $thelp=trigger_helper->new;          # Instantiates the trigger helper
  $thelp->enable_install(%install_params); # See more under "enable_install"
@@ -509,7 +471,7 @@ You can lean more details about the semaphore backdoor in the section about the 
 =head1 RESTRICTIONS
 
 When the script runs autside a trigger context, it's designed to install triggers, and therefore it has the same restrictions as applies to trigger installation in general. That is; it can
-only run if it is executed by the VOB owner or the ClearCase account (albd). Execptions are if the script is run with the C<-preview> switch, in which case
+only run if it is executed by the VOB owner or member of ClearCase Administrators group. Execptions are if the script is run with the C<-preview> switch, in which case
 any ClearCase user can run it. Another exception is if you are replacing an existing trigger, then the current owner of the trigger is also allowed to execute.
 
 I the current version, the installation procedure only support C<mktrtype> - that is triggers attached to VOBs. If you which to use it for
@@ -642,30 +604,9 @@ If a valid semaphore exist the trigger execution is canceled.
 
 I<B<Note>>:
 
-The location of the C<semaphores> directory can be tweaked overriding the default via an environment variable, while the above mentioned requirements still apply.
+The location of the C<semaphores> directory can be tweak by setting the constant C<trigger_helper::SEMAPHORE_DIR>.
 
 This time span defining how long time a sempahore file is valid can be tweaked by setting the constant C<trigger_helper::MAX_SEMAPHORE_FILE_AGE_DAYS>.
-
-=head3 C<Overriding the semaphore file directory via environment variable>
-
-Supposed you need users to be able to create a valid semaphore in their local file system, while assuring that the time validation is still active.
-
-Normally you would enable the check for a semaphore file by adding the lines
-
- our $thelp=trigger_helper->new;          # Instantiates the trigger helper
- $thelp->enable_install(%install_params); # See more under "enable_install"
- $thelp->require_trigger_context;         # Simple check, that exits if the script is not called as a trigger
- $thelp->enable_semaphore_backdoor;       # See more under "enable_semaphore_backdoor"
-
-to your trigger script, and as such only the protected storage location can be used for semaphores. But creating the semaphore is, shold only be possible by CC administratiors, non administrators should only have read access to the trigger share.
-
-But you can call $thelp->enable_semaphore_backdoor with a parameter from your trigger script, for example like this:
-
- $thelp->enable_semaphore_backdoor($ENV{'ACC_USE_LOCAL_SEMAPHORE'});
-
-Then the trigger script will pass the value of environment value ACC_USE_LOCAL_SEMAPHORE to enable_semaphore_backdoor, which then will also look for at valid semaphore file in that directory.
-The directory passed in will be searched first, and the usual or common directory will be searched last.
-
 
 =head1 EXAMPLES
 
