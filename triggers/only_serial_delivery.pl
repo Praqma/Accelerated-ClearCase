@@ -108,7 +108,7 @@ my $src_stream = $ENV{'CLEARCASE_SRC_STREAM'};
 # pvob from project name
 my ($pvob) = ( $project =~ m{\@(.+)$} );
 
-# Rebase cheaph is 'cheapes' we'll chech that first.
+# Rebase cheaph is 'cheapes' we'll check that first.
 
 my $rebase = &run("cleartool rebase -status -stream $stream");
 
@@ -120,11 +120,12 @@ if ( $rebase !~ /No rebase in progress/ ) {    #        Rebase is in progress
 
 # Deliver activities are named in the format deliver.<stream>.<YYYYMMDD>.<HHMMSS>
 # regex to find deliver activity
-my $rx = 'deliver\.([^.]+)\.';
+# my $rx = 'deliver\.([^.]+)\.';
+#
 # Version  1.0.2, try improved regex, accepts that a stream name can contain
 # a decimals like in "our_release_2.0" - that will confuse the previous
 # definition of $rx.
-$rx = 'deliver\.(\S+)\.\d{8}\.\d{6}$';
+my $rx = 'deliver\.(\S+)\.\d{8}\.\d{6}$';
 
 # Get the delivery activities on the integration stream
 #   cleartool desc -fmt \%[activities]p stream:$stream
