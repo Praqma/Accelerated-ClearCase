@@ -26,7 +26,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "5";
+our $REVISION = "6";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -62,7 +62,10 @@ DATE        EDITOR         NOTE
                            pod information in separate file.
 2009-12-03  Jens Brejner   Fix bug, fails if checkout creates a branch (v0.1.3).
 2009-12-28  Jens Brejner   Fix bug, first version on branch fails (v0.1.4).
-2010-03-17  Jens Brejner   Allow unreserved checkouts (v0.1.5).
+2010-03-17  Jens Brejner   Allow unreserved checkouts (v0.1.5)
+2010-06-03  Jens Brejner   Ignore files that do not exist.... (can happen due to
+						   inadequate national characther set support in CC 2003.6
+						   (v0.1.6)
 ----------  -------------  -----------------------------------------------------
 ENDREVISION
 
@@ -85,6 +88,7 @@ $log->dump_ccvars;                                            # Run this stateme
 
 if ( ( $ENV{'CLEARCASE_VIEW_KIND'} eq "snapshot" ) && ( $ENV{'CLEARCASE_OP_KIND'} eq "checkout" ) ) {    #Check that the events that fired the trigger are the ones we support
 
+	if  (-e  $ENV{'CLEARCASE_PN'}) {
     # Allow unreserved Checkouts, CLEARCASE_RESERVED is 1 if reserved, 0 if unreserved
     exit 0 if ( $ENV{'CLEARCASE_RESERVED'} eq 0 );
 
@@ -105,6 +109,12 @@ if ( ( $ENV{'CLEARCASE_VIEW_KIND'} eq "snapshot" ) && ( $ENV{'CLEARCASE_OP_KIND'
               . "   YOUR   version: [$ENV{CLEARCASE_XPN}]\n"
               . "   LATEST version: [$latest]\n" );
         exit 1;
+    }
+    }else{
+    	# the file we where going to look at - is not anyway ???
+    	# can be caused by Clearcase version 6 which doesn't have proper support for national characters
+    	# or by for instance microsoft word, that always are working at a hidden copy of the file, in same dir...
+    	$log->warning("Can not find the file $ENV{'CLEARCASE_PN'} ignoring\n")
     }
     exit 0;
 }
