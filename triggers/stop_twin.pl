@@ -84,7 +84,7 @@ DATE        EDITOR         NOTE
 2010-03-03  Jens Brejner   Fixed double printed message (v1.0.27)
 2010-03-03  Jens Brejner   Build commands to merge the name forward,
                            save them in logfile (v1.0.29)
-2010-05-31  Jens Brejner   Enhance error checking after system calls (v1.0.30
+2010-05-31  Jens Brejner   Enhance error checking after system calls (v1.0.30)
 -------------------------  ----------------------------------------------
 
 ENDREVISION

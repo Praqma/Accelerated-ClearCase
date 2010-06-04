@@ -31,11 +31,6 @@
 
 		<li><a href="#enable_install___install_params_"><code>enable_install (%install_params)</code></a></li>
 		<li><a href="#enable_semaphore_backdoor"><code>enable_semaphore_backdoor</code></a></li>
-		<ul>
-
-			<li><a href="#overriding_the_semaphore_file_directory_via_environment_variable"><code>Overriding the semaphore file directory via environment variable</code></a></li>
-		</ul>
-
 	</ul>
 
 	<li><a href="#examples">EXAMPLES</a></li>
@@ -99,18 +94,10 @@ The trigger_helper is designed to be executed in a structure like the one in the
 <p>To put the trigger_helper in use, you'll need to add an <code>use lib</code> <em>&lt;the parent directory</em>&gt; statement to your current script and then include the <code>praqma::trigger_helper</code>.
 Therefore you'll need to determine the location of your running script. It can all be done in a pre-compiled block using a setup like this:</p>
 <pre>
- our ($Scriptdir, $Scriptfile);
- BEGIN{
-        $Scriptdir =&quot;.\\&quot;;
-        $Scriptfile = $0;
-        $Scriptfile =~/(.*\\)(.*)$/ &amp;&amp;  do {
-                $Scriptdir=$1;
-                $Scriptfile=$2;
-        }
- }
+ our ($Scriptdir, $Scriptfile);BEGIN{$Scriptdir =&quot;.\\&quot;;$Scriptfile = $0; $Scriptfile =~/(.*\\)(.*)$/ &amp;&amp;  do{$Scriptdir=$1;$Scriptfile=$2;}}
  use lib &quot;$Scriptdir..&quot;;
  use praqma::trigger_helper;</pre>
-<p>Then to utilize the functionallity from the trigger helper you can throw in the following statements:</p>
+<p>Then to utilize the functionallity from the trigger helper you can throw in the following stetements:</p>
 <pre>
  our $thelp=trigger_helper-&gt;new;          # Instantiates the trigger helper
  $thelp-&gt;enable_install(%install_params); # See more under &quot;enable_install&quot;
@@ -183,7 +170,7 @@ too old the the method reads it to see if the name of the current scripts is lis
 <hr />
 <h1><a name="restrictions">RESTRICTIONS</a></h1>
 <p>When the script runs autside a trigger context, it's designed to install triggers, and therefore it has the same restrictions as applies to trigger installation in general. That is; it can
-only run if it is executed by the VOB owner or the ClearCase account (albd). Execptions are if the script is run with the <code>-preview</code> switch, in which case
+only run if it is executed by the VOB owner or member of ClearCase Administrators group. Execptions are if the script is run with the <code>-preview</code> switch, in which case
 any ClearCase user can run it. Another exception is if you are replacing an existing trigger, then the current owner of the trigger is also allowed to execute.</p>
 <p>I the current version, the installation procedure only support <a href="#item_mktrtype"><code>mktrtype</code></a> - that is triggers attached to VOBs. If you which to use it for
 creating triggers on other objects - which implies using the <code>mktrigger</code> command - then you need to do some hacking yourself.</p>
@@ -263,8 +250,7 @@ in the <code>acc.pm</code> module like this:</p>
 </p>
 <h2><a name="enable_semaphore_backdoor"><code>enable_semaphore_backdoor</code></a></h2>
 <p>To support the semaphore backdoor your trigger script needs to call the <code>enable_semaphore_backdoor</code> method as described earlier.</p>
-<pre>
- In order for a semaphore file to be valid - and effectively disable the trigger the following  properties must me met:</pre>
+<p>In order for a semaphore file to be valid - and effectively disable the trigger the following  properties must me met:</p>
 <ul>
 <li></li>
 A semaphore file named after the user must exist
@@ -281,24 +267,8 @@ same semaphore file can list many scritps.
 <p></p></ul>
 <p>If a valid semaphore exist the trigger execution is canceled.</p>
 <p><em><strong>Note</strong></em>:</p>
-<p>The location of the <code>semaphores</code> directory can be tweaked overriding the default via an environment variable, while the above mentioned requirements still apply.</p>
+<p>The location of the <code>semaphores</code> directory can be tweak by setting the constant <code>trigger_helper::SEMAPHORE_DIR</code>.</p>
 <p>This time span defining how long time a sempahore file is valid can be tweaked by setting the constant <code>trigger_helper::MAX_SEMAPHORE_FILE_AGE_DAYS</code>.</p>
-<p>
-</p>
-<h3><a name="overriding_the_semaphore_file_directory_via_environment_variable"><code>Overriding the semaphore file directory via environment variable</code></a></h3>
-<p>Supposed you need users to be able to create a valid semaphore in their local file system, while assuring that the time validation is still active.</p>
-<p>Normally you would enable the check for a semaphore file by adding the lines</p>
-<pre>
- our $thelp=trigger_helper-&gt;new;          # Instantiates the trigger helper
- $thelp-&gt;enable_install(%install_params); # See more under &quot;enable_install&quot;
- $thelp-&gt;require_trigger_context;         # Simple check, that exits if the script is not called as a trigger
- $thelp-&gt;enable_semaphore_backdoor;       # See more under &quot;enable_semaphore_backdoor&quot;</pre>
-<p>to your trigger script, and as such only the protected storage location can be used for semaphores. But creating the semaphore is, shold only be possible by CC administratiors, non administrators should only have read access to the trigger share.</p>
-<p>But you can call $thelp-&gt;enable_semaphore_backdoor with a parameter from your trigger script, for example like this:</p>
-<pre>
- $thelp-&gt;enable_semaphore_backdoor($ENV{'ACC_USE_LOCAL_SEMAPHORE'});</pre>
-<p>Then the trigger script will pass the value of environment value ACC_USE_LOCAL_SEMAPHORE to enable_semaphore_backdoor, which then will also look for at valid semaphore file in that directory.
-The directory passed in will be searched first, and the usual or common directory will be searched last.</p>
 <p>
 </p>
 <hr />
