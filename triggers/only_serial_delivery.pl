@@ -72,7 +72,6 @@ DATE        EDITOR         NOTE
 -------------------------  ----------------------------------------------
 
 ENDREVISION
-print "Revision comment\n";
 
 my $verbose_mode = defined( $ENV{'CLEARCASE_TRIGGER_VERBOSE'} ) ? $ENV{'CLEARCASE_TRIGGER_VERBOSE'} : undef;
 my $debug_on     = defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} )   ? $ENV{'CLEARCASE_TRIGGER_DEBUG'}   : undef;
