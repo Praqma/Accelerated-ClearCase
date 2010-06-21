@@ -113,13 +113,45 @@ run ("cleartool rmview -tag $view",0) if ($sw_checkvob) ;
 sub readoutput ($$) {
 # Determine log folder. and report it
 # Search summary for problems, report good or look further
-	my $log = shift;
+	my $logout = shift;
 	my $vob = shift;
+    my ($checkvoblog, $summaryfile);
+
+	foreach (@{$logout}) {
+        # look for :
+        #"The session's log directory is 'checkvob.2006-06-20T224716+02'."
+
+		if (/^The session's log directory/) {
+           chomp;
+           ($checkvoblog = $_) =~ s/(.*)(checkvob.*)('\.)$/$2/;
+           $log->information("$vob checklog - $_\n");
+		   $summaryfile = "$checkvoblog\\summary";
+           last;
+		}
+        if (/^The session's log file/) {
+           chomp;
+           ($checkvoblog = $_) =~ s/(.*")(checkvob.*)("\..*)/$2/;
+           $log->information("$vob checklog - $_\n");
+		   $summaryfile = "$checkvoblog";
+           last;
+
+        }
+
+	}
 
 
-
-
-
+    open(SOURCE, "< $summaryfile") or die "Couldn't open $summaryfile for reading: $!\n";
+    my @lines = <SOURCE>;
+    close(SOURCE);
+    my @bad = grep {/problems/i} @lines;
+	if (@bad) {
+		$log->information("vob $vob has problems:\n");
+		foreach (@bad) {$log->warning("$_");}
+		$log->information("Here is the summary file ($summaryfile) : \n");
+		foreach (@lines) {$log->warning("\t$_");}
+	} else {
+		$log->information("$vob is healthy.\n");
+	}
 }
 
 sub do_checkvob {
@@ -128,24 +160,52 @@ sub do_checkvob {
 
     my $vob = shift;
     my $vobunc = shift;
-    my $checkvobcmd = "cleartool checkvob -view $view ";
 
     run ("cleartool mount $vob", 0);
     my $type = join ( ',', acc::get_vobtypes($vob));
+
+    my ($cmd, @chkvobout);
     my $command = "cleartool checkvob " ;
 
-    if ($type =~ /acc::VOBTYPE_ADMINVOB|acc::VOBTYPE_PVOB/) {
-       my $cmd = "$command	-log .$vob//globaltypes -global vob:$vob";
-       my @chkvobout= run ($cmd, 1);
+    # Check storage pools in client vobs
+    if ($type =~ /${\acc::VOBTYPE_BCC_CLIENT}|${\acc::VOBTYPE_UCM_CLIENT}/) {
+#    if ($type =~ /${\acc::VOBTYPE_BCC_CLIENT}/) {
+       $cmd = "$command -view $view -pool -protections -data -debris $vobunc";
+       $log->information("Checking storage pools in $vob\n");
+       @chkvobout= run ($cmd, 1);
        readoutput(\@chkvobout, $vob);
-
     }
 
-#    todo check out put;
+    # Check global types
+    if ($type =~ /${\acc::VOBTYPE_ADMINVOB}|${\acc::VOBTYPE_PVOB}/) {
+       $cmd = "$command -global vob:$vob";
+       $log->information ("Checking global types in $vob\n");
+       @chkvobout= run ($cmd, 1);
+       readoutput(\@chkvobout, $vob);
+    }
+
+    # Check ucm types, vobonly
+    if ($type =~ /${\acc::VOBTYPE_PVOB}/) {
+      $cmd = "$command	-ucm -verbose -view $view -vob_only vob:$vob";
+       $log->information ("Checking UCM types (vob only) in $vob\n");
+       @chkvobout= run ($cmd, 1);
+        # checkvob -ucm aren't nice, doesnt create a log file
+		foreach (@chkvobout) {
+        if (/problem/i) {
+        	$log->error("$vob appears to have problems: $_");
+		}else{
+           	$log->information("\t$_");
+			}
+        }
+#       readoutput(\@chkvobout, $vob);
+    }
+
+    # Catch un recognized vob types
+    unless ($type =~ /${\acc::VOBTYPE_ADMINVOB}|${\acc::VOBTYPE_PVOB}|${\acc::VOBTYPE_BCC_CLIENT}|${\acc::VOBTYPE_UCM_CLIENT}/) {
+    	$log->error("Not recognizing vob type [$type], not checked\n");
+    }
     # do last thing
     run ("cleartool umount $vob", 0);
-
-
 }
 
 sub findutils {
@@ -190,7 +250,7 @@ sub do_dbcheck {
     # Lock vob if unlocked, set flag
     my $lockedstate = run ("cleartool desc -fmt \%[locked]p vob:$vob",0);
 	if ($lockedstate =~ /unlocked/i) {
-    	$sw_debug && $log->information("DEBUG: $vob is unlocked, locking it now\n");
+    	$log->information("$vob is unlocked, locking it now\n");
     	run("cleartool lock -c \"Locked by $Scriptfile for copy of database\" vob:$vob",0);
     }
 
@@ -230,7 +290,6 @@ sub do_dbcheck {
     	$log->error($errmsg);
     	exit 1;
     }
-    $log->information("Succesfully completed dbcheck on $vob\n\n");
  }
 
 sub run ($$) {
@@ -321,195 +380,6 @@ sub validate_options {
 
 }
 
-
-
 __END__
 
 
-#$| = 1;
-#my $logpath = "$ENV{TEMP}\\CHECKVOB";
-#my $view = "$ENV{USERNAME}_CHECKING_VOB";
-
-#my (@ucmvobber,@admvobber,@basevobber);
-
-#my @lines = `cleartool mkview -tag $view -stgloc -auto`;
-#`cleartool startview $view`; # Create view if it doesn't exist.
-
-#addsep();
-
-#my $logdir = "$logpath\\checkvob\\";
-#!-e $logdir && do {
-#        my @res = `md $logdir`;
-#        push @lines, @res;
-#};
-
-#my $checkdir = "$ENV{TEMP}\\dbcheck\\";
-#!-e $checkdir && do {
-#        my @res = `md $checkdir`;
-#        push @lines, @res;
-#};
-
-#my @rawvobs = `cleartool lsvob`; # Each line in array looks like '* \CCadm               \\SRVCHMVOB01\VOBS1\CCadm.vbs public'
-#foreach (@rawvobs) { # remove 2 positions from each line, result looks like '\CCadm               \\SRVCHMVOB01\VOBS1\CCadm.vbs public'
-#        $_ =~ s/(..)(.*)/$2/;   #
-#}
-#@allvobs = sort @rawvobs; # Sort the vobs, looks nicer
-
-#foreach (@allvobs) { # Capture different parts of the line into variables, we need later.
-#        $_ =~ /(\S+)(\s+)(\S+)(\s)(.*)/;
-#        my $tag     = $1;
-#        my $vobpath = $3;
-#        my $ucm     = $5;
-
-#        #print "$tag\t$vobpath\t$ucm\n";
-#        my @lin;
-##        dbcheck( $tag, $vobpath );
-#        check( $tag, $vobpath, $ucm );
-#        savelog($tag);
-##        printvobtype( $tag, $vobpath, $ucm );
-
-#}
-
-##print "Basevobs\n\n";
-## foreach (@basevobber) {
-##        print "$_\n";
-##}
-##print "##############\n";
-##print "UCMVOB\n\n";
-##foreach (@ucmvobber) {
-##        print "$_\n";
-##}
-##print "##############\n";
-##print "adminvobs\n\n";
-##foreach (@admvobber) {
-##        print "$_\n";
-##}
-##
-
-#my $logfile = "$logdir\\CheckAll.txt";
-##
-###  Save all the captured command output in a single file.
-#open( FILE, "> $logfile " ) || die("can't open logfile:  $!");
-#foreach (@lines) {
-#        print FILE;
-#}
-#close(FILE);
-################################################################3
-#sub savelog {
-#        $log = shift;
-#        $log =~ s/(.)(.*)/$2/;
-#        print "Entering sub savelog $vob\t$path\n";
-
-#        my $logfile = "$logpath\\" . $log . "_CheckAll.txt";
-
-#        open( LOG, "> $logfile " ) || die("can't open logfile:  $!");
-#        foreach (@lin) {
-#                print LOG;
-#        }
-#        close(LOG);
-#        push @lines, @lin;
-
-#        undef @lin;
-#}
-
-#sub addsep {
-#        push( @lin, "\n\n" );
-#}
-
-#sub dbcheck {
-#        my $vob  = shift;
-#        my $path = shift;
-
-#        print "Entering sub dbcheck $vob\t$path\n";
-
-#        push( @lin, "#################################\n" );
-#        push( @lin, "Start dbcheck on $vob\n" );
-#        addsep();
-#        push @lin, `del /Q \"$checkdir\\*.*\"`;
-#        `copy \"$path\\db\\vob*.*\" \"$checkdir\\*.*\"`;
-#        my $cmd ="\"D:\\Program Files\\Rational\\ClearCase\\etc\\utils\\dbcheck.exe\" -a -r -t -c \"c:\\Temp\\dbcheck\\vob_db\" 2>&1";
-#        # print "[$cmd]\n";
-#        push @lin, `"$cmd"`;
-#        addsep();
-#}
-
-#sub check {
-#        $vob  = shift;
-#        $path = shift;
-#        $kind = shift;
-
-#        `cleartool mount $vob`; # mount the vob
-
-#        my @admin = grep /^->/, qx(cleartool desc -s -ahl AdminVOB vob:$vob);   # look for AdminVOB link pointing "up"
-#        addsep();
-#        addsep();
-#        addsep();
-#        if ( $#admin == -1 ) {
-#                my $cmd = "cleartool checkvob -view $view -global vob:$vob 2>&1";
-#                print "Found Admin vob checking global types, command is [$cmd]\n";
-#                push @lin, "\nFound Admin vob checking global types, command is [$cmd]";
-#                push @lin, `$cmd`;
-
-#                addsep();
-#        }
-#        elsif ( $kind =~ /ucm/ ) {
-#                my $cmd = "cleartool checkvob -view $view -global vob:$vob 2>&1";
-#        print "Found UCM vob checking global types, command is [$cmd]\n";
-#                push @lin, "\nFound UCM vob checking global types, command is [$cmd]";
-#                push @lin, `$cmd`;
-
-#                addsep();
-
-
-
-#                $cmd = "cleartool checkvob -view $view -ucm vob:$vob 2>&1";
-#                print "Found UCM Vob check ucm structures, command is [$cmd]\n";
-#                push @lin, "Found UCM Vob check ucm structures, command is [$cmd]";
-#                push @lin, `$cmd`;
-
-#                addsep();
-#        }
-#        else {
-##                my $cmd =                  "cleartool checkvob -view $view -data -pool -source -protections $path 2>&1";
-#                print "Found A basevob: [$vob], Ignoring for now\n]";
-#                push @lin,          "Found A basevob: [$vob], Ignoring for now\n]";
-##                push @lin, `$cmd`;
-#                addsep();
-#        }
-
-#   `cleartool umount $vob`;
-#}
-
-#sub printvobtype {
-#        $vob  = shift;
-#        $path = shift;
-#        $kind = shift;
-
-#        `cleartool mount $vob`; # mount the vob
-#        my (@ucm,@adm,@base);
-
-#        my @admin = grep /^->/, qx(cleartool desc -s -ahl AdminVOB vob:$vob);   # look for AdminVOB link pointing "up"
-
-#        if ( $#admin == -1 ) {
-#      #print "Found Admin vob: $vob\n";
-#    chomp $vob;
-#        push @admvobber, $vob;
-
-#        }
-
-#        elsif ( $kind =~ /ucm/ ) {
-
-#                #print "Found UCM Vob $vob\n";
-#                      chomp $vob;
-#                push @ucmvobber, $vob;
-
-#        }
-#        else {
-#                #print "Found a Vob $vob\n";
-#                chomp $vob;
-#                push @basevobber, $vob;
-
-#        }
-
-#   `cleartool umount $vob`;
-#}
