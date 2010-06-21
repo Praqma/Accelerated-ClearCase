@@ -106,7 +106,7 @@ foreach my $lvob (@voblist) {
 	chdir "$Scriptdir";
 }
 # remove workview.
-run ("cleartool rmview -tag $view",0);
+run ("cleartool rmview -tag $view",0) if ($sw_checkvob) ;
 
 #############################   SUBS   #########################################
 
@@ -326,190 +326,190 @@ sub validate_options {
 __END__
 
 
-$| = 1;
-my $logpath = "$ENV{TEMP}\\CHECKVOB";
-my $view = "$ENV{USERNAME}_CHECKING_VOB";
+#$| = 1;
+#my $logpath = "$ENV{TEMP}\\CHECKVOB";
+#my $view = "$ENV{USERNAME}_CHECKING_VOB";
 
-my (@ucmvobber,@admvobber,@basevobber);
+#my (@ucmvobber,@admvobber,@basevobber);
 
-my @lines = `cleartool mkview -tag $view -stgloc -auto`;
-`cleartool startview $view`; # Create view if it doesn't exist.
+#my @lines = `cleartool mkview -tag $view -stgloc -auto`;
+#`cleartool startview $view`; # Create view if it doesn't exist.
 
-addsep();
+#addsep();
 
-my $logdir = "$logpath\\checkvob\\";
-!-e $logdir && do {
-        my @res = `md $logdir`;
-        push @lines, @res;
-};
+#my $logdir = "$logpath\\checkvob\\";
+#!-e $logdir && do {
+#        my @res = `md $logdir`;
+#        push @lines, @res;
+#};
 
-my $checkdir = "$ENV{TEMP}\\dbcheck\\";
-!-e $checkdir && do {
-        my @res = `md $checkdir`;
-        push @lines, @res;
-};
+#my $checkdir = "$ENV{TEMP}\\dbcheck\\";
+#!-e $checkdir && do {
+#        my @res = `md $checkdir`;
+#        push @lines, @res;
+#};
 
-my @rawvobs = `cleartool lsvob`; # Each line in array looks like '* \CCadm               \\SRVCHMVOB01\VOBS1\CCadm.vbs public'
-foreach (@rawvobs) { # remove 2 positions from each line, result looks like '\CCadm               \\SRVCHMVOB01\VOBS1\CCadm.vbs public'
-        $_ =~ s/(..)(.*)/$2/;   #
-}
-@allvobs = sort @rawvobs; # Sort the vobs, looks nicer
-
-foreach (@allvobs) { # Capture different parts of the line into variables, we need later.
-        $_ =~ /(\S+)(\s+)(\S+)(\s)(.*)/;
-        my $tag     = $1;
-        my $vobpath = $3;
-        my $ucm     = $5;
-
-        #print "$tag\t$vobpath\t$ucm\n";
-        my @lin;
-#        dbcheck( $tag, $vobpath );
-        check( $tag, $vobpath, $ucm );
-        savelog($tag);
-#        printvobtype( $tag, $vobpath, $ucm );
-
-}
-
-#print "Basevobs\n\n";
-# foreach (@basevobber) {
-#        print "$_\n";
+#my @rawvobs = `cleartool lsvob`; # Each line in array looks like '* \CCadm               \\SRVCHMVOB01\VOBS1\CCadm.vbs public'
+#foreach (@rawvobs) { # remove 2 positions from each line, result looks like '\CCadm               \\SRVCHMVOB01\VOBS1\CCadm.vbs public'
+#        $_ =~ s/(..)(.*)/$2/;   #
 #}
-#print "##############\n";
-#print "UCMVOB\n\n";
-#foreach (@ucmvobber) {
-#        print "$_\n";
+#@allvobs = sort @rawvobs; # Sort the vobs, looks nicer
+
+#foreach (@allvobs) { # Capture different parts of the line into variables, we need later.
+#        $_ =~ /(\S+)(\s+)(\S+)(\s)(.*)/;
+#        my $tag     = $1;
+#        my $vobpath = $3;
+#        my $ucm     = $5;
+
+#        #print "$tag\t$vobpath\t$ucm\n";
+#        my @lin;
+##        dbcheck( $tag, $vobpath );
+#        check( $tag, $vobpath, $ucm );
+#        savelog($tag);
+##        printvobtype( $tag, $vobpath, $ucm );
+
 #}
-#print "##############\n";
-#print "adminvobs\n\n";
-#foreach (@admvobber) {
-#        print "$_\n";
+
+##print "Basevobs\n\n";
+## foreach (@basevobber) {
+##        print "$_\n";
+##}
+##print "##############\n";
+##print "UCMVOB\n\n";
+##foreach (@ucmvobber) {
+##        print "$_\n";
+##}
+##print "##############\n";
+##print "adminvobs\n\n";
+##foreach (@admvobber) {
+##        print "$_\n";
+##}
+##
+
+#my $logfile = "$logdir\\CheckAll.txt";
+##
+###  Save all the captured command output in a single file.
+#open( FILE, "> $logfile " ) || die("can't open logfile:  $!");
+#foreach (@lines) {
+#        print FILE;
 #}
-#
+#close(FILE);
+################################################################3
+#sub savelog {
+#        $log = shift;
+#        $log =~ s/(.)(.*)/$2/;
+#        print "Entering sub savelog $vob\t$path\n";
 
-my $logfile = "$logdir\\CheckAll.txt";
-#
-##  Save all the captured command output in a single file.
-open( FILE, "> $logfile " ) || die("can't open logfile:  $!");
-foreach (@lines) {
-        print FILE;
-}
-close(FILE);
-###############################################################3
-sub savelog {
-        $log = shift;
-        $log =~ s/(.)(.*)/$2/;
-        print "Entering sub savelog $vob\t$path\n";
+#        my $logfile = "$logpath\\" . $log . "_CheckAll.txt";
 
-        my $logfile = "$logpath\\" . $log . "_CheckAll.txt";
+#        open( LOG, "> $logfile " ) || die("can't open logfile:  $!");
+#        foreach (@lin) {
+#                print LOG;
+#        }
+#        close(LOG);
+#        push @lines, @lin;
 
-        open( LOG, "> $logfile " ) || die("can't open logfile:  $!");
-        foreach (@lin) {
-                print LOG;
-        }
-        close(LOG);
-        push @lines, @lin;
+#        undef @lin;
+#}
 
-        undef @lin;
-}
+#sub addsep {
+#        push( @lin, "\n\n" );
+#}
 
-sub addsep {
-        push( @lin, "\n\n" );
-}
+#sub dbcheck {
+#        my $vob  = shift;
+#        my $path = shift;
 
-sub dbcheck {
-        my $vob  = shift;
-        my $path = shift;
+#        print "Entering sub dbcheck $vob\t$path\n";
 
-        print "Entering sub dbcheck $vob\t$path\n";
+#        push( @lin, "#################################\n" );
+#        push( @lin, "Start dbcheck on $vob\n" );
+#        addsep();
+#        push @lin, `del /Q \"$checkdir\\*.*\"`;
+#        `copy \"$path\\db\\vob*.*\" \"$checkdir\\*.*\"`;
+#        my $cmd ="\"D:\\Program Files\\Rational\\ClearCase\\etc\\utils\\dbcheck.exe\" -a -r -t -c \"c:\\Temp\\dbcheck\\vob_db\" 2>&1";
+#        # print "[$cmd]\n";
+#        push @lin, `"$cmd"`;
+#        addsep();
+#}
 
-        push( @lin, "#################################\n" );
-        push( @lin, "Start dbcheck on $vob\n" );
-        addsep();
-        push @lin, `del /Q \"$checkdir\\*.*\"`;
-        `copy \"$path\\db\\vob*.*\" \"$checkdir\\*.*\"`;
-        my $cmd ="\"D:\\Program Files\\Rational\\ClearCase\\etc\\utils\\dbcheck.exe\" -a -r -t -c \"c:\\Temp\\dbcheck\\vob_db\" 2>&1";
-        # print "[$cmd]\n";
-        push @lin, `"$cmd"`;
-        addsep();
-}
+#sub check {
+#        $vob  = shift;
+#        $path = shift;
+#        $kind = shift;
 
-sub check {
-        $vob  = shift;
-        $path = shift;
-        $kind = shift;
+#        `cleartool mount $vob`; # mount the vob
 
-        `cleartool mount $vob`; # mount the vob
-
-        my @admin = grep /^->/, qx(cleartool desc -s -ahl AdminVOB vob:$vob);   # look for AdminVOB link pointing "up"
-        addsep();
-        addsep();
-        addsep();
-        if ( $#admin == -1 ) {
-                my $cmd = "cleartool checkvob -view $view -global vob:$vob 2>&1";
-                print "Found Admin vob checking global types, command is [$cmd]\n";
-                push @lin, "\nFound Admin vob checking global types, command is [$cmd]";
-                push @lin, `$cmd`;
-
-                addsep();
-        }
-        elsif ( $kind =~ /ucm/ ) {
-                my $cmd = "cleartool checkvob -view $view -global vob:$vob 2>&1";
-        print "Found UCM vob checking global types, command is [$cmd]\n";
-                push @lin, "\nFound UCM vob checking global types, command is [$cmd]";
-                push @lin, `$cmd`;
-
-                addsep();
-
-
-
-                $cmd = "cleartool checkvob -view $view -ucm vob:$vob 2>&1";
-                print "Found UCM Vob check ucm structures, command is [$cmd]\n";
-                push @lin, "Found UCM Vob check ucm structures, command is [$cmd]";
-                push @lin, `$cmd`;
-
-                addsep();
-        }
-        else {
-#                my $cmd =                  "cleartool checkvob -view $view -data -pool -source -protections $path 2>&1";
-                print "Found A basevob: [$vob], Ignoring for now\n]";
-                push @lin,          "Found A basevob: [$vob], Ignoring for now\n]";
+#        my @admin = grep /^->/, qx(cleartool desc -s -ahl AdminVOB vob:$vob);   # look for AdminVOB link pointing "up"
+#        addsep();
+#        addsep();
+#        addsep();
+#        if ( $#admin == -1 ) {
+#                my $cmd = "cleartool checkvob -view $view -global vob:$vob 2>&1";
+#                print "Found Admin vob checking global types, command is [$cmd]\n";
+#                push @lin, "\nFound Admin vob checking global types, command is [$cmd]";
 #                push @lin, `$cmd`;
-                addsep();
-        }
 
-   `cleartool umount $vob`;
-}
+#                addsep();
+#        }
+#        elsif ( $kind =~ /ucm/ ) {
+#                my $cmd = "cleartool checkvob -view $view -global vob:$vob 2>&1";
+#        print "Found UCM vob checking global types, command is [$cmd]\n";
+#                push @lin, "\nFound UCM vob checking global types, command is [$cmd]";
+#                push @lin, `$cmd`;
 
-sub printvobtype {
-        $vob  = shift;
-        $path = shift;
-        $kind = shift;
+#                addsep();
 
-        `cleartool mount $vob`; # mount the vob
-        my (@ucm,@adm,@base);
 
-        my @admin = grep /^->/, qx(cleartool desc -s -ahl AdminVOB vob:$vob);   # look for AdminVOB link pointing "up"
 
-        if ( $#admin == -1 ) {
-      #print "Found Admin vob: $vob\n";
-    chomp $vob;
-        push @admvobber, $vob;
+#                $cmd = "cleartool checkvob -view $view -ucm vob:$vob 2>&1";
+#                print "Found UCM Vob check ucm structures, command is [$cmd]\n";
+#                push @lin, "Found UCM Vob check ucm structures, command is [$cmd]";
+#                push @lin, `$cmd`;
 
-        }
+#                addsep();
+#        }
+#        else {
+##                my $cmd =                  "cleartool checkvob -view $view -data -pool -source -protections $path 2>&1";
+#                print "Found A basevob: [$vob], Ignoring for now\n]";
+#                push @lin,          "Found A basevob: [$vob], Ignoring for now\n]";
+##                push @lin, `$cmd`;
+#                addsep();
+#        }
 
-        elsif ( $kind =~ /ucm/ ) {
+#   `cleartool umount $vob`;
+#}
 
-                #print "Found UCM Vob $vob\n";
-                      chomp $vob;
-                push @ucmvobber, $vob;
+#sub printvobtype {
+#        $vob  = shift;
+#        $path = shift;
+#        $kind = shift;
 
-        }
-        else {
-                #print "Found a Vob $vob\n";
-                chomp $vob;
-                push @basevobber, $vob;
+#        `cleartool mount $vob`; # mount the vob
+#        my (@ucm,@adm,@base);
 
-        }
+#        my @admin = grep /^->/, qx(cleartool desc -s -ahl AdminVOB vob:$vob);   # look for AdminVOB link pointing "up"
 
-   `cleartool umount $vob`;
-}
+#        if ( $#admin == -1 ) {
+#      #print "Found Admin vob: $vob\n";
+#    chomp $vob;
+#        push @admvobber, $vob;
+
+#        }
+
+#        elsif ( $kind =~ /ucm/ ) {
+
+#                #print "Found UCM Vob $vob\n";
+#                      chomp $vob;
+#                push @ucmvobber, $vob;
+
+#        }
+#        else {
+#                #print "Found a Vob $vob\n";
+#                chomp $vob;
+#                push @basevobber, $vob;
+
+#        }
+
+#   `cleartool umount $vob`;
+#}
