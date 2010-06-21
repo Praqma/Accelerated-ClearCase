@@ -17,11 +17,10 @@ BEGIN {
 # Use clauses
 use lib "$Scriptdir..//..";
 use Getopt::Long;
+use praqma::acc;
 use praqma::scriptlog;
 use Win32::TieRegistry( Delimiter => "#", ArrayValues => 0 );
 my $pound = $Registry->Delimiter("/");
-
-#use praqma::acc;
 
 # File version
 my $major = 1;
@@ -31,6 +30,7 @@ my $build = 1;
 die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
 
+sub run ($$); # forward declare, avoiding warnings.
 # Header history
 our $header = <<ENDHEADER;
 ################################################################################
@@ -45,7 +45,6 @@ our $header = <<ENDHEADER;
 ################################################################################
 
 ENDHEADER
-
 # Revision information
 ################################################################################
 our $revision = <<ENDREVISION;
@@ -56,14 +55,14 @@ DATE        EDITOR         NOTE
 --------------------------------------------------------------------------------
 
 ENDREVISION
-
+# Usage information
 my $usage = <<ENDUSAGE;
   $Scriptfile -vob <vobtag> | -allvobs [-checkdb ] [-debug]
   $Scriptfile -help
 
 
 ENDUSAGE
-
+# Online documentation
 my $doc = <<ENDDOC;
 Switch           Explanation
 --------------   ---------------------------------------------------------------
@@ -71,31 +70,83 @@ Switch           Explanation
 -vob <vobtag>    The vobtag to check, check a single vob. Mandatory unless
                  -allvobs is specified
 -allvobs         Boolean. Check all vobs, then you can not use -vob <vobtag>
--checkdb         Boolean. If set $Scriptfile vil run an offline db-check on the
+-checkdb         Boolean. If set $Scriptfile will run an offline db-check on the
                  vob. The database will be locked while copying the db-files.
+-checkvob        Boolean. If set $Scriptfile will run a cleartool checkvob on
+                 the vob.
 -debug           Even more information printed.
 
 ENDDOC
 
 ### Global variables ###
-our $log = scriptlog->new(1);
+$|=1; # synchronized output from cmds
+our $log = scriptlog->new();
 
 ### switch variables
-my ( $sw_help, $sw_vob, $sw_allvobs, $sw_checkdb, $sw_debug );
+my ( $sw_help, $sw_vob, $sw_allvobs, $sw_checkdb, $sw_debug, $sw_checkvob );
 
 ### script variables
-my ( %options, @voblist, $ccutils );
+my ( %options, @voblist, $ccutils, $view, $logfolder, $vobunc );
 
 validate_options();
 initialize();
 
 foreach my $lvob (@voblist) {
+
+    $vobunc = run( "cleartool lsvob $lvob", 0 );
+    $vobunc =~ s/(..)(\S+\s+)(\S+)(\s+.*)$/$3/;
+    chomp($vobunc);
+
+    mkdir "$logfolder$lvob" if (!-e "$logfolder$lvob");
+    chdir "$logfolder$lvob";
     do_dbcheck($lvob) if $sw_checkdb;
+    #
+	do_checkvob($lvob, $vobunc) if $sw_checkvob;
+
+	chdir "$Scriptdir";
+}
+# remove workview.
+run ("cleartool rmview -tag $view",0);
+
+#############################   SUBS   #########################################
+
+sub readoutput ($$) {
+# Determine log folder. and report it
+# Search summary for problems, report good or look further
+	my $log = shift;
+	my $vob = shift;
+
+
+
+
 
 }
 
+sub do_checkvob {
+#Do a check vob on selected vob
+#Various options exists depending on the vobtype, so vobtype is determined.
 
-#############################   SUBS   #########################################
+    my $vob = shift;
+    my $vobunc = shift;
+    my $checkvobcmd = "cleartool checkvob -view $view ";
+
+    run ("cleartool mount $vob", 0);
+    my $type = join ( ',', acc::get_vobtypes($vob));
+    my $command = "cleartool checkvob " ;
+
+    if ($type =~ /acc::VOBTYPE_ADMINVOB|acc::VOBTYPE_PVOB/) {
+       my $cmd = "$command	-log .$vob//globaltypes -global vob:$vob";
+       my @chkvobout= run ($cmd, 1);
+       readoutput(\@chkvobout, $vob);
+
+    }
+
+#    todo check out put;
+    # do last thing
+    run ("cleartool umount $vob", 0);
+
+
+}
 
 sub findutils {
 
@@ -114,11 +165,14 @@ sub findutils {
 
 sub do_dbcheck {
 
+   # Do offline dbcheck.
+   # lock vob, copy db to offline, unlock
+   # then run dbcheck
+
     my $vob = shift;
-    $log->information("Running dbcheck on $vob\n");
-    # Find vob's db dir
-    chomp (my $dbdir = run( "cleartool lsvob $vob", 0 ));
-    $dbdir =~ s/^(.*\s+)(\\\\\S+)(\s+.*)$/$2\\db/; # Get vobstorage, append "db"
+    $log->information("Starting dbcheck on $vob\n");
+    # set vob's db dir
+    my $dbdir = "$vobunc\\db" ; # Get vobstorage, append "db"
 
     $sw_debug && $log->information("DEBUG: Found this UNC path [$dbdir]\n");
     # Set temp dir
@@ -176,28 +230,8 @@ sub do_dbcheck {
     	$log->error($errmsg);
     	exit 1;
     }
-    $sw_debug && $log->information("Completed dbcheck on $vob\n");
+    $log->information("Succesfully completed dbcheck on $vob\n\n");
  }
-
-
-
-#sub dbcheck {
-#    my $vob  = shift;
-#    my $path = shift;
-
-#    print "Entering sub dbcheck $vob\t$path\n";
-
-#    push( @lin, "#################################\n" );
-#    push( @lin, "Start dbcheck on $vob\n" );
-#    addsep();
-#    push @lin, `del /Q \"$checkdir\\*.*\"`;
-#    `copy \"$path\\db\\vob*.*\" \"$checkdir\\*.*\"`;
-#    $ccutils;
-#    my $cmd ="\"$ccutils\\dbcheck.exe\" -a -r -t -c \"c:\\Temp\\dbcheck\\vob_db\" 2>&1";
-#    # print "[$cmd]\n";
-#    push @lin, `"$cmd"`;
-#    addsep();
-#}
 
 sub run ($$) {
 
@@ -205,9 +239,14 @@ sub run ($$) {
 
     my $cmd         = shift;
     my $aslist      = shift;
+#    my $expecterror = shift; # optional
     my $cmdex       = $cmd . ' 2>&1';
     my @retval_list = qx($cmdex);
+
+
     my $retval_scl  = join '', @retval_list;
+
+#    if ($expecterror)
 
     $? && do {
         $log->enable(1);
@@ -218,6 +257,9 @@ sub run ($$) {
 }
 
 sub initialize {
+    # Set log folder
+    $logfolder = "$Scriptdir\\Logs";
+    mkdir $logfolder if (!-e $logfolder);
 
 	$log->enable(1);
 	$log->set_verbose(1);
@@ -232,18 +274,26 @@ sub initialize {
     # Get ClearCase utils dir
     $ccutils = findutils();
 
-    print "Done initializing\n";
-}
+    # Create a workview, if we need to do checkvob
+    if ($sw_checkvob) {
+		$view = "$ENV{USERNAME}_checkvob_view";
+        chomp (my $viewexist = run("cleartool lsview -s $view ",0));
+        unless ($viewexist eq $view) {
+        	run("cleartool mkview -tag $view -stgloc -auto",0);
+        }
+    }
+ }
 
 sub validate_options {
+
     my $msg;
     %options = (
         "help|?"  => \$sw_help, # make print help information
         "vob=s"   => \$sw_vob,  # string, a single vobtag
         "allvobs" => \$sw_allvobs, # bool, check all visible vobs
         "checkdb" => \$sw_checkdb,  # run dbcheck on selected vobs
-        "debug"   => \$sw_debug
-
+        "debug"   => \$sw_debug, # Addtional output, prepended with string DEBUG
+		"checkvob" => \$sw_checkvob # Bool, Run cleartool checkvob on selected  vob
     );
 
     GetOptions(%options);
@@ -264,174 +314,14 @@ sub validate_options {
         my $count = 0;
         $count++ while $sw_vob =~ /\\/g;    # Count backslashes
         $log->assertion_failed($msg) unless ( $count == 1 );
-
     }
+
+    $msg = "No work request detected, please specify either checkdb and or checkvob\n";
+	$log->assertion_failed($msg) unless ( $sw_checkvob | $sw_checkdb );
 
 }
 
-=head1 NAME
 
-view_q.pl - View Quarantine Utilities
-
-=head1 SYNOPSIS
-
-A collection of features that enables quarantine, purge and recover of views based on
-the view's 'last accessed' date.
-
-Execute the script with -help switch to learn the syntax and usage.
-
-=head1 DESCRIPTION
-
-A fundamental concept to understand when working with view_q.pl is "Stranded views".
-
-Stranded views are views that have valid (and registered) view storages, but haven't got any
-view tags in any region.
-
-Stranded views are unavailable for use, but can easily be brought back to availability by using:
-
-  cleartool mktag -view ...
-
-Clearcase has a feature called rgy_check which can report stranded views.
-
-  rgy_check -views
-
-Run cleartool man rgy_check to learn more.
-
-When view_q.pl puts a view into quarantine, it removes all tags in all regions. This puts the
-view into the state of being 'stranded'. An important difference between 'regular" stranded
-and views put into quarantine by view_q.pl is the file called
-
-  .view_quarantine
-
-which view_q.pl creates in the the 'admin' subfolder in the view storage. This file contains the history
-of tags in all regions from where they were deleted. and enables a complete restore.
-
-View_q.pl can be run in a mode where it lists all views not accessed since a certain date. if you whish you
-can even tell view_q.pl to automatically put these views into quarantine.
-
-View_q.pl has a different mode which lists all views that are currently in quarantine (As you may have figured
-out this is partly determined by the fact that views are stranded, so this mode only works when executed from
-the ClearCase Registry server, which support rgy_check!)
-
-When listing the quarantined views you can either automatically purge or recover the views.
-
-Views can also be purged or recovered individually.
-
-When view_q.pl purges a view it runs the sequence, rmtag, unregister, rmview by uuid, and it will attempt to
-delete the view storage too.
-
-When a view is recovered by view_q.pl it simply restores all tags in all the regions where it was removed from.
-
-Some views aren't supposed to be deleted even when they haven't been accessed for a long time. View_q.pl can
-be instructed to disable quarantine of these views.
-
-View_q.pl will only process views hosted on the machine where the script is being executed.
-
-
-=head1 Examples
-
-=head2 Putting a view in Quarantine
-
- ratlperl view_p.pl -quarantine \\server\share\views\viewstorage
-
-The view storage can in either Local File Path notation (d:\views\...) or UNC style
-
-=head2 Listing view that have not been used since ...
-
-This operation is achieved by the swithc -nasince. The argument to -nasince can either be
-a date in the form YYYY-MM-DD or a number of days. In the latter case the number of days
-will be subtracted from the current date. This feature adresses the possibility to
-set-up scheduled jobs. So if you call
-
- ratlperl view_q.pl -nasince 90
-
-all views that have not been used for 90 dayss or more will be listed. You can add -autoquarantine
-to the command to have all these views quarantined in one operation.
-
-=head3 - and putting them in quarantine
-
- ratlperl view_q.pl -nasince 90 -autoquaratine
-
-=head2 Listing views in quarantine
-
-So you have used view_q.pl to put views in quarantine. How to know which views are in quarantine ?
-Simple, used the -lsquarantine:
-
- ratlperl view_q.pl -lsquarantine
-
-=head3 -have all quarantined views purged (deleted ...)
-
-Use -autopurge:
-
- ratlperl view_q.pl -lsq -autopurge
-
-Any view in quarantine will be removed.
-
-
-=head3 purge only views that have been for long enough
-
-add the -days switch which is only valid together with -lsq -autopurge (or -autorecover )
-With -autopurge the days switch will filter the quarantined views and only purge those
-that have been in quarantine for MORE than I<days>
-
- ratlperl view_q.pl -lsq -autopurge -days 180
-
-will remove views that have been in quarantine for more than 180 days
-
-=head3 or autorecover quarantined views
-
-Use the -autorecover switch with -lsquarantine. When autorecovering the meaning of
-the -days switch is changed to mean less than, I<days>. So
-
- ratlperl view_q.pl -lsq -autorecover -days 30
-
-Will recover quarantined views that have been quarantined less than 30 days
-
-=head2 One view at a time
-
-Views can be processed one at a time with:
-
-=head3 quarantine:
-
- ratlperl view_q.pl  -quarantine stgloc
-
-=head3 recover:
-
- ratlperl view_q.pl -recover stgloc
-
-=head3 purge:
-
- ratlperl view_q.pl  -purge stgloc
-
-Where B<stgloc> can be in eiter UNC style or local file system notation.
-
-=head2 Ignoring views
-
-Some views are not accessed - but should however not be quarantined, they build-views
-or have some other purpose for the organization.
-
- ratlperl view_q.pl  -ignore I<viewtag>
-
-as the view may not be in the current region, the switch -region is supported
-
- ratlperl view_q.pl  -ignore I<viewtag> -region I<region>
-
-
-=head2 Un-ignoring views
-
-To remove the ignore flag from a view, just run
-
-  ratlperl view_q.pl  -noignore I<viewtag> -region I<region>
-
--and that view will be back in consideration for view_q.pl
-
-
-
-=head1 SUPPORT
-
-Visit http://www.praqma.net to get help.
-
-=cut
 
 __END__
 
@@ -496,9 +386,6 @@ foreach (@allvobs) { # Capture different parts of the line into variables, we ne
 #}
 #
 
-
-
-
 my $logfile = "$logdir\\CheckAll.txt";
 #
 ##  Save all the captured command output in a single file.
@@ -507,8 +394,6 @@ foreach (@lines) {
         print FILE;
 }
 close(FILE);
-
-
 ###############################################################3
 sub savelog {
         $log = shift;
@@ -548,7 +433,6 @@ sub dbcheck {
         addsep();
 }
 
-
 sub check {
         $vob  = shift;
         $path = shift;
@@ -562,7 +446,7 @@ sub check {
         addsep();
         if ( $#admin == -1 ) {
                 my $cmd = "cleartool checkvob -view $view -global vob:$vob 2>&1";
-        print "Found Admin vob checking global types, command is [$cmd]\n";
+                print "Found Admin vob checking global types, command is [$cmd]\n";
                 push @lin, "\nFound Admin vob checking global types, command is [$cmd]";
                 push @lin, `$cmd`;
 
@@ -595,8 +479,6 @@ sub check {
 
    `cleartool umount $vob`;
 }
-
-
 
 sub printvobtype {
         $vob  = shift;
