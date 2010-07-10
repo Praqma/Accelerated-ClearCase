@@ -625,6 +625,7 @@ sub lsquarantine_mode () {
                 }
             };
         }
+        do_mail();
         exit 0;
     };
 }
@@ -680,9 +681,10 @@ sub nasince_mode () {
                     $log->error("View was NOT quarantined\n");
                 }
             }
-            shipmails();
+
 
         }
+        do_mail();
         exit 0;
     };
 }
@@ -964,6 +966,7 @@ sub purge_stg ($) {
     if ($?) {
         $log->error( "Remove view failed with exitcode: " . ( $? / 256 ) . "\n" );
     } else {
+        push ( @{ $views_per_user{'PURGED:'} }, "$stg" ); # save the list of views that was purged
         $log->information("Remove view successful\n");
     }
 
@@ -1177,7 +1180,7 @@ sub prepare_stg_directory () {
     return 1;
 }
 
-sub shipmails {
+sub do_mail {
     return unless $sw_sendmail;
     no strict;
 
@@ -1204,35 +1207,33 @@ sub shipmails {
             # Build per-user mail
             my $usermailbody = $_warnofquarantine;
 
-            # get eamil of login ID
-            my $toadress = qx(dsquery user forestroot -name $key  2>&1 | dsget user -email 2>&1 | findstr @ 2>&1 );
+            # get email of login ID, by asking the active directory, so we... kind of depend on that :-(
+            $envelope{'-to'} = qx(dsquery user forestroot -name $key  2>&1 | dsget user -email 2>&1 | findstr @ 2>&1 );
 
             # debug
-            print STDERR "Hey - remove line " . ( __LINE__ + 1 ) . "\n";
-            $toadress = 'jbr@praqma.net' if ( $ENV{COMPUTERNAME} eq "CCCQ7" );
-            ( push @noaddres, "$key\n" and next ) unless ($toadress);    # can't find email of login, try the next
+            if ( $ENV{COMPUTERNAME} eq "CCCQ7" ) {
+	            #	print STDERR "Hey - remove line " . ( __LINE__ + 1 ) . "\n";
+	            $envelope{'-to'} = 'jbr@praqma.net';
+            }
+            ( push @noaddres, "$key\n" and next ) if ($envelope{'-to'} !~ m/\@/);    # can't find email of login, try the next
 
-            $envelope{'-subject'} = "\"$_warnsubject\"";                       # SUBJECT:
-            $envelope{'-to'}      = $toadress;                           # TO:
-
-#            my $list = join ( ' ', sort @{ $views_per_user{$key} } );
-
-            $usermailbody =~ s/(===¤===\n)//g;
+            $envelope{'-subject'} = "\"$_warnsubject\"";                 # SUBJECT:
+            # some substitutions in the text read from the template file $mailfilename
             $usermailbody =~ s/===USER===/$key/g;
             $usermailbody =~ s/===CUTDATE===/$sw_nasince/g;
-            $usermailbody =~ s/===VIEWLIST===/${sort @{ $views_per_user{$key} }}/g;
+            $usermailbody =~ s/===VIEWLIST===/\n@{ $views_per_user{$key} }/g;
 
-            SendIt( $usermailbody, %envelope );
+            sendthemail( $usermailbody, %envelope );
         }
     }    # end foreach my $key
-
+    # Summary mail
     my ( $adminmailbody, $adminsubject );
-    my $list = join ( '\n', sort @{ $views_per_user{$key} } );
-
     $envelope{'-to'} = $_fromadress;    # TO:
-                                        # debug
-    print STDERR "Hey - remove line " . ( __LINE__ + 1 ) . "\n";
-    $envelope{'-to'} = 'jbr@praqma.net' if ( $ENV{COMPUTERNAME} eq "CCCQ7" );
+    # debug
+    if ( $ENV{COMPUTERNAME} eq "CCCQ7" ) {
+        #	print STDERR "Hey - remove line " . ( __LINE__ + 1 ) . "\n";
+        $envelope{'-to'} = 'jbr@praqma.net';
+    }
 
     # select subject and mail body
     if ( defined($sw_autoquarantine) || defined($sw_autopurge) ) {
@@ -1256,11 +1257,11 @@ sub shipmails {
     }
 
     $adminmailbody =~ s/===WARNVIEWS===/@warnlist/g;
-    SendIt( $adminmailbody, %envelope );
+    sendthemail( $adminmailbody, %envelope );
 
 }
 
-sub SendIt {
+sub sendthemail {
 
     my $blatcmd = BLATEXE;    # the Blat binary
 
@@ -1268,7 +1269,7 @@ sub SendIt {
     my $body = shift @_;      # get the msg body
     $blatcmd .= " - @_";      # add all the parms
 
-    open( MAIL, "| $blatcmd" ) || die $!;    # start Blat with all it's parms
+    open( MAIL, "| $blatcmd" ) ||  $log->error("$!\nFailed opening blat.exe to send this mail\n$body\n");    # start Blat with all it's parms
     print MAIL $body;                        # now put in the msg body (bigger this way than CL)
     close(MAIL);
 }

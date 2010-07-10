@@ -19,56 +19,50 @@ $_graceperiod = 7; # How many days before quarantine
 
 $_warnsubject = "You have unused ClearCase views, that will be removed in $_graceperiod days";
 
-$_warnofquarantine = <<ENDWARNQ;
+($_warnofquarantine = <<ENDWARNQ) =~ s/^\s+//gm;
 
-Hello ===USER===.
+	Hello ===USER===.
 
-This an automated mail from the Accellerated ClearCase view house-keeping ===¤===
-procedure.
-Below is a list of views that have been registered to you, but you have not ===¤===
-used since ===CUTDATE=== so we will remove them automatically in a couple of days.
+	This an automated mail from the Accellerated ClearCase view house-keeping procedure. You can not reply to this mail.
 
-If you do nothing, the view(s) will be quaratined for $_graceperiod days, then ===*===
-it will removed for good.
-While in quarantine, it will not be visible or usable, but we can get it back.
-If you want to keep the view(s); use them, either run a view update or do a ===*===
-checkout, followed by a undo checkout.
+	Below is a list of views that have been registered to you, but you have not used since ===CUTDATE=== so we will remove them automatically in a couple of days.
 
-Some views are only used for reading or are old build-views you want to keep.
-These views can be flagged by $_ccadmin_name so this house keeping job will ignore ===¤===
-it in future runs.
+	If you do nothing - the view(s) will be quaratined for a period, then it will removed for good.
+	While in quarantine, it will not be visible or usable, but we can get it back.
+	If you want to keep the view(s); use it. Either run a view update or do a checkout, followed by a undo checkout.
 
-You will get now further notifications, and you can not reply to this mail, but ===*===
-feel free to contact $_ccadmin_name.
+	Some views are only used for reading or are old build-views you want to keep. That kind of views can be flagged by $_ccadmin_name so this house keeping job will ignore it in future runs.
 
-===VIEWLIST===
+	You will get now further notifications about the view removal, but please feel free to contact $_ccadmin_name.
+
+	===VIEWLIST===
 
 ENDWARNQ
 
 $_adminwarnsubj = "View_q found unaccessed views";
 
-$_warnsummary = <<ENDSUMWARN;
+($_warnsummary = <<ENDSUMWARN)  =~ s/^\s+//gm;
 
-View_q found the following views haven't been accessed since ===CUTDATE===, and the
-owners have been notified.
+	View_q found the following views haven't been accessed since ===CUTDATE===, and the
+	owners have been notified.
 
-===NOEMAIL===
+	===NOEMAIL===
 
-Owner\tView
+	Owner\tView
 
-===WARNVIEWS===
+	===WARNVIEWS===
 
 ENDSUMWARN
 
 $_adminsubj = "View_q have processed views:";
 
-$_actionsummary = <<ENDSUMRMV;
+($_actionsummary = <<ENDSUMRMV)  =~ s/^\s+//gm;
 
-View_q have ===ACTION=== the following views:
+	View_q have ===ACTION=== the following views:
 
-Owner\tView
+	Owner\tView
 
-===WARNVIEWS===
+	===WARNVIEWS===
 
 ENDSUMRMV
 
