@@ -22,6 +22,7 @@ BEGIN {
       }                    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
 
+use File::Basename;
 use lib $Scriptdir. "..";
 
 use praqma::scriptlog;
@@ -38,7 +39,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "30";
+our $REVISION = "31";
 
 my $verbose_mode = 0;                               # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 my $debug_on     =
@@ -85,6 +86,9 @@ DATE        EDITOR         NOTE
 2010-03-03  Jens Brejner   Build commands to merge the name forward,
                            save them in logfile (v1.0.29)
 2010-05-31  Jens Brejner   Enhance error checking after system calls (v1.0.30)
+2010-08-06  Jens Brejner   Fixed bug - could not handle path that
+                           contained "\c\", as it was considered a control char.
+                           now using File::Basename instead of split_dir_file. (v1.0.31)
 -------------------------  ----------------------------------------------
 
 ENDREVISION
@@ -106,27 +110,24 @@ our $logfile = $log->get_logfile;
 ($logfile) && $log->information($semaphore_status);
 ($logfile) && $log->dump_ccvars;                              # Run this statement to have the trigger dump the CLEARCASE variables
 
-if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) { # continue only if operation type is what we are intended for..
+if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if operation type is what we are intended for..
 
     # Here starts the actual trigger code.
-    my $case_sensitive = 1;                          # 0 means Case IN-Sensitive name matching
+    my $case_sensitive = 1;                                   # 0 means Case IN-Sensitive name matching
 
-    my ( $dir_delim, $possible_dupe, $dupver );
+    my ( $possible_dupe, $dupver );
     my $viewkind = $ENV{'CLEARCASE_VIEW_KIND'};
     my $pathname = $ENV{'CLEARCASE_XPN'};
     my $sfx      = $ENV{'CLEARCASE_XN_SFX'} ? $ENV{'CLEARCASE_XN_SFX'} : '@@';
 
-    if ( $ENV{'OS'} =~ /^windo/i ) {
+    # change to forward slashes in path name
+    $pathname =~ tr#\\#/#;
 
-        # Convert any "X:\view_tag\vob_tag\.\*" to "X:\view_tag\vob_tag\*"
-        $pathname =~ s/\\.\\/\\/;
-        $dir_delim = "\\";
-    } else {
-        $dir_delim = "/";
-    }
+    # Convert any "X:/view_tag/vob_tag/./*" to "X:/view_tag/vob_tag/*"
+    $pathname =~ s#\/\.\/#\/#;
 
     # split element name in dir and leaf
-    my ( $parent, $element ) = acc::split_dir_file($pathname);
+    my ( $element, $parent ) = fileparse($pathname);
     my $parent_dna = "$parent.$sfx";
 
     # Are we in a snapshot view?
@@ -156,11 +157,14 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) { # continue only if operatio
     $debug_on && $log->information("The Search pattern looks like:\'$pattern\'\n");
 
     # get lines from lshist that begins with either added or uncat and ends with digit
-    my @history = qx(cleartool lshist -nop -min -nco -dir -fmt "%Nc%Vn\\n" "$parent_dna");
+    my $cmd     = 'cleartool lshist -nop -min -nco -dir -fmt %Nc%Vn\n "' . $parent_dna . '" 2>&1';
+    my @history = qx($cmd);
 
     if ($?) {    # The cleartool lshist failed
         $log->enable(1);
-        $log->error( "The command: 'cleartool lshist -nop -min -nco -dir -fmt \"%Nc%Vn\\n\" \"$parent_dna\"' failed\n" );
+        $log->dump_ccvars;
+        $log->error("The command: '$cmd' failed\n");
+        $log->error(@history);
         exit 1;
     }
     my @lines =
@@ -189,7 +193,7 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) { # continue only if operatio
         if (/^Uncat/i) {
 
             # chop branch and version number
-            my ( $b, $v ) = ( $branch =~ /(.*)(\d+)/ );
+            my ( $b, $v ) = ( $branch =~ /(.*)(\d+)$/ );
             $v--;    # decrement version number
             my $lastknown = "$b$v";
             $uncatalogued{$name} = $lastknown unless $uncatalogued{$name};
@@ -221,12 +225,12 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) { # continue only if operatio
 
     $log->enable();
     $log->set_verbose($verbose_mode);
-    my $user      = "$ENV{'CLEARCASE_USER'}";
-    my $pop_kind  = "$ENV{'CLEARCASE_POP_KIND'}";
-    my $cmd       = "cleartool desc -fmt \%u vob:$ENV{'CLEARCASE_VOB_PN'}";
+    my $user     = "$ENV{'CLEARCASE_USER'}";
+    my $pop_kind = "$ENV{'CLEARCASE_POP_KIND'}";
+    $cmd = "cleartool desc -fmt \%u vob:$ENV{'CLEARCASE_VOB_PN'}";
     my $vob_owner = `$cmd`;
 
-    if ($?) {    # The cleartool lshist failed
+    if ($?) {    
         $log->enable(1);
         $log->error("The command: '$cmd' failed\n, command output was $vob_owner\n");
         exit 1;
