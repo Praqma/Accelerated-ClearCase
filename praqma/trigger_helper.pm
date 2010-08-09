@@ -2,7 +2,7 @@ require 5.001;
 
 package trigger_helper;
 use strict;
-our ( $scriptdir, $scriptfile );
+our( $scriptdir, $scriptfile );
 
 BEGIN {
     $scriptdir  = ".\\";
@@ -26,7 +26,7 @@ use constant SEMAPHORE_DIR               => '\\semaphores';    # Relative to the
 
 # File version
 $VERSION = "1.1";
-$BUILD   = "6";
+$BUILD   = "7";
 
 our $header = <<ENDHEADER;
 #########################################################################
@@ -57,6 +57,9 @@ DATE         EDITOR        NOTE
 2009-11-26  Jens Brejner   Add support for spaces in script path
 2010-06-04  Jens Brejner   Removed check for vob-owner in sub enable_install
                            (version 1.1.6)
+2010-07-06  Jens Brejner   rmtype in replicated vob requires switch -rmall
+                           (version 1.1.7)
+
 -------------------------------------------------------------------------------
 ENDREVISION
 
@@ -181,10 +184,10 @@ ENDUSAGE
       unless ( -e $trigger_pname );
 
     my @vobtypes = acc::get_vobtypes($sw_vob);
-    my @allowed_vob_context = split( ',', $trigger_support );
+    my @allowed_vob_context = split ( ',', $trigger_support );
     push @allowed_vob_context, lc($trigger_name);
 
-    # match the two arrays against each other - get out as soon as a batchi is found
+    # match the two arrays against each other - get out as soon as a match is found
     my $match;
     foreach my $vt (@vobtypes) {
         $match && last;
@@ -210,7 +213,7 @@ ENDUSAGE
     $? && die "Execution of: [$cmd] failed\n";    # assert success
     chomp($raw_triggerblattr);
     $raw_triggerblattr =~ s/\"//g;                # get rid of the 'required' quotes in CC string attributes
-    my @blacklist = split( ',', $raw_triggerblattr );    # make a list;
+    my @blacklist = split ( ',', $raw_triggerblattr );    # make a list;
 
     my $bl_match = 0;
     foreach my $bl (@blacklist) {
@@ -237,14 +240,9 @@ ENDUSAGE
     }
 
     #Compile the trigger installation command
-    my $trig_inst_com = "\"Created using the -install switch of $::Scriptfile\"";
+    my $trig_inst_com           = "\"Created using the -install switch of $::Scriptfile\"";
     my $current_trigger_install =
-        "cleartool"
-      . " mktrtype $replace"
-      . $trigger_mktrtype
-      . " -c $trig_inst_com -exec \""
-      . acc::TRIGGER_PERL
-      . " $trigger_pname\" $trigger_tag\@$sw_vob 2>&1";
+      "cleartool" . " mktrtype $replace" . $trigger_mktrtype . " -c $trig_inst_com -exec \"" . acc::TRIGGER_PERL . " $trigger_pname\" $trigger_tag\@$sw_vob 2>&1";
 
     #If all the uses wanted was a preview it's time to get out
     defined($sw_preview) && do {
@@ -273,7 +271,17 @@ sub uninstall_trtype($$) {
     my $trtype = shift;
     my $vob    = shift;
     has_trtype( $trtype, $vob ) && do {
-        my $cmd     = "cleartool rmtype trtype:$trtype\@$vob 2>&1";
+
+        # If doing rmtype in replicated vob switch -rmall is required
+        my $cmd               = "cleartool des -fmt %[vob_replication]p vob:$vob";
+        my $replicationstatus = qx($cmd);
+        if ( $replicationstatus =~ m/^replicated/i ) {
+            $replicationstatus = " -rmall";
+        } else {
+            $replicationstatus = "";
+        }
+
+        $cmd = "cleartool rmtype $replicationstatus trtype:$trtype\@$vob 2>&1";
         my $cmdexec = `$cmd`;
         $? && do {
             print STDERR "ERROR: Failed to remove trigger:\n" . "[Command:]\n$cmd\n" . "[Returned:]\n$cmdexec\n";
@@ -288,11 +296,7 @@ sub uninstall_trtype($$) {
 sub scalar_dump($) {
     my $ref = shift;
     my ( $package, $filename, $line ) = caller;
-    print STDERR "   ########   Dumping scalar   ########\n"
-      . "   Package:          \t$package '$filename'\n"
-      . "   Line:             \t$line\n"
-      . "   $ref: \t["
-      . $$ref . "]\n";
+    print STDERR "   ########   Dumping scalar   ########\n" . "   Package:          \t$package '$filename'\n" . "   Line:             \t$line\n" . "   $ref: \t[" . $$ref . "]\n";
 }
 
 ## The CLEARCASE_MTYPE variable tells which type is involved

@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Z:\launchpad\praqma\acc\trunk\triggers\gf\require_magic.pl</title>
+<link rel="stylesheet" href="C:/Program Files/OptiPerl/Pod2Html.css" type="text/css" />
+<link rev="made" href="mailto:" />
+</head>
+
+<body>
+
+<p><a name="__index__"></a></p>
+<!-- INDEX BEGIN -->
+<!--
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<li><a href="#description">DESCRIPTION</a></li>
+	<ul>
+
+		<li><a href="#restrictions">Restrictions</a></li>
+		<li><a href="#dependencies">Dependencies</a></li>
+	</ul>
+
+	<li><a href="#author">AUTHOR</a></li>
+	<li><a href="#bugs">BUGS</a></li>
+	<li><a href="#copyright">COPYRIGHT</a></li>
+</ul>
+-->
+<!-- INDEX END -->
+
+<p>
+</p>
+<h1><a name="name">NAME</a></h1>
+<p>require_magic.pl is intended as a ClearCase Trigger script.</p>
+<p>Script:        <em>require_magic.pl</em></p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>If a client attempts to create a new element in ClearCase this trigger will
+require the environment variable MAGIC_PATH to exist and the location must contain
+at least one readable .magic file. ``cleartool man cc.magic'' for more information
+about ClearCase Magic file.</p>
+<p>
+</p>
+<hr />
+<h1><a name="description">DESCRIPTION</a></h1>
+<p>The trigger is useable if you have customized element types, and want to have new
+elements typed correctly (to you custom element types) when they are added to source
+control.</p>
+<p>When adding a new element types to a vob, the magic file must be changed if the
+file-typing should work. The default magic file exists on each client, and it is
+error-prone to try update or modify the magic file in each client. You can how-ever
+make every client see the same magic file by having each client create the
+MAGIC_PATH environment variable. Search Rational ClearCase support site for more
+information about the MAGIC_PATH environment variable.</p>
+<p>
+</p>
+<h2><a name="restrictions">Restrictions</a></h2>
+<p>None</p>
+<p>
+</p>
+<h2><a name="dependencies">Dependencies</a></h2>
+<p>praqma::scriptlog;
+praqma::trigger_helper;</p>
+<p>
+</p>
+<hr />
+<h1><a name="author">AUTHOR</a></h1>
+<p>Jens Brejner, &lt;<a href="mailto:jbrejner@praqma.net">jbrejner@praqma.net</a>&gt;.</p>
+<p>
+</p>
+<hr />
+<h1><a name="bugs">BUGS</a></h1>
+<p>See the website below.</p>
+<p>
+</p>
+<hr />
+<h1><a name="copyright">COPYRIGHT</a></h1>
+<p>This program is distributed under the GNU General Pulic License v3.0</p>
+<p>Support:    <a href="http://launchpad.net/acc">http://launchpad.net/acc</a></p>
+<a href="http://launchpad.net/acc">Project home at Launchpad</a>
+</body>
+
+</html>

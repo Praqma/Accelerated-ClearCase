@@ -1,0 +1,102 @@
+If you need to add scheduled runs of View_q and timestamper to ClearCase Scheduler, you can follow this guide.
+
+Note - if you mess up the scheduler and tasks database, you are on your own, so let's make a backup of those before we start
+
+Navigate to %CLEARCASEHOME%\var\scheduler\tasks
+Make a copy of task_registry
+Dump current schedule to a file:
+
+cleartool schedule -get > oldshed.txt
+- and copy that file too:
+copy oldsched.txt backupsched.txt
+
+Now edit task_registry, and add the following to the end of the file
+
+#
+# Praqma customized tasks...  USE Task-IDs starting at 100 !
+#
+
+Task.Begin
+    Task.Id:       102
+    Task.Name:     "Praqma Run View_Q"
+    Task.Pathname: run_view_q.bat
+Task.End
+
+Task.Begin
+    Task.Id:       103
+    Task.Name:     "Praqma Run View Timestamper"
+    Task.Pathname: run_view_timestamp.bat
+Task.End
+
+Note Task.Id numbers must be unique in the file. So adjust if required, and IF you needed to change the Task.Id's you you MUST adopt to that change later when adding 
+the jobs to the schedule, by changing the Id's in the schedule to.
+
+Save and close task_registry
+Copy the 2 bat files in this folder to %CLEARCASEHOME%\var\scheduler\tasks
+
+
+Now you can edit the file oldsched.txt, and add the following to the bottom of the file. Again like with the task_registry file, Id's must be unique, so 
+this time you must watch out for unique Task.Id's as well as unique Job.Id's.
+
+
+Job.Begin
+    Job.Id: 19
+    Job.Name: "View Timestamper"
+    Job.Description.Begin:
+Update last accessed time stamp on snapshot views.
+    Job.Description.End:
+    Job.Schedule.Weekly.Frequency: 1
+    Job.Schedule.Weekly.Days: Fri
+    Job.Schedule.StartDate: 2010-06-08
+    Job.Schedule.FirstStartTime: 22:00:00
+    Job.DeleteWhenCompleted: FALSE
+    Job.Task: 103
+    # Job.Task: "Praqma Run View Timestamper"
+    Job.Args: -run
+Job.End
+
+Job.Begin
+    Job.Id: 21
+    Job.Name: "Warn user of view quarantine"
+    Job.Description.Begin:
+Warn user of upcoming view quarantine
+    Job.Description.End:
+    Job.Schedule.Monthly.Frequency: 1
+    Job.Schedule.Monthly.Day: Last Sun
+    Job.Schedule.StartDate: 2010-06-08
+    Job.Schedule.FirstStartTime: 22:00:00
+    Job.DeleteWhenCompleted: FALSE
+    Job.Task: 102
+    # Job.Task: "Praqma Run View_Q"
+    Job.Args: -nasince 113
+Job.End
+
+Job.Begin
+    Job.Id: 22
+    Job.Name: "View Quarantine"
+    Job.Description.Begin:
+Quarantine views that haven't been accessed for 120 days
+    Job.Description.End:
+    Job.Schedule.Monthly.Frequency: 1
+    Job.Schedule.Monthly.Day: First Sun
+    Job.Schedule.StartDate: 2010-06-08
+    Job.Schedule.FirstStartTime: 01:00:00
+    Job.DeleteWhenCompleted: FALSE
+    Job.Task: 102
+    # Job.Task: "Praqma Run View_Q"
+    Job.Args: -nasince 120 -autoquarantine
+Job.End
+
+Job.Begin
+    Job.Id: 23
+    Job.Name: "View Purge"
+    Job.Description.Begin:
+Purge views that have been in quarantine for 120 days
+    Job.Description.End:
+    Job.Schedule.Sequential.FollowsJob: 22
+    # Job.Schedule.Sequential.FollowsJob: "View Quarantine"
+    Job.DeleteWhenCompleted: FALSE
+    Job.Task: 102
+    # Job.Task: "Praqma Run View_Q"
+    Job.Args: -lsquarantine 120 -autopurge
+Job.End

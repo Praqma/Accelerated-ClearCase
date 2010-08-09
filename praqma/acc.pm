@@ -1,6 +1,8 @@
 package acc;
 require 5.001;
 require Exporter;
+use File::Basename;
+
 @ISA = qw(Exporter);
 our @EXPORT = qw( get_adminvob
   get_hlinks
@@ -179,7 +181,7 @@ my $self = {};    #Reference to an anonymous hash, Will be blessed later
 
 # Module version
 $VERSION = "1.0.";
-$BUILD   = "10";
+$BUILD   = "11";
 
 my $header = <<ENDHEADER;
 #########################################################################
@@ -215,7 +217,11 @@ DATE        EDITOR  NOTE
                            (v1.0.9)
 2010-02-24  Jens Brejner   Added constant ATTYPE_ACTIVITY_NAME_TEMPLATE (v1.0.10)
                            Added constant ATTYPE_UCM_INTEGRATORS (v1.0.10)
+2010-08-06  Jens Brejner   Fixed bug in split_dir_file, could not handle path that
+                           contained "\c\", as it was considered a control char.
+                           Uses File::Basename instead of regex'es.
 -------------------------------------------------------------------------
+
 ENDREVISION
 
 
@@ -438,11 +444,9 @@ Returns:
 
     my ( $dir, $file );
     $file = shift;
-    $dir  = ".\\";
-    $file =~ /(.*\\)(.*)$/ && do {
-        $dir  = $1;
-        $file = $2;
-    };
+
+    ($file, $dir) = fileparse($file);
+
     return ( $dir, $file );
 }
 
