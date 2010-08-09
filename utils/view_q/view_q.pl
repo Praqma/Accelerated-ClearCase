@@ -197,7 +197,7 @@ our $BUILD   = " 13 ";
 my $debug        = 0;                    # Set 1 for testing purpose
 my $verbose_mode = 1;
 my $log_enabled  = 1;
-my $mailfilename = 'mailtexts.pl';
+my $mailfilename = "$Scriptdir/mailtexts.pl";
 
 # Header history
 our $header = <<ENDHEADER;
@@ -536,11 +536,8 @@ sub enable_log () {
 
         my $msg = "-sendmail can only be used together with -nasince or -lsquarantine\n";
         $log->assertion_failed($msg) unless ( $sw_lsquarantine || $sw_nasince );
-
         $msg = "Can't find required file called \"$mailfilename\"\n\n";
-        $log->assertion_failed($msg) unless ( -e $mailfilename );
-
-        do "$mailfilename";    # read the template file
+        do "$mailfilename" || $log->assertion_failed($msg);    # read the template file
     }
 
 }
@@ -1187,12 +1184,14 @@ sub do_mail {
     my %envelope = (
         -f      => $_fromadress,         # FROM:
         -server => $_smtpserver,         # specify the SMTP server to use
+        -q      => " ",                  # silent operation
         -debug  => " ",                  # run Blat with debuging output
         -log    => "\"$0.blat.log\"",    # dump screen output to a file instead.
     );
 
     my @noaddres;                        # Collect login's without email adress
     my @warnlist;                        # list of processed views
+
     # send warning mails to users
     my $key;
     foreach $key ( sort keys %views_per_user ) {
@@ -1203,13 +1202,19 @@ sub do_mail {
 
         unless ( defined($sw_autoquarantine) || defined($sw_autopurge) ) {
 
-            # We are warning mode, inform each user
+            # We are in warning mode, inform each user
             # Build per-user mail
             my $usermailbody = $_warnofquarantine;
 
-            # get email of login ID, by asking the active directory, so we... kind of depend on that :-(
-            $envelope{'-to'} = qx(dsquery user forestroot -name $key  2>&1 | dsget user -email 2>&1 | findstr @ 2>&1 );
-
+            # Set recipient mail adress
+            if ($_maildomain ne "") { # $_maildomain has a value, email adress is login ($key) plus this value
+	            $envelope{'-to'} = $key . $_maildomain;
+				$log->information("Using default domain, recipient was set to $envelope{'-to'}.\n");
+            }else{
+	            # get email of login ID, by asking the active directory, so we... kind of depend on that :-(
+	            $envelope{'-to'} = qx(dsquery user forestroot -name $key  2>&1 | dsget user -email 2>&1 | findstr @ 2>&1 );
+				$log->information("Using dsquery domain, recipient was set to $envelope{'-to'}.\n");
+            }
             # debug
             if ( $ENV{COMPUTERNAME} eq "CCCQ7" ) {
 	            #	print STDERR "Hey - remove line " . ( __LINE__ + 1 ) . "\n";
@@ -1244,7 +1249,7 @@ sub do_mail {
         $adminmailbody =~ s/===ACTION===/$action/g;
 
     } else {
-        $envelope{'-subject'} = "\"$_warnsubject\"";    # SUBJECT
+        $envelope{'-subject'} = "\"$_adminwarnsubj\"";    # SUBJECT
         $adminmailbody = $_warnsummary;
         $adminmailbody =~ s/===CUTDATE===/$sw_nasince/g;    # set since date
         my $nomail = "";
@@ -1273,5 +1278,6 @@ sub sendthemail {
     print MAIL $body;                        # now put in the msg body (bigger this way than CL)
     close(MAIL);
 }
+
 
 __END__

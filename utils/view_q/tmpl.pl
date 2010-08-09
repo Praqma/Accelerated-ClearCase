@@ -10,8 +10,8 @@ no strict 'refs';
 #    to find substitutions later
 #
 
-
-
+$_maildomain = '';	# Example @ibm.com. Use this if the user's email is equal to login with this value appeneded.
+# for instance user joed has email joed@ibm.com. If you leave this blank, we will try to determine the email by using dsquery
 $_smtpserver = 'localhost'; # SMTP server name
 $_fromadress = 'jbrejner@praqma.net'; # CC administrator email
 $_ccadmin_name = 'your Clearcase Administrator';
