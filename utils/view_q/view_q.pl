@@ -182,22 +182,22 @@ BEGIN {
 
 # Use clauses
 use strict;
-use lib "$Scriptdir..//..";
+use lib "$Scriptdir..\\..";
 use Getopt::Long;
 use praqma::scriptlog;
 use praqma::acc;
 
+use constant BLATEXE => "$Scriptdir..\\..\\praqma\\Blat\\Blat.exe";
+
 # File version
-our $VERSION = "0.6";
-our $BUILD   = "12";
+our $VERSION = " 0.7 ";
+our $BUILD   = " 13 ";
 
 # Log and monitor default settings (overwriteable at execution)
-my $debug        = 0;    # Set 1 for testing purpose
-my $verbose_mode = 0;
+my $debug        = 0;                    # Set 1 for testing purpose
+my $verbose_mode = 1;
 my $log_enabled  = 1;
-
-# Default setting 0-0-1 (script execution will generate NO output unless explicitly told to,
-# but logs to default location [Temp dir]\view_q.pl.[PID].log
+my $mailfilename = "$Scriptdir/mailtexts.pl";
 
 # Header history
 our $header = <<ENDHEADER;
@@ -218,9 +218,9 @@ our $header = <<ENDHEADER;
 ENDHEADER
 
 # Revision information
-#########################################################################
+################################################################################
 our $revision = <<ENDREVISION;
-DATE        EDITOR  NOTE
+DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
 2009-03-25  Lars Kruse     1st release prepared for RUG-DK (version 0.1.1)
 2009-05-18  Mikael Jensen  Beta for test
@@ -242,14 +242,15 @@ DATE        EDITOR  NOTE
                            number of days, see option -days
 2010-03-04  Jens Brejner   Version 0.6.12: bugfix, snapshot views with missing access date
                            will now be ignored, but a warning will be printed
+2010-07-09  Jens Brejner   Version 0.7.13: Enable mail sending.
 
 -------------------------------------------------------------------------
 
 ENDREVISION
 
 my $usage = <<ENDUSAGE;
-  $Scriptfile -lsquarantine [-days DD] [-autopurge  | -autorecover]
-  $Scriptfile -nasince YYYY-MM-DD | -nasince number [-autoquarantine]
+  $Scriptfile -lsquarantine [-days DD] [-autopurge [-sendmail] | -autorecover]
+  $Scriptfile -nasince YYYY-MM-DD | -nasince number [-autoquarantine] [-sendmail]
   $Scriptfile -quarantine stgloc
   $Scriptfile -recover stgloc
   $Scriptfile -purge stgloc
@@ -276,7 +277,7 @@ my $doc = <<ENDDOC;
                         When -autorecover is applied the storages found by -lsquarantine
                         will automatically be recovered.
 
--days NUMBER            Optional Switch, think "age in days" Valid with -lsquarantine
+-days NUMBER            Optional Switch, think " age in days " Valid with -lsquarantine
                         together with -autopurge or -autorecover
                         If -days is used with -autopurge, only views that have
                         been quarantined for more than -days NUMBER will be listed
@@ -310,22 +311,29 @@ my $doc = <<ENDDOC;
                         quarantine until the ignore flag is removed using -noignore.
                         -nasince will still report he correct last accessed date.
                         multible viewtags can be use, by adding more -ignore option
-                        or seperating with ";" eg. "... -ignore tag1;tag2 -ignore tag3"
+                        or seperating with ";
+" eg. " ... -ignore tag1;
+tag2 -ignore tag3 "
 
 -region region          Optional switch only valid together with -[no]ignore.
                         The region switch is used to qualify the viewtag applied with
                         -[un]ignore if necessary. if -region is omitted, the viewtag is
                         searched in the current region.
 
-                        --- Auxiliary switches (can be omitted or used on all functions)---
+-sendmail               Optional. Sends mails to view owners  and administrator.
+                        Requires the a file called $mailfilename to exist in the
+                        same directory as $Scriptfile. You must copy the supplied
+                        file tmpl.pl, and modify it to you needs.
+
+--- Auxiliary switches (can be omitted or used on all functions)---
 
 -[no]logfile [location] Sets whether or not to create a logfile.
                         May define the name [and location] of the logfile.
                         Default value is the temp dir (usually under
-                        users "doc&set") and "view_q.pl[PID].log"
+                        users " doc &set ") and " view_q . pl [PID] . log "
 
 -[no]verbose            Toggles verbose mode (log to STDOUT)
-                        Default is off (for manual execution, verbose is recommended)
+                        Default is on (for manual execution, verbose is recommended)
 
 -[no]debug              Toggles debug mode (additional information + force logfile + verbose)
                         Default is off
@@ -335,19 +343,14 @@ ENDDOC
 ### Global variables ###
 
 our %stg_directory;
+our %views_per_user;    # key is view owner, value is array of views owned by user
 our $log                = scriptlog->new;
-our $view_q_file        = ".view_quarantine";
-our $view_q_ignore_file = ".view_q_ignore";
+our $view_q_file        = " . view_quarantine ";
+our $view_q_ignore_file = " . view_q_ignore ";
 our(
-    $sw_lsquarantine, $sw_recover, $sw_purge,  $sw_nasince, $sw_quarantine, $sw_autoquarantine,
-    $sw_autopurge,    $sw_help,    $sw_region, @sw_ignore,  @sw_noignore,   $sw_autorecover,
-    $sw_logfile,      $sw_verbose, $sw_debug,  $sw_days,    %options
+    $sw_lsquarantine, $sw_recover,  $sw_purge,       $sw_nasince, $sw_quarantine, $sw_autoquarantine, $sw_autopurge, $sw_help, $sw_region,
+    @sw_ignore,       @sw_noignore, $sw_autorecover, $sw_logfile, $sw_verbose,    $sw_debug,          $sw_days,      %options, $sw_sendmail
 );
-our $argstring;
-
-if (@ARGV) {
-    $argstring = join " ", @ARGV;
-}
 
 &validate_options();
 
@@ -361,7 +364,7 @@ if (@ARGV) {
 &quarantine_mode();
 &ignore_mode();
 #### SWITCH ####
-$log->assertion_failed( "Wrong syntax\n" . $usage );
+$log->assertion_failed( " Wrong syntax \n " . $usage );
 ###########################################################################################
 
 =head1 Script Implementation
@@ -396,12 +399,12 @@ sub isolatepath ($) {
 
     if ( $lsview_reply =~ /$ENV{'COMPUTERNAME'}:/i ) {    # CC LT and WebView format
         $lsview_reply =~ /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
-        $sw_debug && $log->information("\tlsview reply [$lsview_reply], path isolatede to [$2]\n");
+        $sw_debug && $log->information(" \tlsview reply [$lsview_reply], path isolatede to [$2] \n ");
         return $2 if ( -e $2 );
     } elsif ( $lsview_reply =~ /\\\\$ENV{'COMPUTERNAME'}\\/i ) {    # Base CC format
 
         $lsview_reply =~ /^[\s\*]*(\S*)\s*(\S*)$/;
-        $sw_debug && $log->information("\tlsview reply [$lsview_reply], path isolatede to [$2]\n");
+        $sw_debug && $log->information(" \tlsview reply [$lsview_reply], path isolatede to [$2] \n ");
         return $2 if ( -e $2 );
 
     } else {
@@ -412,6 +415,7 @@ sub isolatepath ($) {
 }
 
 sub validate_options () {
+
     %options = (
         "autoquarantine" => \$sw_autoquarantine,
         "lsquarantine"   => \$sw_lsquarantine,
@@ -428,11 +432,14 @@ sub validate_options () {
         "region=s"       => \$sw_region,
         "logfile!"       => \$sw_logfile,
         "debug!"         => \$sw_debug,
-        "verbose!"       => \$sw_verbose
+        "verbose!"       => \$sw_verbose,
+        "sendmail!"      => \$sw_sendmail
+
     );
 
     #  die "$usage" unless GetOptions(%options);
     GetOptions(%options);
+
 }
 
 =head3 enable_log ()
@@ -494,8 +501,7 @@ sub enable_log () {
     # Checks ARGV for consistency and enables the log
     if ($log_enabled) {
         if ( scalar(@ARGV) gt 1 ) {
-            $log->assertion_failed(
-                "You have more then one value with no defined reference,\nonly valid option is logfile location \nRecorded values are:$argv_values" );
+            $log->assertion_failed("You have more then one value with no defined reference,\nonly valid option is logfile location \nRecorded values are:$argv_values");
         }
         $log->set_logfile( $ARGV[0] );
         $log->enable();
@@ -519,21 +525,21 @@ sub enable_log () {
         $log->enable();
         $log->set_verbose(1);
         $log->information("DEBUG is ON\n");
-
-        #rw2 subject for revision: dynamic dump of sw_options (for each key in %options)
-
-        $log->information(
-"Dumping all switch variables \n autoq = '$sw_autoquarantine' \n lsq = '$sw_lsquarantine' \n nas = '$sw_nasince' \n help = '$sw_help' \n quaran = '$sw_quarantine' \n recov = '$sw_recover' \n purge = '$sw_purge' \n autop = '$sw_autopurge' \n autor = '$sw_autorecover' \n igno = '@sw_ignore' \n reg = '$sw_region' \n noigno = '@sw_noignore' \n reg = '$sw_region' \n log = '$sw_logfile'+"
-              . $log->get_logfile()
-              . " \n debug = '$sw_debug' \n ver = '$sw_verbose' \n ARGV = $argv_values \n" );
-        $log->information("ARGV value checks OK\n");
       };
-    $log->information( "Called with " . $argstring . "\n" );
 
     # Region not allowed on ClearCase LT
     if ( (acc::is_cclt) && defined($sw_region) ) {
         $log->assertion_failed("ClearCase LT detected, -region switch is not allowed\n");
     }
+
+    if ($sw_sendmail) {
+
+        my $msg = "-sendmail can only be used together with -nasince or -lsquarantine\n";
+        $log->assertion_failed($msg) unless ( $sw_lsquarantine || $sw_nasince );
+        $msg = "Can't find required file called \"$mailfilename\"\n\n";
+        do "$mailfilename" || $log->assertion_failed($msg);    # read the template file
+    }
+
 }
 
 =head3 xxx_mode ()
@@ -616,6 +622,7 @@ sub lsquarantine_mode () {
                 }
             };
         }
+        do_mail();
         exit 0;
     };
 }
@@ -662,15 +669,19 @@ sub nasince_mode () {
           unless vwsstgs_nasince( $sw_nasince, \@views );
         foreach ( sort @views ) {
             $log->information($_);
-            defined($sw_autoquarantine) && do {
+
+            if ( defined($sw_autoquarantine) ) {
                 my ( $d, $stg ) = split ( /\t/, $_ );
                 if ( quarantine_stg($stg) ) {
                     $log->information("View was quarantined succesfully\n");
                 } else {
                     $log->error("View was NOT quarantined\n");
                 }
-            };
+            }
+
+
         }
+        do_mail();
         exit 0;
     };
 }
@@ -952,6 +963,7 @@ sub purge_stg ($) {
     if ($?) {
         $log->error( "Remove view failed with exitcode: " . ( $? / 256 ) . "\n" );
     } else {
+        push ( @{ $views_per_user{'PURGED:'} }, "$stg" ); # save the list of views that was purged
         $log->information("Remove view successful\n");
     }
 
@@ -1024,7 +1036,7 @@ sub quarantine_stg ($) {
     return 1;
 }
 
-=head3 vwsstgs_nasince ( $cut_date, \@result )
+=head3 vwsstgs_nasince ( $cut_date, \@result)
 
 This function pushes (global) view storage locations onto the result array
 handed into the sub as a reference if they haven't been accessed since $cut_date.
@@ -1047,7 +1059,7 @@ Returns:
 
 =cut
 
-sub vwsstgs_nasince ($$) {
+sub vwsstgs_nasince ($$$) {
     my $cut_date = shift;
     my $result   = shift;
     return 0 unless ( $cut_date =~ /(\d\d\d\d-\d\d-\d\d)/ );
@@ -1057,14 +1069,22 @@ sub vwsstgs_nasince ($$) {
         $_ = $_[0];                                    # Get a region/tag pair (anyone will do, so we just grab the first)
         s/-tag//;                                      # strip the -tag switch, it's not used in lsview
         s/-ngpath//;                                   # strip the -ngpath switch, it's not used in lsview
-        @_ = split ( /\n/, `cleartool lsview -age $_` );    # lsview with the -age switch return two lines
-        $_ = $_[1];                                         # Grab the second line (where the relevant timestamp is listed)
-        /(\d\d\d\d-\d\d-\d\d)/;                             # Get the date in the format YYYY-MM-DD
 
-        # Snapshot views that have lost their .access_info can not tell when they where used last so $1 will be empty
-        if ( $1 ne "" ) {
-            push ( @$result, $1 . "\t" . $stg . "\n" ) if $1 le $cut_date;    #If the last accessed date is prior to the cut_date, push it onto the result.
+        my @viewdetails = split ( /\n/, `cleartool lsview -properties $_` );    # lsview with the -age switch return two lines
+        my $accessed = $viewdetails[3];                                         # Grab fourth line (where the relevant timestamp is listed)
+        $accessed =~ s/.*(\d\d\d\d-\d\d-\d\d).*/$1/;                            # Get the date in the format YYYY-MM-DD
+        my $owner = $viewdetails[4];                                            # Grab 5'th line - owner information
+        $owner =~ s/.*\\(\S+).*/$1/;                                            # Isolate owner (the login ID)
+
+        if ( ( $accessed ne "" ) && ( $accessed le $cut_date ) ) {
+
+            #If the last accessed date is prior to the cut_date, push it onto the result tables.
+            my $info = "$accessed\t$stg\n";
+            push ( @$result,                     $info );
+            push ( @{ $views_per_user{$owner} }, $info );                       # save the list of views per owner
         } else {
+
+            # Snapshot views that have lost their .access_info can not tell when they where used last so $accessed will be empty
             $log->warning("Warning, consider manual removal of the view at $stg, we have no accessed date\n");
         }
     }
@@ -1156,5 +1176,108 @@ sub prepare_stg_directory () {
     $log->assertion_failed("No views are hosted on this machine [$ENV{'COMPUTERNAME'}]\n.") unless keys(%stg_directory);
     return 1;
 }
+
+sub do_mail {
+    return unless $sw_sendmail;
+    no strict;
+
+    my %envelope = (
+        -f      => $_fromadress,         # FROM:
+        -server => $_smtpserver,         # specify the SMTP server to use
+        -q      => " ",                  # silent operation
+        -debug  => " ",                  # run Blat with debuging output
+        -log    => "\"$0.blat.log\"",    # dump screen output to a file instead.
+    );
+
+    my @noaddres;                        # Collect login's without email adress
+    my @warnlist;                        # list of processed views
+
+    # send warning mails to users
+    my $key;
+    foreach $key ( sort keys %views_per_user ) {
+
+        # add to list for admin's summary mail.
+        push @warnlist, "\n$key\n";
+        foreach ( sort @{ $views_per_user{$key} } ) { push @warnlist, "\t$_"; }
+
+        unless ( defined($sw_autoquarantine) || defined($sw_autopurge) ) {
+
+            # We are in warning mode, inform each user
+            # Build per-user mail
+            my $usermailbody = $_warnofquarantine;
+
+            # Set recipient mail adress
+            if ($_maildomain ne "") { # $_maildomain has a value, email adress is login ($key) plus this value
+	            $envelope{'-to'} = $key . $_maildomain;
+				$log->information("Using default domain, recipient was set to $envelope{'-to'}.\n");
+            }else{
+	            # get email of login ID, by asking the active directory, so we... kind of depend on that :-(
+	            $envelope{'-to'} = qx(dsquery user forestroot -name $key  2>&1 | dsget user -email 2>&1 | findstr @ 2>&1 );
+				$log->information("Using dsquery domain, recipient was set to $envelope{'-to'}.\n");
+            }
+            # debug
+            if ( $ENV{COMPUTERNAME} eq "CCCQ7" ) {
+	            #	print STDERR "Hey - remove line " . ( __LINE__ + 1 ) . "\n";
+	            $envelope{'-to'} = 'jbr@praqma.net';
+            }
+            ( push @noaddres, "$key\n" and next ) if ($envelope{'-to'} !~ m/\@/);    # can't find email of login, try the next
+
+            $envelope{'-subject'} = "\"$_warnsubject\"";                 # SUBJECT:
+            # some substitutions in the text read from the template file $mailfilename
+            $usermailbody =~ s/===USER===/$key/g;
+            $usermailbody =~ s/===CUTDATE===/$sw_nasince/g;
+            $usermailbody =~ s/===VIEWLIST===/\n@{ $views_per_user{$key} }/g;
+
+            sendthemail( $usermailbody, %envelope );
+        }
+    }    # end foreach my $key
+    # Summary mail
+    my ( $adminmailbody, $adminsubject );
+    $envelope{'-to'} = $_fromadress;    # TO:
+    # debug
+    if ( $ENV{COMPUTERNAME} eq "CCCQ7" ) {
+        #	print STDERR "Hey - remove line " . ( __LINE__ + 1 ) . "\n";
+        $envelope{'-to'} = 'jbr@praqma.net';
+    }
+
+    # select subject and mail body
+    if ( defined($sw_autoquarantine) || defined($sw_autopurge) ) {
+        $envelope{'-subject'} = "\"$_adminsubj\"";    # SUBJECT:
+
+        $adminmailbody = $_actionsummary;
+        my $action = defined($sw_autoquarantine) ? "quarantined" : "removed";
+        $adminmailbody =~ s/===ACTION===/$action/g;
+
+    } else {
+        $envelope{'-subject'} = "\"$_adminwarnsubj\"";    # SUBJECT
+        $adminmailbody = $_warnsummary;
+        $adminmailbody =~ s/===CUTDATE===/$sw_nasince/g;    # set since date
+        my $nomail = "";
+        if ( scalar(@noaddres) ) {
+            $nomail = join ( '\n\t', @noaddres );
+            $nomail = "We couldn't retrieve the email adresse for the login(s):\n$nomail";
+        }
+        $adminmailbody =~ s/===NOEMAIL===/$nomail/g;
+
+    }
+
+    $adminmailbody =~ s/===WARNVIEWS===/@warnlist/g;
+    sendthemail( $adminmailbody, %envelope );
+
+}
+
+sub sendthemail {
+
+    my $blatcmd = BLATEXE;    # the Blat binary
+
+    -e BLATEXE || die $!;
+    my $body = shift @_;      # get the msg body
+    $blatcmd .= " - @_";      # add all the parms
+
+    open( MAIL, "| $blatcmd" ) ||  $log->error("$!\nFailed opening blat.exe to send this mail\n$body\n");    # start Blat with all it's parms
+    print MAIL $body;                        # now put in the msg body (bigger this way than CL)
+    close(MAIL);
+}
+
 
 __END__
