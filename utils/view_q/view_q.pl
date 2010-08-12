@@ -1085,7 +1085,7 @@ sub vwsstgs_nasince ($$$) {
         } else {
 
             # Snapshot views that have lost their .access_info can not tell when they where used last so $accessed will be empty
-            $log->warning("Warning, consider manual removal of the view at $stg, we have no accessed date\n");
+            $log->warning("Warning, consider manual removal of the view at $stg - we have no accessed date\n");
         }
     }
     return 1;
