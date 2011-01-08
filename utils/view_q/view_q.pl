@@ -401,7 +401,7 @@ sub isolatepath ($) {
         $lsview_reply =~ /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
         $sw_debug && $log->information(" \tlsview reply [$lsview_reply], path isolatede to [$2] \n ");
         return $2 if ( -e $2 );
-    } elsif ( $lsview_reply =~ /\\\\$ENV{'COMPUTERNAME'}\\/i ) {    # Base CC format
+    } elsif ( $lsview_reply =~ /\\\\$ENV{'COMPUTERNAME'}.*/i ) {    # Base CC format
 
         $lsview_reply =~ /^[\s\*]*(\S*)\s*(\S*)$/;
         $sw_debug && $log->information(" \tlsview reply [$lsview_reply], path isolatede to [$2] \n ");
