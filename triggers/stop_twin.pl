@@ -10,16 +10,18 @@ BEGIN {
     }
 }
 
-our( $Scriptdir, $Scriptfile );
+#Getting the script dir
+our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
-    $Scriptdir  = ".\\";
-    $Scriptfile = $0;      # Assume the script is called from 'current directory' (no leading path - $0 is the file)
-    $Scriptfile =~ /(.*\\)(.*)$/
-      && do {
-        $Scriptdir  = $1;
-        $Scriptfile = $2;
-      }                    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+    if ( __FILE__ =~ /(.*[\/\\])(.*)$/ ) {
+        $scriptdir  = $1;
+        $scriptfile = $2;
+    }
+    else {
+        $scriptdir  = "";
+        $scriptfile = __FILE__;
+    }
 }
 
 use File::Basename;
@@ -27,6 +29,10 @@ use lib $Scriptdir. "..";
 
 use praqma::scriptlog;
 use praqma::trigger_helper;
+
+# Allow external config to override defaults
+my $config = dirname($0) . "/config." . basename($0);
+-e ($config) && do $config;
 
 #Required if you call trigger_helper->enable_install
 our $TRIGGER_NAME = "ACC_STOP_TWIN";
@@ -39,10 +45,10 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "31";
+our $REVISION = "32";
 
-my $verbose_mode = 0;                               # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
-my $debug_on     =
+my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
+my $debug_on =
   defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} )
   ? $ENV{'CLEARCASE_TRIGGER_DEBUG'}
   : undef;
@@ -89,6 +95,8 @@ DATE        EDITOR         NOTE
 2010-08-06  Jens Brejner   Fixed bug - could not handle path that
                            contained "\c\", as it was considered a control char.
                            now using File::Basename instead of split_dir_file. (v1.0.31)
+2011-04-06  Jens Brejner   Add external config file dependency (v1.0.32)
+                         
 -------------------------  ----------------------------------------------
 
 ENDREVISION
@@ -100,21 +108,25 @@ $thelp->require_trigger_context;
 
 # Look for semaphore, respecting a local semaphore path via env. var.
 our $semaphore_status = $thelp->enable_semaphore_backdoor( $ENV{'CLEARCASE_USE_LOCAL_SEMAPHORE'} );
+my %twincfg;
+$thelp->get_config( \%twincfg );
 
 #Enable the features in scriptlog
 our $log = scriptlog->new;
-$log->conditional_enable();                    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
-$log->set_verbose;                             #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
+$log->conditional_enable();    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->set_verbose;             #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
 our $logfile = $log->get_logfile;
-($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
+($logfile)
+  && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 ($logfile) && $log->information($semaphore_status);
-($logfile) && $log->dump_ccvars;                              # Run this statement to have the trigger dump the CLEARCASE variables
+($logfile)
+  && $log->dump_ccvars;                              # Run this statement to have the trigger dump the CLEARCASE variables
 
-if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if operation type is what we are intended for..
+if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) { # continue only if operation type is what we are intended for..
 
     # Here starts the actual trigger code.
-    my $case_sensitive = 1;                                   # 0 means Case IN-Sensitive name matching
 
+    my $case_sensitive = $twincfg{CaseSensitive};
     my ( $possible_dupe, $dupver );
     my $viewkind = $ENV{'CLEARCASE_VIEW_KIND'};
     my $pathname = $ENV{'CLEARCASE_XPN'};
@@ -136,7 +148,8 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
         && $ENV{'CLEARCASE_VIEW_KIND'} ne 'dynamic' )
     {
         $snapview = 1;
-    } else {
+    }
+    else {
 
         # The 2nd test is a special case for the vob root.
         $snapview = !-e "$parent$sfx/main" && !-e "$parent/$sfx/main";
@@ -147,14 +160,16 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
 
     if ($case_sensitive) {
         $pattern = "$element";
-    } else {
+    }
+    else {
         $pattern = "(?i)$element";
     }
 
     # Need to escape square brackets, as this string will be used as a regexp.
     $pattern =~ s/\[|\]/\\$&/g;
 
-    $debug_on && $log->information("The Search pattern looks like:\'$pattern\'\n");
+    $debug_on
+      && $log->information("The Search pattern looks like:\'$pattern\'\n");
 
     # get lines from lshist that begins with either added or uncat and ends with digit
     my $cmd     = 'cleartool lshist -nop -min -nco -dir -fmt %Nc%Vn\n "' . $parent_dna . '" 2>&1';
@@ -230,7 +245,7 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
     $cmd = "cleartool desc -fmt \%u vob:$ENV{'CLEARCASE_VOB_PN'}";
     my $vob_owner = `$cmd`;
 
-    if ($?) {    
+    if ($?) {
         $log->enable(1);
         $log->error("The command: '$cmd' failed\n, command output was $vob_owner\n");
         exit 1;
@@ -247,7 +262,8 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
         # From a mkelem command
         $info = "$info The name: [$element]\n";
 
-    } else {
+    }
+    else {
 
         # From a "ln", "ln -s" or "mv" command
         if (   !$pop_kind
@@ -278,38 +294,94 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) {          # continue only if
     $info = "$info e-mail the VOB_OWNER ($vob_owner).\n\n";
 
     # Write logfile
-    foreach ( split ( /\n/, $warning ) ) {
+    foreach ( split( /\n/, $warning ) ) {
         $log->warning("$_\n");
     }
     $log->information("###########################\n");
-    foreach ( split ( /\n/, $info ) ) {
+    foreach ( split( /\n/, $info ) ) {
         $log->information("$_\n");
     }
     $log->information("###########################\n");
-    my ( $fixcmd, $tmpfilename, $foundpath );
+
+    # Prepare commands to fix the situation
+
+    my ( $fixcmd, $tmpfilename, $foundpath, @head, @mkmerge, @mkci, @exit );
 
     $tmpfilename = time();
     $foundpath   = $parent_dna . $added{$element};
-    $fixcmd      = "\n The proper way to correct the situation, is to re-introduce the name $element in the directory\n";
-    $fixcmd      = "$fixcmd by executing the following commands in order:\n\n";
-    $fixcmd      = "$fixcmd You can copy the following lines to a batch file and execute it\n";
-    $fixcmd      = "$fixcmd \nREM BATCH START\n";
-    $fixcmd      = "$fixcmd pushd \"$parent\" \n";                                                                          # Goto dir
-    $fixcmd      = "$fixcmd rename \"$element\" $tmpfilename\n";                                                            # safe copy file
-    $fixcmd      = "$fixcmd cleartool co -nc .  \n";                                                                        # checkout dir
-    $fixcmd      = "$fixcmd cleartool merge -g -qal -c \"Re-introducing the name $element\" -to . \"$foundpath\" \n";       # initiate grapical merge, query all changes
-    $fixcmd      = "$fixcmd cleartool co -nc \"$element\" \n";                                                              # Checkout "old" element
-    $fixcmd      = "$fixcmd copy /y  $tmpfilename  \"$element\" \n";                                                        # copy file back
-    $fixcmd      = "$fixcmd cleartool ci -nc \"$element\" \n";                                                              # Check element in...
-    $fixcmd      = "$fixcmd cleartool ci -nc . \n";                                                                         # Check folder in ...
-    $fixcmd      = "$fixcmd popd \n";                                                                                       # Get back to origin
-    $fixcmd      = "$fixcmd \nREM BATCH END\n";
 
-    $log->information("$fixcmd");
+    @head = ( <<"END_OF_HEAD" =~ m/^\s*(.+)/gm );
+The proper way to correct the situation, is to re-introduce the name
+$element in the directory by executing the following commands in order:
 
-    # prevent the operation
+END_OF_HEAD
+
+    @mkmerge = ( <<"END_OF_MKMERGE" =~ m/^\s*(.+)/gm );
+REM BATCH START
+pushd \"$parent\"
+rename \"$element\" $tmpfilename
+cleartool co -nc . 
+cleartool merge -graphical -qall -c \"Re-introducing the name $element\" -to . \"$foundpath\"
+cleartool co -nc \"$element\"
+copy /y  $tmpfilename  \"$element\"
+
+END_OF_MKMERGE
+
+    @mkci = ( <<"END_OF_MKCI" =~ m/^\s*(.+)/gm );
+cleartool ci -nc \"$element\"
+cleartool ci -nc . 
+popd
+REM BATCH END
+
+END_OF_MKCI
+
+    # Done our best, inform and get out
+
+    $log->information( join '\n', ( @head, @mkmerge, @mkci ) );
+
+    if ( $twincfg{AutoMerge} == 0 ) {
+
+        # Inform only, and stop the operation
+        exit 1;
+
+    }
+
+    if ( $twincfg{AutoMerge} == 1 ) {
+
+        # Do the required merge, but leave checked out
+        foreach (@mkmerge) {
+            my $retval = qx($_);
+            if ($?) {
+                $log->error("The command [$_] didn't exit properly: $retval");
+                die "ERROR. Read the logfile\n";
+            }
+            
+        }
+        $log->warning("Evil twin detected. We have tried to get around it, but haven't checked in the changes. Please verify, and check in if you are satisfied.");
+        exit 1;    
+
+    }
+
+    if ( $twincfg{AutoMerge} == 2 ) {
+
+        # Do the required merge and check in
+        foreach ((@mkmerge, @mkci )) {
+            my $retval = qx($_);
+            if ($?) {
+                $log->error("The command [$_] didn't exit properly: $retval");
+                die "ERROR. Read the logfile\n";
+            }
+            
+        }
+        $log->information("Evil twin detected. We have tried to get around it, we hope you are happy with it.");
+        exit 0;    
+
+    }
+
+
+    # Prevent the OP anyway - should we ever end here 
     exit 1;
 
-}    #
+}
 
 __END__
