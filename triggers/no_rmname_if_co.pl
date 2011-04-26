@@ -107,6 +107,7 @@ sub check_co {
     if ( scalar(@co_info) ) {
         foreach (@co_info) {
             my ( $view, $user ) = split( /,/, $_ );
+
             # Our own view is OK.
             next if ( $view eq $ENV{CLEARCASE_VIEW_TAG} );
 
@@ -115,7 +116,7 @@ sub check_co {
             exit 1;
         }
     }
-}
+
 }
 
 __END__
