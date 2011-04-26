@@ -14,6 +14,7 @@ use lib "$scriptdir..";
 
 use praqma::acc;
 use Getopt::Long;
+use File::Basename;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK $BUILD);
 
@@ -23,10 +24,11 @@ require Exporter;
 
 use constant MAX_SEMAPHORE_FILE_AGE_DAYS => 0.168;             # real (1 hr ~ 0.042 --> 4 hrs ~ 0.168)
 use constant SEMAPHORE_DIR               => '\\semaphores';    # Relative to the script location dir
+use constant CONFIGFILES                 => '/trcfg/';         # Custom configuration files here
 
 # File version
 $VERSION = "1.1";
-$BUILD   = "7";
+$BUILD   = "8";
 
 our $header = <<ENDHEADER;
 #########################################################################
@@ -88,7 +90,8 @@ sub enable_semaphore_backdoor($) {
         $msg = "Script '$mainscript' found semaphore file at '$semaphore_file'\n";
         if ( ( -M $semaphore_file ) > MAX_SEMAPHORE_FILE_AGE_DAYS ) {
             $msg = $msg . "...but it's too old to stop us!";
-        } else {
+        }
+        else {
             open( SEMAPHORE, $semaphore_file ) || print $msg = $msg . "...Failed to open the semaphore file for read\n" && return;
             my @sempahore = grep( /^\s*$mainscript\s*$/i, <SEMAPHORE> );
             close(SEMAPHORE);
@@ -100,7 +103,8 @@ sub enable_semaphore_backdoor($) {
             }
             $msg = $msg . "...but it doesn't mention '$mainscript' so the trigger is allowed to continue\n";
         }
-    } else {
+    }
+    else {
         $msg = "Script '$mainscript' looked for semaphore file at '$semaphore_file'\n...but there wasn't any\n";
     }
     return $msg;
@@ -277,7 +281,8 @@ sub uninstall_trtype($$) {
         my $replicationstatus = qx($cmd);
         if ( $replicationstatus =~ m/^replicated/i ) {
             $replicationstatus = " -rmall";
-        } else {
+        }
+        else {
             $replicationstatus = "";
         }
 
@@ -315,6 +320,42 @@ sub mtype2cctype($$) {
     return 0 unless defined( $types{$$mtyperef} );    # Return as FALSE if the match was unsuccesful
     $$ccvarref = $types{$$mtyperef};
     return 1;
+}
+
+sub get_config {
+
+    my ( $self, $parms ) = @_;
+
+    # Get the pathnames
+    my $cfgname    = "$::Scriptfile.conf";
+    my $defaultcfg = "$::Scriptdir/$cfgname";
+    my $customcfg  = $::Scriptdir . CONFIGFILES . $cfgname;
+
+    # my $configfile = -e $customcfg ? $customcfg : $defaultcfg ;
+    if ( -e $defaultcfg ) {
+
+        # read defaults, all option defaults
+        do $defaultcfg;
+        no strict 'vars';
+        while ( ( my $k, $v ) = each(%trigger_parms) ) {
+            $$parms{$k} = $v;
+        }
+
+        #         my %def = %trigger_parms;
+        if ( -e $customcfg ) {
+
+            # if custom options, update those that are different
+
+            do $customcfg;
+            while ( ( my $k, $v ) = each(%trigger_parms) ) {
+                $$parms{$k} = $v;
+            }
+
+        }
+    }
+    else {
+        die "Expected to find a config file at $defaultcfg\n ";
+    }
 }
 
 sub DESTROY {
