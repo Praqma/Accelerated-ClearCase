@@ -37,13 +37,13 @@ our $header = <<ENDHEADER;
 #     $Scriptfile  version $VERSION\.$REVISION
 #     This script is intended as trigger script for the
 #     $TRIGGER_NAME trigger.
-#     The trigger runs before rmname on an element 
+#     The trigger runs before rmname on an element
 #     The user cannot rmname if the file is checked out.
 #     This script supports self-install (execute with the -install
 #     switch to learn more).
 #     Read the POD documentation for more details
 #     Date:       2011-04-05
-#     Author:     
+#     Author:
 #     Copyright:  Praqma A/S
 #     License:    GNU General Pulic License v3.0
 #     Support:    http://launchpad.net/acc
@@ -73,7 +73,8 @@ $thelp->get_config( \%twincfg );
 #Enable the features in scriptlog
 our $log = scriptlog->new;
 $log->conditional_enable();    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
-$log->set_verbose;             #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
+$log->enable(1);
+$log->set_verbose(1);          #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
 our $logfile = $log->get_logfile;
 ($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 $log->information($semaphore_status);
@@ -82,30 +83,39 @@ $log->dump_ccvars;                                            # Run this stateme
 # Vob symbolic links can not be renamed.
 exit 0 if -l $ENV{CLEARCASE_PN};
 
-my ( $msg, $co_user, $element );
+my ( $msg, $element );
 
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "rmname" ) {
 
     if ( $twincfg{AlsoParent} ) {
         $element = dirname( $ENV{CLEARCASE_PN} );
-        $msg     = "You cannot rename the element " . basename( $ENV{CLEARCASE_PN} ) . " because it's parent folder is checked out by $co_user";
+        $msg     = "You cannot rename the element [" . basename( $ENV{CLEARCASE_PN} ) . "] because it's parent folder is checked out by ";
+        $log->information("Calling from Alsoparent, Element is [$element]");
         check_co();
     }
 
     $element = $ENV{CLEARCASE_PN};
-    $msg     = "You cannot rename the element " . basename( $ENV{CLEARCASE_PN} ) . " because it is checked out by $co_user";
+    $msg     = "You cannot rename the element [" . basename( $ENV{CLEARCASE_PN} ) . "] because it is checked out by ";
+    $log->information("Calling after Alsoparent, Element is [$element]");
     check_co();
+    exit 0;
 }
 
 sub check_co {
-    $co_user = `cleartool lscheckout -d -fmt %u "$element"`;
+    my @co_info = qx(cleartool lscheckout -directory -fmt "%Tf,%u\n" "$element");
+    if ( scalar(@co_info) ) {
+        foreach (@co_info) {
+            my ( $view, $user ) = split( /,/, $_ );
+            # Our own view is OK.
+            next if ( $view eq $ENV{CLEARCASE_VIEW_TAG} );
 
-    if ( $co_user ne "" ) {
-
-        $log->error($msg);
-        exit 1;
+            $log->enable(1);
+            $log->error("$msg $user in view $view");
+            exit 1;
+        }
     }
+}
 }
 
 __END__

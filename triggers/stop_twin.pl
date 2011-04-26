@@ -326,7 +326,7 @@ cleartool merge -graphical -qall -c \"Re-introducing the name $element\" -to . \
 cleartool co -nc \"$win32element\"
 copy /y  $tmpfilename  \"$win32element\"
 
-END_OF_MKMERGE
+END_OF_MKMERGEcd 
 
     @mkci = ( <<"END_OF_MKCI" =~ m/^\s*(.+)/gm );
 cleartool ci -nc \"$win32element\"
