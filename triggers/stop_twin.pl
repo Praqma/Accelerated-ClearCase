@@ -30,10 +30,6 @@ use lib $Scriptdir. "..";
 use praqma::scriptlog;
 use praqma::trigger_helper;
 
-# Allow external config to override defaults
-my $config = dirname($0) . "/config." . basename($0);
--e ($config) && do $config;
-
 #Required if you call trigger_helper->enable_install
 our $TRIGGER_NAME = "ACC_STOP_TWIN";
 
@@ -310,11 +306,10 @@ if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" ) { # continue only if operatio
     $tmpfilename = time();
     $foundpath   = $parent_dna . $added{$element};
 
-    (my $win32parent = $parent) =~ tr#/#\\#;
-    (my $win32foundpath= $foundpath) =~ tr#/#\\#;
-(my    $win32element = $element) =~ tr#/#\\#;
- 	my $cwd = `cd`;
-
+    ( my $win32parent    = $parent )    =~ tr#/#\\#;
+    ( my $win32foundpath = $foundpath ) =~ tr#/#\\#;
+    ( my $win32element   = $element )   =~ tr#/#\\#;
+    my $cwd = `cd`;
 
     @head = ( <<"END_OF_HEAD" =~ m/^\s*(.+)/gm );
 The proper way to correct the situation, is to re-introduce the name
@@ -354,18 +349,21 @@ END_OF_MKCI
 
         # Do the required merge, but leave checked out
         foreach (@mkmerge) {
-        	print "$_\n";
-        	my $retval;
-#            my $retval = qx($_);
-#            print     "$retval\n";
-			system("$_");
+            print "$_\n";
+            my $retval;
+
+            #            my $retval = qx($_);
+            #            print     "$retval\n";
+            system("$_");
             if ($?) {
                 $log->error("The command [$_] didn't exit properly: $retval");
                 die "ERROR. Read the logfile\n";
             }
 
         }
-        $log->warning("Evil twin detected. We have tried to get around it, but haven't checked in the changes. Please verify, and check in if you are satisfied.");
+        $log->warning(
+"Evil twin detected. We have tried to get around it, but haven't checked in the changes. Please verify, and check in if you are satisfied."
+        );
         exit 1;
 
     }
@@ -373,7 +371,7 @@ END_OF_MKCI
     if ( $twincfg{AutoMerge} == 2 ) {
 
         # Do the required merge and check in
-        foreach ((@mkmerge, @mkci )) {
+        foreach ( ( @mkmerge, @mkci ) ) {
             my $retval = qx($_);
             if ($?) {
                 $log->error("The command [$_] didn't exit properly: $retval");
@@ -385,7 +383,6 @@ END_OF_MKCI
         exit 0;
 
     }
-
 
     # Prevent the OP anyway - should we ever end here
     exit 1;
