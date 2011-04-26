@@ -83,12 +83,13 @@ $log->dump_ccvars;                                            # Run this stateme
 # Vob symbolic links can not be renamed.
 exit 0 if -l $ENV{CLEARCASE_PN};
 
-my ( $msg, $element );
+my ( $msg, $element, $dirmode);
 
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "rmname" ) {
 
     if ( $twincfg{AlsoParent} ) {
+        $dirmode =  " -directory ";
         $element = dirname( $ENV{CLEARCASE_PN} );
         $msg     = "You cannot rename the element [" . basename( $ENV{CLEARCASE_PN} ) . "] because it's parent folder is checked out by ";
         $log->information("Calling from Alsoparent, Element is [$element]");
@@ -96,6 +97,7 @@ if ( $ENV{CLEARCASE_OP_KIND} eq "rmname" ) {
     }
 
     $element = $ENV{CLEARCASE_PN};
+    $dirmode =  "";
     $msg     = "You cannot rename the element [" . basename( $ENV{CLEARCASE_PN} ) . "] because it is checked out by ";
     $log->information("Calling after Alsoparent, Element is [$element]");
     check_co();
@@ -103,7 +105,7 @@ if ( $ENV{CLEARCASE_OP_KIND} eq "rmname" ) {
 }
 
 sub check_co {
-    my @co_info = qx(cleartool lscheckout -directory -fmt "%Tf,%u\n" "$element");
+    my @co_info = qx(cleartool lscheckout -$dirmode -fmt "%Tf,%u\n" "$element");
     if ( scalar(@co_info) ) {
         foreach (@co_info) {
             my ( $view, $user ) = split( /,/, $_ );
