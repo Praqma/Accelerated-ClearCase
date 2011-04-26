@@ -3,13 +3,13 @@ use strict;
 our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
- $Scriptdir  = ".\\";
- $Scriptfile = $0;      # Assume the script is called from 'current directory' (no leading path - $0 is the file)
- $Scriptfile =~ /(.*\\)(.*)$/
-   && do {
-  $Scriptdir  = $1;
-  $Scriptfile = $2;
-   }                    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+    $Scriptdir  = ".\\";
+    $Scriptfile = $0;      # Assume the script is called from 'current directory' (no leading path - $0 is the file)
+    $Scriptfile =~ /(.*\\)(.*)$/
+      && do {
+        $Scriptdir  = $1;
+        $Scriptfile = $2;
+      }                    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
 use lib $Scriptdir. "..";
 use praqma::scriptlog;
@@ -20,14 +20,14 @@ use File::Basename;
 our $TRIGGER_NAME = "ACC_BLOCK_RMNAME_IF_CO";
 
 our %install_params = (
- "name"     => $TRIGGER_NAME,                     # The name og the trigger
- "mktrtype" => "-element -all -preop rmname ",    # The stripped-down mktrtype command
- "supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
+    "name"     => $TRIGGER_NAME,                     # The name og the trigger
+    "mktrtype" => "-element -all -preop rmname ",    # The stripped-down mktrtype command
+    "supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
 );
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "1";
+our $REVISION = "2";
 
 my $verbose_mode = 1;
 
@@ -55,6 +55,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR             NOTE
 ----------  -----------------  ---------------------------------------------------
+2011-04-26  Jens Brejner       Add external config so parent folder can be considered.
 2011-04-05  Margit Bennetzen   Script added to acc (v0.1)
 ------------------------------------------------------------------------------
 ENDREVISION
@@ -78,28 +79,33 @@ our $logfile = $log->get_logfile;
 $log->information($semaphore_status);
 $log->dump_ccvars;                                            # Run this statement to have the trigger dump the CLEARCASE variables
 
-
 # Vob symbolic links can not be renamed.
 exit 0 if -l $ENV{CLEARCASE_PN};
+
+my ( $msg, $co_user, $element );
 
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "rmname" ) {
 
-if ($twincfg{AlsoParent}) 
+    if ( $twincfg{AlsoParent} ) {
+        $element = dirname( $ENV{CLEARCASE_PN} );
+        $msg     = "You cannot rename the element " . basename( $ENV{CLEARCASE_PN} ) . " because it's parent folder is checked out by $co_user";
+        check_co();
+    }
 
- my $co_user = `cleartool lscheckout -d -fmt %u "$ENV{CLEARCASE_PN}`;
- if ( "$co_user" eq "" ) {
+    $element = $ENV{CLEARCASE_PN};
+    $msg     = "You cannot rename the element " . basename( $ENV{CLEARCASE_PN} ) . " because it is checked out by $co_user";
+    check_co();
+}
 
-  #  No checkouts of element, quit
-  exit 0;
- }
- else {
+sub check_co {
+    $co_user = `cleartool lscheckout -d -fmt %u "$element"`;
 
-  my $msg = "You cannot rename the element " . basename( $ENV{CLEARCASE_PN} ) . " because it is checked out by $co_user";
-  $log->error($msg);
-  exit 1;
- }
+    if ( $co_user ne "" ) {
 
+        $log->error($msg);
+        exit 1;
+    }
 }
 
 __END__

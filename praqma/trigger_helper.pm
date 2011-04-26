@@ -327,7 +327,7 @@ sub get_config {
     my ( $self, $parms ) = @_;
 
     # Get the pathnames
-    my $cfgname    = "$::Scriptfile.conf";
+    my $cfgname    = "config.$::Scriptfile";
     my $defaultcfg = "$::Scriptdir/$cfgname";
     my $customcfg  = $::Scriptdir . CONFIGFILES . $cfgname;
 
