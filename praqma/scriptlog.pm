@@ -4,7 +4,7 @@ require 5.001;
 require Exporter;
 use strict;
 
-our( $scriptdir, $scriptfile );
+our ( $scriptdir, $scriptfile );
 
 BEGIN {
     $scriptdir  = ".\\";
@@ -111,7 +111,7 @@ sub information() {
         my $msg    = shift;
         my $prefix = $self->timestamp . " [I]:\t";
         $Enabled && print LOGFILE $prefix . indent_msg($msg);
-        $Verbose && print STDOUT $msg;
+        $Verbose && print STDOUT "$msg\n";
         $Info_count++;
         return $Verbose;
       }
@@ -144,7 +144,7 @@ sub error($) {
     my $msg    = shift;
     my $prefix = $self->timestamp . " [E]:\t";
     $Enabled && print LOGFILE $prefix . indent_msg($msg);
-    print STDERR $msg;
+    print STDERR "$msg\n";
     $Err_count++;
     return $Verbose;
 

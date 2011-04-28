@@ -27,7 +27,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "2";
+our $REVISION = "3";
 
 my $verbose_mode = 1;
 
@@ -73,43 +73,48 @@ $thelp->get_config( \%twincfg );
 #Enable the features in scriptlog
 our $log = scriptlog->new;
 $log->conditional_enable();    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
-$log->enable(1);
-$log->set_verbose(1);          #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
+$log->set_verbose();           #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
 our $logfile = $log->get_logfile;
 ($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
-$log->information($semaphore_status);
-$log->dump_ccvars;                                            # Run this statement to have the trigger dump the CLEARCASE variables
+($logfile) && $log->information($semaphore_status);
+($logfile) && $log->dump_ccvars;                              # Run this statement to have the trigger dump the CLEARCASE variables
 
 # Vob symbolic links can not be renamed.
 exit 0 if -l $ENV{CLEARCASE_PN};
 
-my ( $msg, $element, $dirmode );
+my ( $msg, $msgvar, $element, $dirmode );
 
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "rmname" ) {
 
     if ( $twincfg{AlsoParent} ) {
-        $dirmode = " -directory ";
         $element = dirname( $ENV{CLEARCASE_PN} );
-        $msg     = "You cannot rename the element [" . basename( $ENV{CLEARCASE_PN} ) . "] because it's parent folder is checked out by ";
-        $log->information("Calling from Alsoparent, Element is [$element]");
+        $dirmode = " -directory";
+        $msgvar  = "'s parent folder";
+        ($logfile) && $log->information("Calling from Alsoparent, Element is [$element]");
         check_co();
     }
 
     $element = $ENV{CLEARCASE_PN};
     $dirmode = "";
-    $msg     = "You cannot rename the element [" . basename( $ENV{CLEARCASE_PN} ) . "] because it is checked out by ";
-    $log->information("Calling after Alsoparent, Element is [$element]");
+    $msgvar  = " is";
+    ($logfile) && $log->information("Calling after Alsoparent, Element is [$element]");
     check_co();
     exit 0;
 }
 
 sub check_co {
-    my @co_info = qx(cleartool lscheckout -$dirmode -fmt "%Tf,%u\n" "$element");
+    my $cmd = "cleartool lscheckout $dirmode -fmt \"\%Tf,\%u\\n\" \"$element\"";
+    $msg = "You cannot rename the element [$element] because it$msgvar is checked out by ";
+    ($logfile) && $log->information("Command looking for checkouts : [$cmd]");
+    my @co_info = qx($cmd);
+    ($?) && die "Command [$cmd] failed";
+    ($logfile) && $log->information( "Clearcase replies: \n\t" . join( '\t', @co_info ) );
     if ( scalar(@co_info) ) {
         foreach (@co_info) {
+            chomp;
             my ( $view, $user ) = split( /,/, $_ );
-
+            ($logfile) && $log->information("Found view $view and user $user ");
             if ( $twincfg{AlsoParent} ) {
 
                 # Our own view is OK.
@@ -120,6 +125,9 @@ sub check_co {
             $log->error("$msg $user in view $view");
             exit 1;
         }
+    }
+    else {
+        ($logfile) && $log->information("scalar \@co_info is ... not ? ");
     }
 
 }
