@@ -121,8 +121,11 @@ sub check_co {
 
                 next if ( $view eq $ENV{CLEARCASE_VIEW_TAG} );
             }
+            $msg = "$msg $user in view $view";
             $log->enable(1);
-            $log->error("$msg $user in view $view");
+            $log->set_verbose(1);
+            $log->error("$msg");
+            print STDOUT "$msg\n";
             exit 1;
         }
     }

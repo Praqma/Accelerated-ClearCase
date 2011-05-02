@@ -326,7 +326,7 @@ cleartool merge -graphical -qall -c \"Re-introducing the name $element\" -to . \
 cleartool co -nc \"$win32element\"
 copy /y  $tmpfilename  \"$win32element\"
 
-END_OF_MKMERGEcd 
+END_OF_MKMERGE
 
     @mkci = ( <<"END_OF_MKCI" =~ m/^\s*(.+)/gm );
 cleartool ci -nc \"$win32element\"
@@ -337,7 +337,6 @@ END_OF_MKCI
     # Done our best, inform and get out
 
     $log->information( join '\n', ( @head, @mkmerge, @mkci ) );
-
     if ( $twincfg{AutoMerge} == 0 ) {
 
         # Inform only, and stop the operation
