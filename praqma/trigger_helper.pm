@@ -73,7 +73,7 @@ sub new {
 }
 
 sub require_trigger_context() {
-    defined( $ENV{CLEARCASE_VOB_PN} ) || die $main::header . "File version: $main::VERSION\.$main::BUILD\n" . $main::revision;
+    defined( $ENV{CLEARCASE_VOB_PN} ) || die "$main::header File version: $main::VERSION.$main::BUILD\n" . $main::revision;
 }
 
 sub enable_semaphore_backdoor($) {

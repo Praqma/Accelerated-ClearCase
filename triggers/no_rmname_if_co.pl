@@ -1,5 +1,11 @@
 require 5.000;
 use strict;
+
+print STDERR "Nej Hej Hej";
+exit 1;
+
+
+
 our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
@@ -16,6 +22,11 @@ use praqma::scriptlog;
 use praqma::trigger_helper;
 use File::Basename;
 
+print STDERR "Nej Hej Hej";
+exit 1;
+
+__END__
+
 #Required if you call trigger_helper->enable_install
 our $TRIGGER_NAME = "ACC_BLOCK_RMNAME_IF_CO";
 
@@ -28,8 +39,6 @@ our %install_params = (
 # File version
 our $VERSION  = "0.1";
 our $REVISION = "3";
-
-my $verbose_mode = 1;
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -71,13 +80,22 @@ my %twincfg;
 $thelp->get_config( \%twincfg );
 
 #Enable the features in scriptlog
+
 our $log = scriptlog->new;
+
+# Debugging
+if ( $ENV{COMPUTERNAME} eq "CCCQ7" ) {
+    $ENV{CLEARCASE_TRIGGER_DEBUG}   = 1;
+    $ENV{CLEARCASE_TRIGGER_VERBOSE} = 1;
+    $log->set_logfile('C:\Documents and Settings\student\Local Settings\Temp\no_rmname_if_co.pl.PID2920.log');
+}
+
 $log->conditional_enable();    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
 $log->set_verbose();           #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
-our $logfile = $log->get_logfile;
+my $logfile = $log->get_logfile();
 ($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 ($logfile) && $log->information($semaphore_status);
-($logfile) && $log->dump_ccvars;                              # Run this statement to have the trigger dump the CLEARCASE variables
+($logfile) && $log->dump_ccvars();                            # Run this statement to have the trigger dump the CLEARCASE variables
 
 # Vob symbolic links can not be renamed.
 exit 0 if -l $ENV{CLEARCASE_PN};
@@ -105,27 +123,40 @@ if ( $ENV{CLEARCASE_OP_KIND} eq "rmname" ) {
 
 sub check_co {
     my $cmd = "cleartool lscheckout $dirmode -fmt \"\%Tf,\%u\\n\" \"$element\"";
-    $msg = "You cannot rename the element [$element] because it$msgvar is checked out by ";
     ($logfile) && $log->information("Command looking for checkouts : [$cmd]");
+
+    $msg = "You cannot rename the element [$element] because it$msgvar is checked out by ";
+
     my @co_info = qx($cmd);
-    ($?) && die "Command [$cmd] failed";
+
     ($logfile) && $log->information( "Clearcase replies: \n\t" . join( '\t', @co_info ) );
     if ( scalar(@co_info) ) {
+        ($logfile) && $log->information("There ARE checkouts");
         foreach (@co_info) {
+            ($logfile) && $log->information("There is a checkout for $_");
             chomp;
+
             my ( $view, $user ) = split( /,/, $_ );
             ($logfile) && $log->information("Found view $view and user $user ");
             if ( $twincfg{AlsoParent} ) {
 
-                # Our own view is OK.
+                # In this view parent dir must be checked out for rename to succeed
 
                 next if ( $view eq $ENV{CLEARCASE_VIEW_TAG} );
             }
             $msg = "$msg $user in view $view";
+            print "Normal\n";
+            print STDOUT "OUT\n";
+            print STDERR "ERR\n";
+
             $log->enable(1);
             $log->set_verbose(1);
-            $log->error("$msg");
-            print STDOUT "$msg\n";
+            $log->information("$msg");
+            print "Normal\n";
+            print STDOUT "OUT\n";
+            print STDERR "ERR\n";
+
+            #print STDERR "$msg\n";
             exit 1;
         }
     }
@@ -136,4 +167,5 @@ sub check_co {
 }
 
 __END__
+
 
