@@ -191,23 +191,18 @@ sub dump_ccvars {
 
 sub timestamp {
 
-    return sprintf ("%02d.%02d:%02d", (localtime)[2,1,0]);
+    return sprintf( "%02d.%02d:%02d", (localtime)[ 2, 1, 0 ] );
 }
 
 sub datestamp {
-    my $retval;
-    my ( $sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst ) = localtime;
-    $year = $year + 1900;
-    $mon++;
-    if ( $mon < 10 )  { $mon  = "0" . $mon }
-    if ( $mday < 10 ) { $mday = "0$mday" }
-    return "$year-$mon-$mday";
+    my ( $year, $mon, $mday ) = (localtime)[ 5, 4, 3 ];
+    return sprintf( "%04d-%02d-%02d", $year + 1900, $mon + 1, $mday );
 }
 
 sub openlog() {
     my $self = shift;
     if ( $Logfile eq "" ) {
-        $Logfile = "$ENV{TEMP}\\" . $scriptfile . ".PID$$.log";    # Create a log file
+        $Logfile = "$ENV{TEMP}\\" . $main::Scriptfile . ".PID$$.log";     # Create a log file
     }
 
     open LOGFILE, ">>$Logfile" or assertion_failed("Couldn't open \"$Logfile\"\n");
