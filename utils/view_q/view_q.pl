@@ -169,14 +169,14 @@ Visit http://www.praqma.net to get help.
 our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
- if ( $0 =~ /(.*[\/\\])(.*)$/ ) {
-  $Scriptdir  = $1;
-  $Scriptfile = $2;
- }
- else {
-  $Scriptdir  = "";
-  $Scriptfile = $0;
- }
+	if ( $0 =~ /(.*[\/\\])(.*)$/ ) {
+		$Scriptdir  = $1;
+		$Scriptfile = $2;
+	}
+	else {
+		$Scriptdir  = "";
+		$Scriptfile = $0;
+	}
 }
 
 # Use clauses
@@ -189,8 +189,8 @@ use praqma::acc;
 use constant BLATEXE => "$Scriptdir..\\..\\praqma\\Blat\\Blat.exe";
 
 # File version
-our $VERSION = " 0.7 ";
-our $BUILD   = " 14 ";
+our $VERSION = "0.7";
+our $BUILD   = "15";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;                           # Set 1 for testing purpose
@@ -243,20 +243,22 @@ DATE        EDITOR         NOTE
                            will now be ignored, but a warning will be printed
 2010-07-09  Jens Brejner   Version 0.7.13: Enable mail sending.
 2011-03-27  Jens Brejner   Version 0.7.14: Improved reporting fo views with no last access date
+2011-06-15  Jens Brejner   Version 0.7.15: List ignored views, and optionally report by mail.
  
 -------------------------------------------------------------------------
  
 ENDREVISION
 
 my $usage = <<ENDUSAGE;
-  $Scriptfile -lsquarantine [-days DD] [-autopurge [-sendmail] | -autorecover]
-  $Scriptfile -nasince YYYY-MM-DD | -nasince number [-autoquarantine] [-sendmail]
-  $Scriptfile -quarantine stgloc
-  $Scriptfile -recover stgloc
-  $Scriptfile -purge stgloc
-  $Scriptfile [-region region] -[no]ignore viewtag
-  $Scriptfile -help
-  Auxiliary switches [-[no]debug | -[no]verbose | -[no]logfile [location]
+$Scriptfile -lsquarantine [-days DD] [-autopurge [-sendmail] | -autorecover]
+$Scriptfile -nasince YYYY-MM-DD | -nasince number [-autoquarantine] [-sendmail]
+$Scriptfile -quarantine stgloc
+$Scriptfile -recover stgloc
+$Scriptfile -purge stgloc
+$Scriptfile [-region region] -[no]ignore viewtag
+$Scriptfile -lsignored [-sendmail]
+$Scriptfile -help
+Auxiliary switches [-[no]debug | -[no]verbose | -[no]logfile [location]
  
 ENDUSAGE
 
@@ -311,9 +313,9 @@ my $doc = <<ENDDOC;
                         quarantine until the ignore flag is removed using -noignore.
                         -nasince will still report he correct last accessed date.
                         multible viewtags can be use, by adding more -ignore option
-                        or seperating with ";
-" eg. " ... -ignore tag1;
-tag2 -ignore tag3 "
+                        or seperating with "; " eg. " ... -ignore tag1; tag2 -ignore tag3 "
+                        
+-lsignore               List views in ignore state.                         
  
 -region region          Optional switch only valid together with -[no]ignore.
                         The region switch is used to qualify the viewtag applied with
@@ -345,12 +347,12 @@ ENDDOC
 our %stg_directory;
 our %views_per_user;    # key is view owner, value is array of views owned by user
 our $log                = scriptlog->new;
-our $view_q_file        = " . view_quarantine ";
-our $view_q_ignore_file = " . view_q_ignore ";
+our $view_q_file        = '.view_quarantine';
+our $view_q_ignore_file = '.view_q_ignore';
 our (
- $sw_lsquarantine, $sw_recover, $sw_purge,  $sw_nasince, $sw_quarantine, $sw_autoquarantine,
- $sw_autopurge,    $sw_help,    $sw_region, @sw_ignore,  @sw_noignore,   $sw_autorecover,
- $sw_logfile,      $sw_verbose, $sw_debug,  $sw_days,    %options,       $sw_sendmail
+	$sw_lsignored, $sw_lsquarantine, $sw_recover, $sw_purge,  $sw_nasince,  $sw_quarantine,  $sw_autoquarantine,
+	$sw_autopurge, $sw_help,         $sw_region,  @sw_ignore, @sw_noignore, $sw_autorecover, $sw_logfile,
+	$sw_verbose,   $sw_debug,        $sw_days,    %options,   $sw_sendmail
 );
 
 &validate_options();
@@ -364,8 +366,9 @@ our (
 &nasince_mode();
 &quarantine_mode();
 &ignore_mode();
+&lsignore_mode();
 #### SWITCH ####
-$log->assertion_failed( " Wrong syntax \n " . $usage );
+$log->assertion_failed( "Wrong syntax\n" . $usage );
 ###########################################################################################
 
 =head1 Script Implementation
@@ -391,57 +394,103 @@ Returns:
 
 sub isolatepath ($) {
 
- #Isolate the path part of lsview output
- #input is the output from cleartool lsview, which looks like
- #returns the filesystem path  or
- # 0 for failure
+	#Isolate the path part of lsview output
+	#input is the output from cleartool lsview, which looks like
+	#returns the filesystem path  or
+	# 0 for failure
 
- my $lsview_reply = shift;
+	my $lsview_reply = shift;
 
- if ( $lsview_reply =~ /$ENV{'COMPUTERNAME'}:/i ) {    # CC LT and WebView format
-  $lsview_reply =~ /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
-  $sw_debug && $log->information(" \tlsview reply [$lsview_reply], path isolatede to [$2] \n ");
-  return $2 if ( -e $2 );
- }
- elsif ( $lsview_reply =~ /\\\\$ENV{'COMPUTERNAME'}.*/i ) {    # Base CC format
+	if ( $lsview_reply =~ /$ENV{'COMPUTERNAME'}:/i ) {    # CC LT and WebView format
+		$lsview_reply =~ /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
+		$sw_debug && $log->information("\tlsview reply [$lsview_reply], path isolatede to [$2] \n ");
+		return $2 if ( -e $2 );
+	}
+	elsif ( $lsview_reply =~ /\\\\$ENV{'COMPUTERNAME'}.*/i ) {    # Base CC format
 
-  $lsview_reply =~ /^[\s\*]*(\S*)\s*(\S*)$/;
-  $sw_debug && $log->information(" \tlsview reply [$lsview_reply], path isolatede to [$2] \n ");
-  return $2 if ( -e $2 );
+		$lsview_reply =~ /^[\s\*]*(\S*)\s*(\S*)$/;
+		$sw_debug && $log->information("\tlsview reply [$lsview_reply], path isolatede to [$2] \n ");
+		return $2 if ( -e $2 );
 
- }
- else {
+	}
+	else {
 
-  return 0;
- }
+		return 0;
+	}
+
+}
+
+=head3 lsi ()
+ 
+NOTE: This function will only run on ClearCase registry servers!!!
+ 
+This function lists all the quarantined views.
+ 
+The format of the listing is the local view storage (as reported by lsview -age).
+ 
+A quarantined view is defined as a view that is reported "stranded" by rgy_check and which has
+a .view_quarantine file in the admin directory of the storage.
+ 
+Parameters:
+ 
+  none
+ 
+Returns:
+ 
+  @result    =    The list of quarantined storages.
+ 
+=cut
+
+sub lsignored () {
+	my ( @result, @list );
+	push @result, "Date      \tStorage\n";
+	prepare_stg_directory();
+
+	foreach my $stg ( keys %stg_directory ) {
+		my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
+		if ( -e $ignore_file_loc ) {
+
+			# file age in days
+			my $fileage = -M $ignore_file_loc;
+			my $epochseconds   = time() - int( 24 * 60 * 60 * $fileage );
+			my ( $day, $month, $year ) = ( localtime($epochseconds) )[ 3, 4, 5 ];
+			my $date_ignored = sprintf( "%04d-%02d-%02d", $year + 1900, $month + 1, $day );
+			push @list, "$date_ignored\t$stg\n";
+
+		}
+	}
+
+	push @result, sort @list;
+	return @result;
 
 }
 
 sub validate_options () {
 
- %options = (
-  "autoquarantine" => \$sw_autoquarantine,
-  "lsquarantine"   => \$sw_lsquarantine,
-  "days=i"         => \$sw_days,
-  "nasince=s"      => \$sw_nasince,
-  "help"           => \$sw_help,
-  "quarantine=s"   => \$sw_quarantine,
-  "recover=s"      => \$sw_recover,
-  "purge=s"        => \$sw_purge,
-  "autopurge"      => \$sw_autopurge,
-  "autorecover"    => \$sw_autorecover,
-  "ignore=s"       => \@sw_ignore,
-  "noignore=s"     => \@sw_noignore,
-  "region=s"       => \$sw_region,
-  "logfile!"       => \$sw_logfile,
-  "debug!"         => \$sw_debug,
-  "verbose!"       => \$sw_verbose,
-  "sendmail!"      => \$sw_sendmail
+	%options = (
+		"lsignored!"     => \$sw_lsignored,
+		"autoquarantine" => \$sw_autoquarantine,
+		"lsquarantine"   => \$sw_lsquarantine,
+		"days=i"         => \$sw_days,
+		"nasince=s"      => \$sw_nasince,
+		"help"           => \$sw_help,
+		"quarantine=s"   => \$sw_quarantine,
+		"recover=s"      => \$sw_recover,
+		"purge=s"        => \$sw_purge,
+		"autopurge"      => \$sw_autopurge,
+		"autorecover"    => \$sw_autorecover,
+		"ignore=s"       => \@sw_ignore,
+		"noignore=s"     => \@sw_noignore,
+		"region=s"       => \$sw_region,
+		"logfile!"       => \$sw_logfile,
+		"debug!"         => \$sw_debug,
+		"verbose!"       => \$sw_verbose,
+		"sendmail!"      => \$sw_sendmail
 
- );
+	);
 
- #  die "$usage" unless GetOptions(%options);
- GetOptions(%options);
+	#  die "$usage" unless GetOptions(%options);
+	GetOptions(%options);
 
 }
 
@@ -486,64 +535,64 @@ exit:
 
 sub enable_log () {
 
- # Overwrites the default logging setting, if set manually
- defined($sw_debug) && do { $debug = $sw_debug }
-   && ( $verbose_mode = 1 );
- defined($sw_verbose) && do { $verbose_mode = $sw_verbose };
- defined($sw_logfile) && do { $log_enabled  = $sw_logfile };
+	# Overwrites the default logging setting, if set manually
+	defined($sw_debug) && do { $debug = $sw_debug }
+	  && ( $verbose_mode = 1 );
+	defined($sw_verbose) && do { $verbose_mode = $sw_verbose };
+	defined($sw_logfile) && do { $log_enabled  = $sw_logfile };
 
- my $argv_values;
- foreach (@ARGV) {
-  $argv_values = $argv_values . "\"" . $_ . "\" ";    #rw2 use join
+	my $argv_values = join( ' ', @ARGV );
+	foreach (@ARGV) {
+		$argv_values = $argv_values . "\"" . $_ . "\" ";    #rw2 use join
 
- }
+	}
 
- # Ensure consistent time formatting, see IBM Tech note 1249021
- $ENV{'CCASE_ISO_DATE_FMT'} = "1";
+	# Ensure consistent time formatting, see IBM Tech note 1249021
+	$ENV{'CCASE_ISO_DATE_FMT'} = "1";
 
- # Checks ARGV for consistency and enables the log
- if ($log_enabled) {
-  if ( scalar(@ARGV) gt 1 ) {
-   $log->assertion_failed(
-    "You have more then one value with no defined reference,\nonly valid option is logfile location \nRecorded values are:$argv_values");
-  }
-  $log->set_logfile( $ARGV[0] );
-  $log->enable();
- }
- else {
-  if ( scalar(@ARGV) gt 0 ) {
-   $log->assertion_failed("You have value(s) with no defined reference,\nRecorded values are: $argv_values");
-  }    # end if scalar(argv)
-  $log->conditional_enable();
- }    # end if logfile
+	# Checks ARGV for consistency and enables the log
+	if ($log_enabled) {
+		if ( scalar(@ARGV) gt 1 ) {
+			$log->assertion_failed(
+				"You have more then one value with no defined reference,\nonly valid option is logfile location \nRecorded values are:$argv_values");
+		}
+		$log->set_logfile( $ARGV[0] );
+		$log->enable();
+	}
+	else {
+		if ( scalar(@ARGV) gt 0 ) {
+			$log->assertion_failed("You have value(s) with no defined reference,\nRecorded values are: $argv_values");
+		}    # end if scalar(argv)
+		$log->conditional_enable();
+	}    # end if logfile
 
- # Sets verbose
- $verbose_mode
-   && do {
-  $log->set_verbose(1);
-  $log->information("Verbose is ON\n");
-   };
+	# Sets verbose
+	$verbose_mode
+	  && do {
+		$log->set_verbose(1);
+		$log->information("Verbose is ON\n");
+	  };
 
- # Sets debug
- $debug
-   && do {
-  $log->enable();
-  $log->set_verbose(1);
-  $log->information("DEBUG is ON\n");
-   };
+	# Sets debug
+	$debug
+	  && do {
+		$log->enable();
+		$log->set_verbose(1);
+		$log->information("DEBUG is ON\n");
+	  };
 
- # Region not allowed on ClearCase LT
- if ( (acc::is_cclt) && defined($sw_region) ) {
-  $log->assertion_failed("ClearCase LT detected, -region switch is not allowed\n");
- }
+	# Region not allowed on ClearCase LT
+	if ( (acc::is_cclt) && defined($sw_region) ) {
+		$log->assertion_failed("ClearCase LT detected, -region switch is not allowed\n");
+	}
 
- if ($sw_sendmail) {
+	if ($sw_sendmail) {
 
-  my $msg = "-sendmail can only be used together with -nasince or -lsquarantine\n";
-  $log->assertion_failed($msg) unless ( $sw_lsquarantine || $sw_nasince );
-  $msg = "Can't find required file called \"$mailfilename\"\n\n";
-  do "$mailfilename" || $log->assertion_failed($msg);    # read the template file
- }
+		my $msg = "-sendmail can only be used together with options -nasince, -lsquarantine or -lsignored\n";
+		$log->assertion_failed($msg) unless ( $sw_lsquarantine || $sw_nasince || $sw_lsignored );
+		$msg = "Can't find required file called \"$mailfilename\"\n\n";
+		do "$mailfilename" || $log->assertion_failed($msg);    # read the template file
+	}
 
 }
 
@@ -574,200 +623,260 @@ Will force the entire script to exit with 0 or 1
 =cut
 
 sub help_mode () {
- defined($sw_help) && do { print $header. $revision . $usage . $doc; exit 0; };
+	defined($sw_help) && do {
+		print $header. $revision . $usage . $doc;
+		exit 0;
+	};
+}
+
+sub lsignore_mode () {
+
+	if ( defined($sw_lsignored) ) {
+		$log->information("lsignored\n");
+		if (   defined($sw_purge)
+			|| defined($sw_nasince)
+			|| defined($sw_quarantine)
+			|| defined(@sw_ignore)
+			|| defined($sw_autoquarantine)
+			|| defined($sw_region)
+			|| defined($sw_lsquarantine)
+			|| defined($sw_autorecover)
+			|| defined($sw_autopurge) )
+		{
+			$log->assertion_failed( "Wrong syntax\n" . $usage );
+		}
+		my @ignored = lsignored();
+		if ( scalar(@ignored) eq 1 ) { push @ignored, "No views found in state \"Ignored\"."; }
+
+		$log->information( "Ignored views by date:\n" . join( '', @ignored ) );
+		if ($sw_sendmail) {
+			no strict;
+			my ( %envelope, $adminmailbody, $adminsubject );
+			%envelope = (
+				"-f"      => $_fromadress,                                           # FROM:
+				"-server" => $_smtpserver,                                           # specify the SMTP server to use
+				"-q"      => " ",                                                    # silent operation
+				"-debug"  => " ",                                                    # run Blat with debuging output
+				"-log"    => "\"$0.blat.log\"",                                      # dump screen output to a file instead.
+			);
+
+			$envelope{'-to'}      = $_fromadress;                                    # TO:
+			$envelope{'-subject'} = "\"$_adminsubj\"";                               # SUBJECT:
+			$adminmailbody        = $_adminnotifyignored;
+			$adminmailbody =~ s/===IGNOREDVIEWS===/@ignored/g;
+			sendthemail( $adminmailbody, %envelope );
+		}
+	}
+
+	# Done informing about ignored views
+	exit 0;
 }
 
 sub recover_mode () {
- defined($sw_recover) && do {
-  $log->information("recover\n");
-  if (defined($sw_lsquarantine)
-   || defined($sw_purge)
-   || defined($sw_nasince)
-   || defined($sw_quarantine)
-   || defined(@sw_ignore)
-   || defined($sw_autoquarantine)
-   || defined($sw_autopurge)
-   || defined($sw_region)
-   || defined($sw_autorecover) )
-  {
-   $log->assertion_failed( "Wrong syntax\n" . $usage );
-  }
-  chomp($sw_recover);
-  if ( recover_stg($sw_recover) ) {
-   $log->information("View \"$sw_recover\" was recovered succesfully\n");
-  }
-  else {
-   $log->error("View \"$sw_recover\" was NOT recovered\n");
-  }
-  exit 0;
- };
+	defined($sw_recover) && do {
+		$log->information("recover\n");
+		if (   defined($sw_lsquarantine)
+			|| defined($sw_purge)
+			|| defined($sw_nasince)
+			|| defined($sw_quarantine)
+			|| defined(@sw_ignore)
+			|| defined($sw_autoquarantine)
+			|| defined($sw_autopurge)
+			|| defined($sw_region)
+			|| defined($sw_autorecover)
+			|| defined($sw_lsignored) )
+		{
+			$log->assertion_failed( "Wrong syntax\n" . $usage );
+		}
+		chomp($sw_recover);
+		if ( recover_stg($sw_recover) ) {
+			$log->information("View \"$sw_recover\" was recovered succesfully\n");
+		}
+		else {
+			$log->error("View \"$sw_recover\" was NOT recovered\n");
+		}
+		exit 0;
+	};
 }
 
 sub lsquarantine_mode () {
- defined($sw_lsquarantine) && do {
-  $log->information("lsquarantine\n");
-  (     defined($sw_purge)
-     || defined($sw_nasince)
-     || defined($sw_quarantine)
-     || defined(@sw_ignore)
-     || defined($sw_autoquarantine)
-     || defined($sw_region) )
-    && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
-  ( defined($sw_autorecover) && defined($sw_autopurge) )
-    && do { $log->assertion_failed( "-autopurge and -autorecover can't be used together\n" . $usage ); };
+	defined($sw_lsquarantine) && do {
+		$log->information("lsquarantine\n");
+		(        defined($sw_purge)
+			  || defined($sw_nasince)
+			  || defined($sw_quarantine)
+			  || defined(@sw_ignore)
+			  || defined($sw_autoquarantine)
+			  || defined($sw_region)
+			  || defined($sw_lsignored) )
+		  && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
+		( defined($sw_autorecover) && defined($sw_autopurge) )
+		  && do { $log->assertion_failed( "-autopurge and -autorecover can't be used together\n" . $usage ); };
 
-  ( defined($sw_days) && !( defined($sw_autorecover) || defined($sw_autopurge) ) )
+		( defined($sw_days) && !( defined($sw_autorecover) || defined($sw_autopurge) ) )
 
-    && do { $log->assertion_failed( "Using -days requires either -autopurge or -autorecover\n" . $usage ); };
+		  && do { $log->assertion_failed( "Using -days requires either -autopurge or -autorecover\n" . $usage ); };
 
-  foreach ( lsquarantined() ) {
-   $log->information($_);
-   defined($sw_autopurge) && do {
-    purge_stg($_);
-   };
-   defined($sw_autorecover) && do {
-    if ( recover_stg($_) ) {
-     $log->information("View was recovered succesfully\n");
-    }
-    else {
-     $log->error("View was NOT recovered\n");
-    }
-   };
-  }
-  do_mail();
-  exit 0;
- };
+		foreach ( lsquarantined() ) {
+			$log->information($_);
+			defined($sw_autopurge) && do {
+				purge_stg($_);
+			};
+			defined($sw_autorecover) && do {
+				if ( recover_stg($_) ) {
+					$log->information("View was recovered succesfully\n");
+				}
+				else {
+					$log->error("View was NOT recovered\n");
+				}
+			};
+		}
+		do_mail();
+		exit 0;
+	};
 }
 
 sub purge_mode () {
- defined($sw_purge) && do {
-  $log->information("purge\n");
-  (     defined($sw_nasince)
-     || defined($sw_quarantine)
-     || defined(@sw_ignore)
-     || defined($sw_autoquarantine)
-     || defined($sw_autopurge)
-     || defined($sw_region)
-     || defined($sw_autorecover) )
-    && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
-  purge_stg($sw_purge);
-  exit 0;
- };
+	defined($sw_purge) && do {
+		$log->information("purge\n");
+		(        defined($sw_nasince)
+			  || defined($sw_quarantine)
+			  || defined(@sw_ignore)
+			  || defined($sw_autoquarantine)
+			  || defined($sw_autopurge)
+			  || defined($sw_region)
+			  || defined($sw_autorecover)
+			  || defined($sw_lsignored) )
+		  && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
+		purge_stg($sw_purge);
+		exit 0;
+	};
 }
 
 sub nasince_mode () {
- defined($sw_nasince) && do {
-  $log->information("nasince\n");
-  ( defined($sw_quarantine) || defined(@sw_ignore) || defined($sw_autopurge) || defined($sw_region) || defined($sw_autorecover) )
-    && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
+	defined($sw_nasince) && do {
+		$log->information("nasince\n");
+		(        defined($sw_quarantine)
+			  || defined(@sw_ignore)
+			  || defined($sw_autopurge)
+			  || defined($sw_region)
+			  || defined($sw_autorecover)
+			  || defined($sw_lsignored) )
+		  && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
 
-  if ( $sw_nasince =~ /^\d+$/ ) {
+		if ( $sw_nasince =~ /^\d+$/ ) {
 
-   # change meaning of nasince date
+			# change meaning of nasince date
 
-   my $cutdays = int($sw_nasince);    # only integers accepted
+			my $cutdays = int($sw_nasince);    # only integers accepted
 
-   $log->error("Number of days $cutdays is not valid\n") unless ( $cutdays gt 0 );
-   my $offset    = $cutdays * 60 * 60 * 24;    # Convert to epoch by multiply with seconds per days
-   my $timesince = time() - $offset;
+			$log->error("Number of days $cutdays is not valid\n") unless ( $cutdays gt 0 );
+			my $offset    = $cutdays * 60 * 60 * 24;    # Convert to epoch by multiply with seconds per days
+			my $timesince = time() - $offset;
 
-   # slice date, month, year of time since
-   my ( $day, $month, $year ) = ( localtime($timesince) )[ 3, 4, 5 ];
-   $sw_nasince = sprintf( "%04d-%02d-%02d", $year + 1900, $month + 1, $day );
-   $debug && $log->information("Calculated cutdate is [$sw_nasince]\n");
-  }
-  my @views;
-  $log->assertion_failed("ERROR: Wrong date format (use YYYY-DD-MM)\n")
-    unless vwsstgs_nasince( $sw_nasince, \@views );
-  foreach ( sort @views ) {
-   $log->information($_);
+			# slice date, month, year of time since
+			my ( $day, $month, $year ) = ( localtime($timesince) )[ 3, 4, 5 ];
+			$sw_nasince = sprintf( "%04d-%02d-%02d", $year + 1900, $month + 1, $day );
+			$debug && $log->information("Calculated cutdate is [$sw_nasince]\n");
+		}
+		my @views;
+		$log->assertion_failed("ERROR: Wrong date format (use YYYY-DD-MM)\n")
+		  unless vwsstgs_nasince( $sw_nasince, \@views );
+		foreach ( sort @views ) {
+			$log->information($_);
 
-   if ( defined($sw_autoquarantine) ) {
-    my ( $d, $stg ) = split( /\t/, $_ );
-    if ( quarantine_stg($stg) ) {
-     $log->information("View was quarantined succesfully\n");
-    }
-    else {
-     $log->error("View was NOT quarantined\n");
-    }
-   }
+			if ( defined($sw_autoquarantine) ) {
+				my ( $d, $stg ) = split( /\t/, $_ );
+				if ( quarantine_stg($stg) ) {
+					$log->information("View was quarantined succesfully\n");
+				}
+				else {
+					$log->error("View was NOT quarantined\n");
+				}
+			}
 
-  }
-  do_mail();
-  exit 0;
- };
+		}
+		do_mail();
+		exit 0;
+	};
 }
 
 sub quarantine_mode () {
- defined($sw_quarantine) && do {
-  $log->information("quarantine\n");
-  ( defined(@sw_ignore) || defined($sw_autoquarantine) || defined($sw_autopurge) || defined($sw_region) || defined($sw_autorecover) )
-    && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
-  if ( quarantine_stg($sw_quarantine) ) {
-   $log->information("View \"$sw_quarantine\" was quarantined succesfully\n");
-  }
-  else {
-   $log->error("View \"$sw_quarantine\" was NOT quarantined\n");
-  }
-  exit 0;
- };
+	defined($sw_quarantine) && do {
+		$log->information("quarantine\n");
+		(        defined(@sw_ignore)
+			  || defined($sw_autoquarantine)
+			  || defined($sw_autopurge)
+			  || defined($sw_region)
+			  || defined($sw_autorecover)
+			  || defined($sw_lsignored) )
+		  && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
+		if ( quarantine_stg($sw_quarantine) ) {
+			$log->information("View \"$sw_quarantine\" was quarantined succesfully\n");
+		}
+		else {
+			$log->error("View \"$sw_quarantine\" was NOT quarantined\n");
+		}
+		exit 0;
+	};
 }
 
 sub ignore_mode () {
- defined(@sw_ignore) && do {
-  ( defined(@sw_noignore) || defined($sw_autoquarantine) || defined($sw_autopurge) || defined($sw_autorecover) )
-    && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
-  $log->information("ignore\n");
+	defined(@sw_ignore) && do {
+		( defined(@sw_noignore) || defined($sw_autoquarantine) || defined($sw_autopurge) || defined($sw_autorecover) || defined($sw_lsignored) )
+		  && do { $log->assertion_failed( "Wrong syntax\n" . $usage ); };
+		$log->information("ignore\n");
 
-  #rw2 cleanup project reimplement ARGV (remember logfile uses it right now)
-  @sw_ignore = split( /;/, join( ';', @sw_ignore ) );
-  foreach (@sw_ignore) {
-   my $stg           = "";
-   my $viewtag       = $_;
-   my $region_switch = ( defined($sw_region) ) ? "-region $sw_region" : "";
-   $_ = `cleartool lsview $region_switch $viewtag`;
-   $? && $log->error( $? . $_ . "\nCould not find view $viewtag to ignore\n" );
+		#rw2 cleanup project reimplement ARGV (remember logfile uses it right now)
+		@sw_ignore = split( /;/, join( ';', @sw_ignore ) );
+		foreach (@sw_ignore) {
+			my $stg           = "";
+			my $viewtag       = $_;
+			my $region_switch = ( defined($sw_region) ) ? "-region $sw_region" : "";
+			$_ = `cleartool lsview $region_switch $viewtag`;
+			$? && $log->error( $? . $_ . "\nCould not find view $viewtag to ignore\n" );
 
-   $stg = isolatepath($_);
-   unless ($stg) {    #
-    $log->warning("Could determine storage for viewtag [$region_switch $viewtag], skipping it\n");
-    next;
-   }
+			$stg = isolatepath($_);
+			unless ($stg) {    #
+				$log->warning("Could determine storage for viewtag [$region_switch $viewtag], skipping it\n");
+				next;
+			}
 
-   my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
+			my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
 
-   open VIEW_Q_IGNORE_FILE, ">$ignore_file_loc"
-     or $log->assertion_failed("Couldn't open '$ignore_file_loc'\n");
-   print VIEW_Q_IGNORE_FILE "This view storage is ignored by $Scriptfile\nDelete this file to reenable this storage for view_q.pl considerations\n";
-   close VIEW_Q_IGNORE_FILE or $log->error("Couldn't close '$ignore_file_loc'\n");
-   $log->information("Storage '$stg' has been set to ignored\n");
-  }    # end foreach
-  exit 0;
- };    # end ignore
+			open VIEW_Q_IGNORE_FILE, ">$ignore_file_loc"
+			  or $log->assertion_failed("Couldn't open '$ignore_file_loc'\n");
+			print VIEW_Q_IGNORE_FILE
+			  "This view storage is ignored by $Scriptfile\nDelete this file to reenable this storage for view_q.pl considerations\n";
+			close VIEW_Q_IGNORE_FILE or $log->error("Couldn't close '$ignore_file_loc'\n");
+			$log->information("Storage '$stg' has been set to ignored\n");
+		}    # end foreach
+		exit 0;
+	};    # end ignore
 
- defined(@sw_noignore) && do {
-  $log->information("noignore\n");
-  @sw_noignore = split( /;/, join( ';', @sw_noignore ) );
-  foreach (@sw_noignore) {
-   my $stg           = "";
-   my $viewtag       = $_;
-   my $region_switch = ( defined($sw_region) ) ? "-region $sw_region" : "";
-   $_ = `cleartool lsview $region_switch $viewtag`;
+	defined(@sw_noignore) && do {
+		$log->information("noignore\n");
+		@sw_noignore = split( /;/, join( ';', @sw_noignore ) );
+		foreach (@sw_noignore) {
+			my $stg           = "";
+			my $viewtag       = $_;
+			my $region_switch = ( defined($sw_region) ) ? "-region $sw_region" : "";
+			$_ = `cleartool lsview $region_switch $viewtag`;
 
-   $? && $log->assertion_failed( "\n" . $usage );
+			$? && $log->assertion_failed( "\n" . $usage );
 
-   $stg = isolatepath($_);
-   unless ($stg) {    #
-    $log->warning("Could determine storage for viewtag [$region_switch $viewtag], skipping it\n");
-    next;
-   }
+			$stg = isolatepath($_);
+			unless ($stg) {    #
+				$log->warning("Could determine storage for viewtag [$region_switch $viewtag], skipping it\n");
+				next;
+			}
 
-   my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
-   unlink $ignore_file_loc;
-   $log->information("Viewtag '$viewtag' has been unignored\n");
-  }    # end foreach
-  exit 0;
- };    # end noignore
+			my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
+			unlink $ignore_file_loc;
+			$log->information("Viewtag '$viewtag' has been unignored\n");
+		}    # end foreach
+		exit 0;
+	};    # end noignore
 }
 
 =head3 lsquarantined ()
@@ -792,12 +901,12 @@ Returns:
 =cut
 
 sub lsquarantined () {
- my @result;
- foreach ( grep( /-local_path/, `rgy_check -views 2>&1` ) ) {
-  /-local_path = \"(\S*)?\"/;
-  push( @result, "$1\n" ) if ( -e "$1\\admin\\$view_q_file" );
- }
- return @result;
+	my @result;
+	foreach ( grep( /-local_path/, `rgy_check -views 2>&1` ) ) {
+		/-local_path = \"(\S*)?\"/;
+		push( @result, "$1\n" ) if ( -e "$1\\admin\\$view_q_file" );
+	}
+	return @result;
 }
 
 =head3 recover_stg ($stg)
@@ -819,36 +928,36 @@ Returns:
 =cut
 
 sub recover_stg ($) {
- my $stg = shift;
- chomp($stg);
- my $view_q_file_loc = "$stg\\admin\\$view_q_file";
- return 0 unless ( -e $view_q_file_loc );
+	my $stg = shift;
+	chomp($stg);
+	my $view_q_file_loc = "$stg\\admin\\$view_q_file";
+	return 0 unless ( -e $view_q_file_loc );
 
- if ($sw_days) {
-  my $age = int( sprintf "%f", -C $view_q_file_loc );
+	if ($sw_days) {
+		my $age = int( sprintf "%f", -C $view_q_file_loc );
 
-  if ( $age ge $sw_days ) {    # too old to recover (given number of days)
-   $log->information("Too old '$stg' has been quarantined for $age days, igoring for recovering\n");
-   return 0;
-  }
- }
+		if ( $age ge $sw_days ) {    # too old to recover (given number of days)
+			$log->information("Too old '$stg' has been quarantined for $age days, igoring for recovering\n");
+			return 0;
+		}
+	}
 
- open VIEW_Q_FILE, "$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
- foreach (<VIEW_Q_FILE>) {
-  $log->information($_);
-  system($_);
-  $_ = ($?) ? "ERROR\n" : "Success\n";
-  $log->information($_);
- }
- close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
+	open VIEW_Q_FILE, "$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
+	foreach (<VIEW_Q_FILE>) {
+		$log->information($_);
+		system($_);
+		$_ = ($?) ? "ERROR\n" : "Success\n";
+		$log->information($_);
+	}
+	close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
 
- # Something is delaying the close above, the file is not ready for deletion
- # I have to keep trying - I'll give it 40 shots and then I'll bail out
- # ...Need to improve this bit whne i get the time!
- $_ = 0;
- while ( $_ < 10 && !unlink $view_q_file_loc ) { sleep 1; $_++; }
+	# Something is delaying the close above, the file is not ready for deletion
+	# I have to keep trying - I'll give it 40 shots and then I'll bail out
+	# ...Need to improve this bit whne i get the time!
+	$_ = 0;
+	while ( $_ < 10 && !unlink $view_q_file_loc ) { sleep 1; $_++; }
 
- return 1;
+	return 1;
 }
 
 =head3 purge_stg ($stg)
@@ -872,137 +981,137 @@ Returns:
 =cut
 
 sub purge_stg ($) {
- my $stg = shift;
- chomp($stg);    # Stg can be local or global so we only use it
- my $view_q_file_loc = "$stg\\admin\\$view_q_file";
- ( -e $view_q_file_loc ) || do {
-  $log->error("ERROR: '$stg' is not a quarantined storage\n");
-  return 0;
- };
+	my $stg = shift;
+	chomp($stg);    # Stg can be local or global so we only use it
+	my $view_q_file_loc = "$stg\\admin\\$view_q_file";
+	( -e $view_q_file_loc ) || do {
+		$log->error("ERROR: '$stg' is not a quarantined storage\n");
+		return 0;
+	};
 
- if ($sw_days) {
-  my $age = int( sprintf "%f", -C $view_q_file_loc );
+	if ($sw_days) {
+		my $age = int( sprintf "%f", -C $view_q_file_loc );
 
-  if ( $age le $sw_days ) {    # too young to purge
-   $log->information("Too new; '$stg' has only been quarantined for $age days, igoring for purge\n");
-   return 1;
-  }
+		if ( $age le $sw_days ) {    # too young to purge
+			$log->information("Too new; '$stg' has only been quarantined for $age days, igoring for purge\n");
+			return 1;
+		}
 
- }
+	}
 
- my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
- ( -e $ignore_file_loc ) && do {
-  $log->error("ERROR: '$stg' ignored for quarantine\n");
-  return 0;
- };
+	my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
+	( -e $ignore_file_loc ) && do {
+		$log->error("ERROR: '$stg' ignored for quarantine\n");
+		return 0;
+	};
 
- open VIEW_Q_FILE, "$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
- @_ = <VIEW_Q_FILE>;
- close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
- $_ = $_[0];    # Cache the first entry (we really just need the global storage, so any entry will do)
- my $ngpath = ( $_ =~ /-ngpath/ ) ? "-ngpath " : "";
- /\s(\S*)$/;    # The stg is the last part (whitespace separated) of the stream;
+	open VIEW_Q_FILE, "$view_q_file_loc" or die "Couldn't open '$view_q_file_loc'\n";
+	@_ = <VIEW_Q_FILE>;
+	close VIEW_Q_FILE or $log->error("Couldn't close '$view_q_file_loc'\n");
+	$_ = $_[0];    # Cache the first entry (we really just need the global storage, so any entry will do)
+	my $ngpath = ( $_ =~ /-ngpath/ ) ? "-ngpath " : "";
+	/\s(\S*)$/;    # The stg is the last part (whitespace separated) of the stream;
 
- my $temptag    = "VIEW_Q_TEMP_TAG";
- my $mktagcmd   = "cleartool mktag -view -nstart $ngpath -tag $temptag $1";
- my $endviewcmd = "cleartool endview -server $temptag";
- my $rmtagcmd   = "cleartool rmtag -view $temptag";
+	my $temptag    = "VIEW_Q_TEMP_TAG";
+	my $mktagcmd   = "cleartool mktag -view -nstart $ngpath -tag $temptag $1";
+	my $endviewcmd = "cleartool endview -server $temptag";
+	my $rmtagcmd   = "cleartool rmtag -view $temptag";
 
- # create temptag so we can get view's properties
- $log->information("$mktagcmd\n");
- system("$mktagcmd");
- if ($?) {
-  $log->error( "Make tag failed with exitcode: " . ( $? / 256 ) . "\n" );
- }
- else {
-  $log->information("Make tag successful\n");
- }
+	# create temptag so we can get view's properties
+	$log->information("$mktagcmd\n");
+	system("$mktagcmd");
+	if ($?) {
+		$log->error( "Make tag failed with exitcode: " . ( $? / 256 ) . "\n" );
+	}
+	else {
+		$log->information("Make tag successful\n");
+	}
 
- # get view properties into hash
- my %viewprops;
- foreach (`cleartool lsview -l $temptag`) {
-  /^(.*):\s(.*)$/;
-  $viewprops{$1} = $2;
- }
+	# get view properties into hash
+	my %viewprops;
+	foreach (`cleartool lsview -l $temptag`) {
+		/^(.*):\s(.*)$/;
+		$viewprops{$1} = $2;
+	}
 
- # end the view again
- $log->information("$endviewcmd\n");
- system("$endviewcmd");
- if ($?) {
-  $log->error( "End view failed with exitcode: " . ( $? / 256 ) . "\n" );
-  my $i = 0;
-  while ( $i < 11 ) {
-   $log->information("Waiting a sec before trying to end that view...\n");
-   sleep 1;
-   system("$endviewcmd");
-   if   ($?) { $i++; }
-   else      { $i = 12; }
-  }
+	# end the view again
+	$log->information("$endviewcmd\n");
+	system("$endviewcmd");
+	if ($?) {
+		$log->error( "End view failed with exitcode: " . ( ($?) / 256 ) . "\n" );
+		my $i = 0;
+		while ( $i < 11 ) {
+			$log->information("Waiting a sec before trying to end that view...\n");
+			sleep 1;
+			system("$endviewcmd");
+			if   ($?) { $i++; }
+			else      { $i = 12; }
+		}
 
-  $log->error( "End view failed with exitcode: " . ( $? / 256 ) . "\n" );
- }
- else {
-  $log->information("End view successful\n");
- }
+		$log->error( "End view failed with exitcode: " . ( ($?) / 256 ) . "\n" );
+	}
+	else {
+		$log->information("End view successful\n");
+	}
 
- # remove the temp tag again
- $log->information("$rmtagcmd\n");
- system("$rmtagcmd");
- if ($?) {
-  $log->error( "Removal of temp tag failed with exitcode: " . ( $? / 256 ) . "\n" );
-  $log->information( "Search for temptag $temptag returns " . `cleartool lsview -s $temptag` . "\n" );
-  if ($?) {
-   $log->information("$temptag was not found, continuing\n");
-  }
-  else {
-   $log->error("$temptag found, removing it now\n");
-   `cleartool rmtag -view $temptag`;
-  }
- }
- else {
-  $log->information("Remove temp tag successful\n");
- }
+	# remove the temp tag again
+	$log->information("$rmtagcmd\n");
+	system("$rmtagcmd");
+	if ($?) {
+		$log->error( "Removal of temp tag failed with exitcode: " . ( ($?) / 256 ) . "\n" );
+		$log->information( "Search for temptag $temptag returns " . `cleartool lsview -s $temptag` . "\n" );
+		if ($?) {
+			$log->information("$temptag was not found, continuing\n");
+		}
+		else {
+			$log->error("$temptag found, removing it now\n");
+			`cleartool rmtag -view $temptag`;
+		}
+	}
+	else {
+		$log->information("Remove temp tag successful\n");
+	}
 
- # using the properties we found, unregister the view by uuid
- my $viewuuid = $viewprops{"View uuid"};
- my $unregcmd = "cleartool unregister -view -uuid $viewuuid 2>&1";
- system("$unregcmd");
- if ($?) {
-  $log->error( "Unregister view failed with exitcode: " . ( $? / 256 ) . "\n" );
- }
- else {
-  $log->information("Unregister view successful\n");
- }
+	# using the properties we found, unregister the view by uuid
+	my $viewuuid = $viewprops{"View uuid"};
+	my $unregcmd = "cleartool unregister -view -uuid $viewuuid 2>&1";
+	system("$unregcmd");
+	if ($?) {
+		$log->error( "Unregister view failed with exitcode: " . ( ($?) / 256 ) . "\n" );
+	}
+	else {
+		$log->information("Unregister view successful\n");
+	}
 
- # rmview by UUID
- my $rmviewcmd = "cleartool rmview -force -all -uuid $viewuuid 2>&1";
- $log->information("$rmviewcmd\n");
- system("$rmviewcmd");
- if ($?) {
-  $log->error( "Remove view failed with exitcode: " . ( $? / 256 ) . "\n" );
- }
- else {
-  push( @{ $views_per_user{'PURGED:'} }, "$stg" );    # save the list of views that was purged
-  $log->information("Remove view successful\n");
- }
+	# rmview by UUID
+	my $rmviewcmd = "cleartool rmview -force -all -uuid $viewuuid 2>&1";
+	$log->information("$rmviewcmd\n");
+	system("$rmviewcmd");
+	if ($?) {
+		$log->error( "Remove view failed with exitcode: " . ( ($?) / 256 ) . "\n" );
+	}
+	else {
+		push( @{ $views_per_user{'PURGED:'} }, "$stg" );    # save the list of views that was purged
+		$log->information("Remove view successful\n");
+	}
 
- # something is holding on the old storage, wait a bit before continuing
- sleep 2;
+	# something is holding on the old storage, wait a bit before continuing
+	sleep 2;
 
- # attempt to kill the storage
- my $localstorage = $viewprops{"View server access path"};
- my $rmstgcmd     = "rmdir /s /q \"$localstorage\"";
- if ( -e $localstorage ) {
-  system("$rmstgcmd");
-  if ($?) {
-   $log->error( "Removal of old view storage at $localstorage failed with exitcode: " . ( $? / 256 ) . "\n" );
-  }
-  else {
-   $log->information("Removal of old view storage at $localstorage successful\n");
-  }
- }
+	# attempt to kill the storage
+	my $localstorage = $viewprops{"View server access path"};
+	my $rmstgcmd     = "rmdir /s /q \"$localstorage\"";
+	if ( -e $localstorage ) {
+		system("$rmstgcmd");
+		if ($?) {
+			$log->error( "Removal of old view storage at $localstorage failed with exitcode: " . ( ($?) / 256 ) . "\n" );
+		}
+		else {
+			$log->information("Removal of old view storage at $localstorage successful\n");
+		}
+	}
 
- return 1;
+	return 1;
 }
 
 =head3 quarantine_stg ($stg)
@@ -1025,35 +1134,35 @@ Returns:
 =cut
 
 sub quarantine_stg ($) {
- my $stg = shift;
- chomp($stg);
- prepare_stg_directory();
- return 0 unless defined( $stg_directory{"$stg"} );    # Get out if the view storage has no entry in the directory
+	my $stg = shift;
+	chomp($stg);
+	prepare_stg_directory();
+	return 0 unless defined( $stg_directory{"$stg"} );    # Get out if the view storage has no entry in the directory
 
- my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
- ( -e $ignore_file_loc ) && do {
-  $log->error( $stg . " ignored for quarantine\n" );
-  return 0;
- };
+	my $ignore_file_loc = $stg . "\\admin\\" . $view_q_ignore_file;
+	( -e $ignore_file_loc ) && do {
+		$log->error( $stg . " ignored for quarantine\n" );
+		return 0;
+	};
 
- @_ = split( /;/, $stg_directory{"$stg"} );            # Turn the semi-colon seprated list of tags into an array
- $_ = $_[0];                                           # Get a region/tag pair (anyone will do, so we just grab the first)
- s/-tag//;                                             # strip the -tag switch, it's not used in lsview
+	@_ = split( /;/, $stg_directory{"$stg"} );            # Turn the semi-colon seprated list of tags into an array
+	$_ = $_[0];                                           # Get a region/tag pair (anyone will do, so we just grab the first)
+	s/-tag//;                                             # strip the -tag switch, it's not used in lsview
 
- my @rmtags;
- my @mktags;
- foreach ( split( /;/, $stg_directory{"$stg"} ) ) {
-  push( @mktags, "cleartool mktag -view -nstart " . $_ . " " . $stg . "\n" );
-  s/-tag //;                                           # strip the -tag which isn't used in rmtag
-  s/-ngpath //;                                        # strip the -ngpath which isn't used in rmtag
-  push( @rmtags, "cleartool rmtag -view " . $_ );
- }
- my $view_q_file_loc = $stg . "\\admin\\" . $view_q_file;
- open VIEW_Q_FILE, ">$view_q_file_loc" or $log->assertion_failed("Couldn't open '$view_q_file_loc'\n");
- foreach (@mktags) { print VIEW_Q_FILE $_; }
- close VIEW_Q_FILE;
- foreach (@rmtags) { $log->information( $_ . "\n" ); system($_); }
- return 1;
+	my @rmtags;
+	my @mktags;
+	foreach ( split( /;/, $stg_directory{"$stg"} ) ) {
+		push( @mktags, "cleartool mktag -view -nstart " . $_ . " " . $stg . "\n" );
+		s/-tag //;                                        # strip the -tag which isn't used in rmtag
+		s/-ngpath //;                                     # strip the -ngpath which isn't used in rmtag
+		push( @rmtags, "cleartool rmtag -view " . $_ );
+	}
+	my $view_q_file_loc = $stg . "\\admin\\" . $view_q_file;
+	open VIEW_Q_FILE, ">$view_q_file_loc" or $log->assertion_failed("Couldn't open '$view_q_file_loc'\n");
+	foreach (@mktags) { print VIEW_Q_FILE $_; }
+	close VIEW_Q_FILE;
+	foreach (@rmtags) { $log->information( $_ . "\n" ); system($_); }
+	return 1;
 }
 
 =head3 vwsstgs_nasince ( $cut_date, \@result)
@@ -1080,46 +1189,46 @@ Returns:
 =cut
 
 sub vwsstgs_nasince ($$$) {
- my $cut_date = shift;
- my $result   = shift;
- return 0 unless ( $cut_date =~ /(\d\d\d\d-\d\d-\d\d)/ );
- prepare_stg_directory();
- foreach my $stg ( sort keys(%stg_directory) ) {
-  next if ( $stg eq "" );
-  $debug && $log->information("Looking at view: [$stg]\n");
-  @_ = split( /;/, $stg_directory{"$stg"} );    # Turn the semi-colon seprated list of tags into an array
-  $_ = $_[0];                                   # Get a region/tag pair (anyone will do, so we just grab the first)
-  s/-tag//;                                     # strip the -tag switch, it's not used in lsview
-  s/-ngpath//;                                  # strip the -ngpath switch, it's not used in lsview
+	my $cut_date = shift;
+	my $result   = shift;
+	return 0 unless ( $cut_date =~ /(\d\d\d\d-\d\d-\d\d)/ );
+	prepare_stg_directory();
+	foreach my $stg ( sort keys(%stg_directory) ) {
+		next if ( $stg eq "" );
+		$debug && $log->information("Looking at view: [$stg]\n");
+		@_ = split( /;/, $stg_directory{"$stg"} );    # Turn the semi-colon seprated list of tags into an array
+		$_ = $_[0];                                   # Get a region/tag pair (anyone will do, so we just grab the first)
+		s/-tag//;                                     # strip the -tag switch, it's not used in lsview
+		s/-ngpath//;                                  # strip the -ngpath switch, it's not used in lsview
 
-  $debug && $log->information("Found path : [$_]\n");
-  my @viewdetails = split( /\n/, `cleartool lsview -properties $_` );    # lsview with the -age switch return two lines
-  my $accessed = $viewdetails[3];                                        # Grab fourth line (where the relevant timestamp is listed)
-  $debug && $log->information("Last accessed string is: [$accessed]\n");
-  $accessed =~ s/.*(\d\d\d\d-\d\d-\d\d).*/$1/;                           # Get the date in the format YYYY-MM-DD
-  $debug && $log->information("Last accessed Now changed to: [$accessed]\n");
-  my $owner = $viewdetails[4];                                           # Grab 5'th line - owner information
-  $owner =~ s/.*\\(\S+).*/$1/;                                           # Isolate owner (the login ID)
+		$debug && $log->information("Found path : [$_]\n");
+		my @viewdetails = split( /\n/, `cleartool lsview -properties $_` );    # lsview with the -age switch return two lines
+		my $accessed = $viewdetails[3];                                        # Grab fourth line (where the relevant timestamp is listed)
+		$debug && $log->information("Last accessed string is: [$accessed]\n");
+		$accessed =~ s/.*(\d\d\d\d-\d\d-\d\d).*/$1/;                           # Get the date in the format YYYY-MM-DD
+		$debug && $log->information("Last accessed Now changed to: [$accessed]\n");
+		my $owner = $viewdetails[4];                                           # Grab 5'th line - owner information
+		$owner =~ s/.*\\(\S+).*/$1/;                                           # Isolate owner (the login ID)
 
-  if ( $accessed eq "" ) {
+		if ( $accessed eq "" ) {
 
-   # Snapshot views that have lost their .access_info can not tell when they where used last so $accessed will be empty
-   $log->warning("Warning, consider manual removal of the view at $stg - we have no accessed date\n");
-  }
-  else {
-   if ( $accessed le $cut_date ) {
+			# Snapshot views that have lost their .access_info can not tell when they where used last so $accessed will be empty
+			$log->warning("Warning, consider manual removal of the view at $stg - we have no accessed date\n");
+		}
+		else {
+			if ( $accessed le $cut_date ) {
 
-    #If the last accessed date is prior to the cut_date, push it onto the result tables.
-    my $info = "$accessed\t$stg\n";
-    push( @$result,                     $info );
-    push( @{ $views_per_user{$owner} }, $info );    # save the list of views per owner
+				#If the last accessed date is prior to the cut_date, push it onto the result tables.
+				my $info = "$accessed\t$stg\n";
+				push( @$result,                     $info );
+				push( @{ $views_per_user{$owner} }, $info );    # save the list of views per owner
 
-   }
+			}
 
-  }
+		}
 
- }
- return 1;
+	}
+	return 1;
 }
 
 =head3 sub prepare_stg_directory ( )
@@ -1152,170 +1261,166 @@ Returns:
 =cut
 
 sub prepare_stg_directory () {
- return 0 if keys(%stg_directory);    # Someone else already prepared the directory, reuse it! Let's get out.
+	return 0 if keys(%stg_directory);    # Someone else already prepared the directory, reuse it! Let's get out.
 
- # build a unique list of view storages containing the tags in all regions
- # syntax is different whether on ClearCase LT or not.
- # The view storage is key in the hash
- if (acc::is_cclt) {                  # report syntax is different on LT versus Base CC
+	# build a unique list of view storages containing the tags in all regions
+	# syntax is different whether on ClearCase LT or not.
+	# The view storage is key in the hash
+	if (acc::is_cclt) {                  # report syntax is different on LT versus Base CC
 
-  # This is ClearCase LT
-  foreach (`cleartool lsview `) {
+		# This is ClearCase LT
+		foreach (`cleartool lsview `) {
 
-   # Any number of whitespaces or * (if the view is started)
-   # followed by non-whitespace chars (the view tag) followed
-   # by some whitespaces and non-whitespace ending with a colon and
-   # then another set of non-whitespace chars that starts with a letter, a colon and a backslash (the view storage)
-   /^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
+			# Any number of whitespaces or * (if the view is started)
+			# followed by non-whitespace chars (the view tag) followed
+			# by some whitespaces and non-whitespace ending with a colon and
+			# then another set of non-whitespace chars that starts with a letter, a colon and a backslash (the view storage)
+			/^[\s\*]*(\S*)\s*\S*:([a-zA-Z]:\\\S*)$/;
 
-   #build a unique list of view storages containing the tags
-   $stg_directory{"$2"} = $stg_directory{"$2"} . "-tag \"$1\";";
-  }
+			#build a unique list of view storages containing the tags
+			$stg_directory{"$2"} = $stg_directory{"$2"} . "-tag \"$1\";";
+		}
 
- }
- else {
+	}
+	else {
 
-  #  Base ClearCase
-  foreach my $region (`cleartool lsregion`) {
-   chomp($region);
+		#  Real ClearCase
+		foreach my $region (`cleartool lsregion`) {
+			chomp($region);
 
-   # Build hash table
-   foreach (`cleartool lsview -host $ENV{'COMPUTERNAME'} -region $region`) {
+			# Build hash table
+			foreach (`cleartool lsview -host $ENV{'COMPUTERNAME'} -region $region`) {
 
-    # Cleartool lsview reports in different formats, web-views are reported differently than
-    # snapshot views and dynamic views. Actually the format is like CC LT reports views ...
-    #  see below for example
+				# Cleartool lsview reports in different formats, web-views are reported differently than
+				# snapshot views and dynamic views. Actually the format is like CC LT reports views ...
+				#  see below for example
 
-    #    * student_view         \\cccq7\ccstorage\views\CCCQ7\student\student_view.vws
-    #      student_snap         \\cccq7\ccstorage\views\CCCQ7\student\student_snap.vws
-    #      student_web          CCCQ7:C:\ccweb\student\student_web\view.stg
+				#    * student_view         \\cccq7\ccstorage\views\CCCQ7\student\student_view.vws
+				#      student_snap         \\cccq7\ccstorage\views\CCCQ7\student\student_snap.vws
+				#      student_web          CCCQ7:C:\ccweb\student\student_web\view.stg
 
-    if (/$ENV{'COMPUTERNAME'}:/i) {    # think it is is web-view
-     /^[\s\*]*(\S*)\s*$ENV{'COMPUTERNAME'}:(\S*)$/i;
-     $stg_directory{"$2"} = $stg_directory{"$2"} . "-ngpath -region \"$region\" -tag \"$1\";";
-    }
-    else {                             # normal snap dynamic view, not on CC LT
-                                       # Any number of whitespaces or * (if the view is started)
-                                       # followed by non-whitespace chars (the view tag) followed
-                                       # by some whitespaces and tne another set of non-whitespace chars (the view storage)
+				if (/$ENV{'COMPUTERNAME'}:/i) {    # think it is is web-view
+					/^[\s\*]*(\S*)\s*$ENV{'COMPUTERNAME'}:(\S*)$/i;
+					$stg_directory{"$2"} = $stg_directory{"$2"} . "-ngpath -region \"$region\" -tag \"$1\";";
+				}
+				else {                             # normal snap dynamic view, not on CC LT
+					                               # Any number of whitespaces or * (if the view is started)
+					                               # followed by non-whitespace chars (the view tag) followed
+					                               # by some whitespaces and tne another set of non-whitespace chars (the view storage)
 
-     /^[\s\*]*(\S*)\s*(\S*)$/;
-     $stg_directory{"$2"} = $stg_directory{"$2"} . "-region \"$region\" -tag \"$1\";";
-    }
-   }
-  }
+					/^[\s\*]*(\S*)\s*(\S*)$/;
+					$stg_directory{"$2"} = $stg_directory{"$2"} . "-region \"$region\" -tag \"$1\";";
+				}
+			}
+		}
 
- }
- $log->assertion_failed("No views are hosted on this machine [$ENV{'COMPUTERNAME'}]\n.") unless keys(%stg_directory);
- return 1;
+	}
+	$log->assertion_failed("No views are hosted on this machine [$ENV{'COMPUTERNAME'}]\n.") unless keys(%stg_directory);
+	return 1;
 }
 
 sub do_mail {
- return unless $sw_sendmail;
- no strict;
+	return unless $sw_sendmail;
+	no strict;
 
- my %envelope = (
-  -f      => $_fromadress,         # FROM:
-  -server => $_smtpserver,         # specify the SMTP server to use
-  -q      => " ",                  # silent operation
-  -debug  => " ",                  # run Blat with debuging output
-  -log    => "\"$0.blat.log\"",    # dump screen output to a file instead.
- );
+	my %envelope = (
+		"-f"      => $_fromadress,         # FROM:
+		"-server" => $_smtpserver,         # specify the SMTP server to use
+		"-q"      => " ",                  # silent operation
+		"-debug"  => " ",                  # run Blat with debuging output
+		"-log"    => "\"$0.blat.log\"",    # dump screen output to a file instead.
+	);
 
- my @noaddres;                     # Collect login's without email adress
- my @warnlist;                     # list of processed views
+	my @noaddres;                          # Collect login's without email adress
+	my @warnlist;                          # list of processed views
 
- # send warning mails to users
- my $key;
- foreach $key ( sort keys %views_per_user ) {
+	# send warning mails to users
+	foreach my $key ( sort keys %views_per_user ) {
 
-  # add to list for admin's summary mail.
-  push @warnlist, "\n$key\n";
-  foreach ( sort @{ $views_per_user{$key} } ) { push @warnlist, "\t$_"; }
+		# add to list for admin's summary mail.
+		push @warnlist, "\n$key\n";
+		foreach ( sort @{ $views_per_user{$key} } ) {
+			push @warnlist, "\t$_";
+		}
 
-  unless ( defined($sw_autoquarantine) || defined($sw_autopurge) ) {
+		# We are in warning mode, inform each user
+		unless ( defined($sw_autoquarantine) || defined($sw_autopurge) ) {
 
-   # We are in warning mode, inform each user
-   # Build per-user mail
-   my $usermailbody = $_warnofquarantine;
+			# Build per-user mail
+			my $usermailbody = $_warnofquarantine;
 
-   # Set recipient mail adress
-   if ( $_maildomain ne "" ) {    # $_maildomain has a value, email adress is login ($key) plus this value
-    $envelope{'-to'} = $key . $_maildomain;
-    $log->information("Using default domain, recipient was set to $envelope{'-to'}.\n");
-   }
-   else {
+			# Set recipient mail adress
 
-    # get email of login ID, by asking the active directory, so we... kind of depend on that :-(
-    $envelope{'-to'} = qx(dsquery user forestroot -name $key  2>&1 | dsget user -email 2>&1 | findstr @ 2>&1 );
-    $log->information("Using dsquery domain, recipient was set to $envelope{'-to'}.\n");
-   }
+			# $_maildomain has a value, email adress is login ($key) plus that value
+			if ( $_maildomain ne "" ) {
+				$envelope{'-to'} = $key . $_maildomain;
+				$log->information("Using default domain, recipient was set to $envelope{'-to'}.\n");
+			}
+			else {
 
-   # debug
-   if ( $ENV{COMPUTERNAME} eq "CCCQ7" ) {
+				# get email of login ID, by asking the active directory, so we... kind of depend on that :-(
+				$envelope{'-to'} = qx(dsquery user forestroot -name $key  2>&1 | dsget user -email 2>&1 | findstr @ 2>&1 );
+				$log->information("Using dsquery domain, recipient was set to $envelope{'-to'}.\n");
+			}
 
-    #   print STDERR "Hey - remove line " . ( __LINE__ + 1 ) . "\n";
-    $envelope{'-to'} = 'jbr@praqma.net';
-   }
-   ( push @noaddres, "$key\n" and next ) if ( $envelope{'-to'} !~ m/\@/ );    # can't find email of login, try the next
+			# can't find email of login, try the next
+			if ( $envelope{'-to'} !~ m/\@/ ) {
+				push @noaddres, "$key\n";
+				next;
+			}
 
-   $envelope{'-subject'} = "\"$_warnsubject\"";    # SUBJECT:
-                                                   # some substitutions in the text read from the template file $mailfilename
-   $usermailbody =~ s/===USER===/$key/g;
-   $usermailbody =~ s/===CUTDATE===/$sw_nasince/g;
-   $usermailbody =~ s/===VIEWLIST===/\n@{ $views_per_user{$key} }/g;
+			$envelope{'-subject'} = "\"$_warnsubject\"";    # SUBJECT:
+			                                                # some substitutions in the text read from the template file $mailfilename
+			$usermailbody =~ s/===USER===/$key/g;
+			$usermailbody =~ s/===CUTDATE===/$sw_nasince/g;
+			$usermailbody =~ s/===VIEWLIST===/\n@{ $views_per_user{$key} }/g;
 
-   sendthemail( $usermailbody, %envelope );
-  }
- }    # end foreach my $key
-      # Summary mail
- my ( $adminmailbody, $adminsubject );
- $envelope{'-to'} = $_fromadress;    # TO:
-                                     # debug
- if ( $ENV{COMPUTERNAME} eq "CCCQ7" ) {
+			sendthemail( $usermailbody, %envelope );
+		}
+	}    # end foreach my $key
 
-  #       print STDERR "Hey - remove line " . ( __LINE__ + 1 ) . "\n";
-  $envelope{'-to'} = 'jbr@praqma.net';
- }
+	# Summary mail
+	my ( $adminmailbody, $adminsubject );
+	$envelope{'-to'} = $_fromadress;    # TO:
 
- # select subject and mail body
- if ( defined($sw_autoquarantine) || defined($sw_autopurge) ) {
-  $envelope{'-subject'} = "\"$_adminsubj\"";    # SUBJECT:
+	# select subject and mail body
+	if ( defined($sw_autoquarantine) || defined($sw_autopurge) ) {
+		$envelope{'-subject'} = "\"$_adminsubj\"";    # SUBJECT:
 
-  $adminmailbody = $_actionsummary;
-  my $action = defined($sw_autoquarantine) ? "quarantined" : "removed";
-  $adminmailbody =~ s/===ACTION===/$action/g;
+		$adminmailbody = $_actionsummary;
+		my $action = defined($sw_autoquarantine) ? "quarantined" : "removed";
+		$adminmailbody =~ s/===ACTION===/$action/g;
 
- }
- else {
-  $envelope{'-subject'} = "\"$_adminwarnsubj\"";    # SUBJECT
-  $adminmailbody = $_warnsummary;
-  $adminmailbody =~ s/===CUTDATE===/$sw_nasince/g;    # set since date
-  my $nomail = "";
-  if ( scalar(@noaddres) ) {
-   $nomail = join( '\n\t', @noaddres );
-   $nomail = "We couldn't retrieve the email adresse for the login(s):\n$nomail";
-  }
-  $adminmailbody =~ s/===NOEMAIL===/$nomail/g;
+	}
+	else {
+		$envelope{'-subject'} = "\"$_adminwarnsubj\"";    # SUBJECT
+		$adminmailbody = $_warnsummary;
+		$adminmailbody =~ s/===CUTDATE===/$sw_nasince/g;    # set since date
+		my $nomail = "";
+		if ( scalar(@noaddres) ) {
+			$nomail = join( '\n\t', @noaddres );
+			$nomail = "We couldn't retrieve the email adresse for the login(s):\n$nomail";
+		}
+		$adminmailbody =~ s/===NOEMAIL===/$nomail/g;
 
- }
+	}
 
- $adminmailbody =~ s/===WARNVIEWS===/@warnlist/g;
- sendthemail( $adminmailbody, %envelope );
+	$adminmailbody =~ s/===WARNVIEWS===/@warnlist/g;
+	sendthemail( $adminmailbody, %envelope );
 
 }
 
 sub sendthemail {
 
- my $blatcmd = BLATEXE;    # the Blat binary
+	my $blatcmd = BLATEXE;    # the Blat binary
 
- -e BLATEXE || die $!;
- my $body = shift @_;      # get the msg body
- $blatcmd .= " - @_";      # add all the parms
+	-e BLATEXE || $log->assertion_failed("Mail program not found: $! ");
+	my $body = shift @_;      # get the msg body
+	$blatcmd .= " - @_";      # add all the parms
 
- open( MAIL, "| $blatcmd" ) || $log->error("$!\nFailed opening blat.exe to send this mail\n$body\n");    # start Blat with all it's parms
- print MAIL $body;    # now put in the msg body (bigger this way than CL)
- close(MAIL);
+	open( MAIL, "| $blatcmd" ) || $log->error("$!\nFailed opening blat.exe to send this mail\n$body\n");    # start Blat with all it's parms
+	print MAIL $body;    # now put in the msg body (bigger this way than CL)
+	close(MAIL);
 }
 
 __END__

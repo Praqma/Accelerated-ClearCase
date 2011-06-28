@@ -1,35 +1,34 @@
 require 5.000;
 use strict;
+
 our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
-    $Scriptdir  = ".\\";
-    $Scriptfile = $0;      # Assume the script is called from 'current directory' (no leading path - $0 is the file)
-    $Scriptfile =~ /(.*\\)(.*)$/
-      && do {
-        $Scriptdir  = $1;
-        $Scriptfile = $2;
-      }                    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+	use File::Basename;
+	$Scriptdir  = dirname($0) . "/";
+	$Scriptfile = basename($0);
+
 }
-use lib $Scriptdir. "..";
+use lib $Scriptdir . "../";
+
 use praqma::scriptlog;
 use praqma::trigger_helper;
 use File::Basename;
+
+$| = 1;
 
 #Required if you call trigger_helper->enable_install
 our $TRIGGER_NAME = "ACC_BLOCK_RMNAME_IF_CO";
 
 our %install_params = (
-    "name"     => $TRIGGER_NAME,                     # The name og the trigger
-    "mktrtype" => "-element -all -preop rmname ",    # The stripped-down mktrtype command
-    "supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
+	"name"     => $TRIGGER_NAME,                     # The name og the trigger
+	"mktrtype" => "-element -all -preop rmname ",    # The stripped-down mktrtype command
+	"supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
 );
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "2";
-
-my $verbose_mode = 1;
+our $REVISION = "3";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -71,57 +70,93 @@ my %twincfg;
 $thelp->get_config( \%twincfg );
 
 #Enable the features in scriptlog
-our $log = scriptlog->new;
-$log->conditional_enable();    #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
-$log->enable(1);
-$log->set_verbose(1);          #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
-our $logfile = $log->get_logfile;
-($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
-$log->information($semaphore_status);
-$log->dump_ccvars;                                            # Run this statement to have the trigger dump the CLEARCASE variables
 
+our $log = scriptlog->new();
+$log->set_verbose();
+
+#Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->conditional_enable();
+
+my $logfile = $log->get_logfile;
+($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
+($logfile) && $log->information($semaphore_status);
+($logfile) && $log->dump_ccvars;                              # Run this statement to have the trigger dump the CLEARCASE variables
+
+########################### MAIN ###########################
 # Vob symbolic links can not be renamed.
 exit 0 if -l $ENV{CLEARCASE_PN};
 
-my ( $msg, $element, $dirmode );
+my ( $msg, $msgvar, $element );
 
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "rmname" ) {
 
-    if ( $twincfg{AlsoParent} ) {
-        $dirmode = " -directory ";
-        $element = dirname( $ENV{CLEARCASE_PN} );
-        $msg     = "You cannot rename the element [" . basename( $ENV{CLEARCASE_PN} ) . "] because it's parent folder is checked out by ";
-        $log->information("Calling from Alsoparent, Element is [$element]");
-        check_co();
-    }
+	if ( $twincfg{AlsoParent} ) {
+		$element = dirname( $ENV{CLEARCASE_PN} );
+		$msgvar  = "'s parent folder";
+		($logfile) && $log->information("Looking for checkouts of parent directory called [$element]");
+		if ( check_co() ) {
+			exit 1;
+		}
+	}
 
-    $element = $ENV{CLEARCASE_PN};
-    $dirmode = "";
-    $msg     = "You cannot rename the element [" . basename( $ENV{CLEARCASE_PN} ) . "] because it is checked out by ";
-    $log->information("Calling after Alsoparent, Element is [$element]");
-    check_co();
-    exit 0;
+	$element = $ENV{CLEARCASE_PN};
+	$msgvar  = " is";
+	($logfile) && $log->information("Calling after Alsoparent, Element is [$element]");
+	if ( check_co() ) {
+		exit 1;
+
+	}
+	exit 0;
 }
 
+#
+die "trigger called out of context, we should never end here.";
+
+########################### SUBS ###########################
 sub check_co {
-    my @co_info = qx(cleartool lscheckout -$dirmode -fmt "%Tf,%u\n" "$element");
-    if ( scalar(@co_info) ) {
-        foreach (@co_info) {
-            my ( $view, $user ) = split( /,/, $_ );
 
-            if ( $twincfg{AlsoParent} ) {
+	# Returns 0 if there are no (dangerous) checkouts
+	# Returns 1 if there are dangerous checkouts
 
-                # Our own view is OK.
+	my $retval = 0;
+	my $cmd    = "cleartool lscheckout -directory -fmt \"\%Tf,\%u\\n\" \"$element\"";
+	($logfile) && $log->information("Command looking for checkouts : [$cmd]");
 
-                next if ( $view eq $ENV{CLEARCASE_VIEW_TAG} );
-            }
-            $log->enable(1);
-            $log->error("$msg $user in view $view");
-            exit 1;
-        }
-    }
+	$msg = "ERROR...\nYou cannot rename the element [$element] while it$msgvar is checked out by ";
 
+	# Get view and user pairs for checkouts of element
+	my @co_info = qx($cmd);
+
+	($logfile) && $log->information( "Clearcase replies: \n\t" . join( '\t', @co_info ) );
+	if (@co_info) {
+		($logfile) && $log->information("There ARE checkouts");
+		foreach (@co_info) {
+
+			($logfile) && $log->information("There is a checkout in $_");
+			chomp($_);
+			my ( $view, $user ) = split( /,/, $_ );
+			if ( ( $twincfg{AlsoParent} ) && ( $view eq $ENV{CLEARCASE_VIEW_TAG} ) ) {
+
+				# In current view, parent dir must be checked out for rename to succeed, so we accept that
+				($logfile) && $log->information("Ignoring co of parent dir, it is this view");
+				next;
+			}
+
+			($logfile) && $log->information("Found view $view and user $user ");
+
+			$msg .= "$user in view $view";
+			$log->enable(1);
+			$log->set_verbose(1);
+
+			$log->information($msg);
+			++$retval;
+		}
+	}
+	else {
+		($logfile) && $log->information("scalar \@co_info is ... not ? ");
+	}
+	return $retval;
 }
 
 __END__

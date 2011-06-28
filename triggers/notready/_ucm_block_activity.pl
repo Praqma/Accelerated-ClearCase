@@ -29,6 +29,8 @@
 #   ct mkattr -default readonly stream:{integration_stream}@{pvob_tag}
 #
 
+die "The script $0 is not ready for deployment\n";
+
 # values from trigger environment
 my $parent_op_kind = $ENV{CLEARCASE_POP_KIND};
 my $op_kind        = $ENV{CLEARCASE_OP_KIND};

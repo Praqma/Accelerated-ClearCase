@@ -24,7 +24,7 @@ our $TRIGGER_NAME = "ACC_AUTO_RECOMMEND_NEWBL";
 our %install_params = (
  "name"     => $TRIGGER_NAME,                               # The name og the trigger
  "mktrtype" => "-ucmobject -all -postop mkbl_complete ",    # The stripped-down mktrtype command
- "supports" => "pvob,autorec"                               # csv list of generic and/or custom VOB types (case insensetive)
+ "supports" => "autorec"                               # csv list of generic and/or custom VOB types (case insensetive)
 );
 
 # File version
