@@ -137,7 +137,6 @@ foreach (@reply) {
 
 foreach (@result) {
 	#use `cleartool chevent -c "added comment" . ` search for filename between | and whitespace 
-	`cleartool chevent -c "added comment" .`
 	$log->information($_);
 }
 __END__
