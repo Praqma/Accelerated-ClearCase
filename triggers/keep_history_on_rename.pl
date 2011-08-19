@@ -23,8 +23,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "1";
-my $verbose_mode = 1;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
+our $REVISION = "2";
 my $debug_on = defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} ) ? $ENV{'CLEARCASE_TRIGGER_DEBUG'} : undef;
 
 # Header and revision history
@@ -52,96 +51,103 @@ ENDHEADER
 #########################################################################
 our $revision = <<ENDREVISION;
 DATE        EDITOR         		NOTE
-----------  ------------   		----------------------------------------------
+----------  -----------------   -------------------------------------------
+2011-08-17  Jens Brejner        Praqmatized (v 0.1.2)
+2011-08-04  Margit Bennetzen    Script created (v 0.1.1)
 
-2011-08-04  Margit Bennetzen	Script created
-2011-08-17  Jens Brejner        Praqmatized
-
-------------------------   		----------------------------------------------
-
+-----------------------------  ----------------------------------------------
 ENDREVISION
 
 #Enable the features in trigger_helper
 our $thelp = trigger_helper->new;
 $thelp->enable_install( \%install_params );    #Pass a reference to the install-options
+
 $thelp->require_trigger_context;
 
-# Look for semaphore, respecting a local semaphore path via env. var.
-our $semaphore_status = $thelp->enable_semaphore_backdoor( $ENV{'CLEARCASE_USE_LOCAL_SEMAPHORE'} );
+# Look for semaphore for trigger cancelling.
+our $semaphore_status = $thelp->enable_semaphore_backdoor();
 
 # Initiate logging.
 our $log = scriptlog->new;
 
 #Define either environment variabel CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
 $log->conditional_enable();
-$log->enable(1);
 
 #Define either environment variabel CLEARCASE_TRIGGER_VERBOSE=1 or SCRIPTLOG_VERBOSE=1 to start printing to STDOUT
-$log->set_verbose($verbose_mode);
+$log->set_verbose();
 our $logfile = $log->get_logfile();
-($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
-($logfile) && $log->information($semaphore_status);
-
-# Run this statement to have the trigger dump the CLEARCASE variables
-($logfile) && $log->dump_ccvars;
+if ($logfile) {
+    $debug_on = 1;
+    $log->set_verbose($debug_on);
+}
+$log->information("logfile is: $logfile\n") if ($debug_on);
+$log->information($semaphore_status)        if ($debug_on);
+$log->dump_ccvars()                         if ($debug_on);
 
 # Main:
 # Continue only if operation type is what we are intended for..
 if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 
-    my @result; # Interesting output files
-    my $on = 0; # 
-    my $parentfolder = dirname( $ENV{CLEARCASE_PN2} );
-    my @diffoutput   = `cleartool diff -pre "$parentfolder" 2>&1`;
+    my $parentfolder = $ENV{CLEARCASE_PN};
+    my @diffoutput   = qx(cleartool diff -ser -pre "$parentfolder" 2>&1);
 
-    foreach (@diffoutput) {
-                    if ( $_ =~ /^-------------/ ) {
-                ($logfile) && $log->information("Found line containing: [$_]");
-                $on = 1;
-        if ( $on eq 0 ) {
-            if ( $_ =~ /^-------------/ ) {
-                ($logfile) && $log->information("Found line containing: [$_]");
-                $on = 1;
-                push( @result, $_ );
+    my ( $action, $index );
+    $index = 0;
+    while ( $index < @diffoutput ) {
+        $_ = $diffoutput[$index];
+
+        # look for pattern like this '-----[ renamed to ]-----'
+        if (/^(-{5}\[\s)(.*)(\s\]-{5})/) {
+            $action = $2;
+        }
+        else {
+            $index++;
+            next;
+        }
+
+        if ( $action =~ /renamed to/i ) {
+
+            # Work on block of 4 lines, which describes the rename operation
+            if ($logfile) {
+                $log->information("Found rename pattern starting at line $index of diffoutput:");
+                foreach ( $diffoutput[ $index .. ( $index + 3 ) ] ) {
+                    $log->information("\t$_");
+                }
             }
+
+            # Extract element names
+            ( my $oldname = $diffoutput[ $index + 1 ] ) =~ s/(^..)(.*)(.\s+--\d+.*$)/$2/;
+            ( my $newname = $diffoutput[ $index + 3 ] ) =~ s/(^..)(.*)(.\s+--\d+.*$)/$2/;
+            chomp $oldname;
+            chomp $newname;
+            my $comment = "Element [$newname] previously named [$oldname]";
+            &update_event( 'comment' => "$comment", 'object' => $parentfolder );
+            &update_event( 'comment' => "$comment", 'object' => "$parentfolder/$newname$ENV{CLEARCASE_XN_SFX}" );
+
+            # Move forward to next interesting block
+            $index = $index + 4;
+            next;
         }
         else {
 
-            $on = 0;
-            push( @result, $_ );
+            # Move forward to next interesting block
+            $log->information("Found line $_ - moving on...") if ($debug_on);
+            $index = $index + 2;
+            next;
         }
-
-    }
-
-    foreach (@result) {
-
-        #use `cleartool chevent -c "added comment" . ` search for filename between | and whitespace
-        $log->information($_);
     }
 }
+
+sub update_event () {
+
+    # update object event
+    my %parms = @_;
+    my @reply = qx(cleartool chevent -append -c \"$parms{'comment'}\" "$parms{'object'}" 2>&1);
+    $log->warning( "Trouble appending comment: " . join( '', @reply ) ) if ($?);
+    $log->information("$parms{'comment'}") if ($debug_on);
+}
+
 __END__
 
-my ( $index, $thislast );
-$index = 0;
-while ( $index < @diffoutput ) {
- if ( $diffoutput[$index] =~ m/-----\[ renamed to \]-----/i ) {
-  ( my $oldname = $diffoutput[ $index + 1 ] ) =~ s/(..)(.*)(.\s+--\d+.*)/$2/;
-  ( my $newname = $diffoutput[ $index + 3 ] ) =~ s/(..)(.*)(.\s+--\d+.*)/$2/;
-  print "Element [$newname] previously named [$oldname]\n";
-  $index = $index + 4;
-  next;
- }
- elsif ( $diffoutput[$index] =~ m/-----\[ added \]-----/i ) {
-  ( my $addedname = $diffoutput[ $index + 1 ] ) =~ s/(..)(.*)(.\s+--\d+.*)/$2/;
-  print "New Element [$addedname]\n";
-  $index = $index + 2;
-  next;
- }
- else {
-
-  # print "\$index is $index  in $diffoutput[$index]\n ";
-  $index++;
- }
-}
 
 	
