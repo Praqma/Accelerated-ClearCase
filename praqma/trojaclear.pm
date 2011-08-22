@@ -9,7 +9,7 @@ use vars qw($VERSION);
 # File version
 my $major = 0;
 my $minor = 1;
-my $build = 8;
+my $build = 9;
 
 die "Versioning failed\n" unless ( $build < 1000 );
 our $VERSION = sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
@@ -59,14 +59,14 @@ The remainder of the methods are described below.
 
 our %fqt = (
 
-    #    "replica"   => "replica:",
-    "branch" => "brtype:",
-    "label"  => "lbtype:",
+	#    "replica"   => "replica:",
+	"branch" => "brtype:",
+	"label"  => "lbtype:",
 
-    #    "trigger"   => "trtype:",
-    #    "hyperlink" => "hltype:",
-    #    "element"   => "eltype:",
-    #    "attribute" => "attype:",
+	#    "trigger"   => "trtype:",
+	#    "hyperlink" => "hltype:",
+	#    "element"   => "eltype:",
+	#    "attribute" => "attype:",
 
 );
 
@@ -92,29 +92,30 @@ undef if not.
 
 =cut
 
-    my $class = shift;
-    my $obj   = shift;
+	my $class = shift;
+	my $obj   = shift;
 
-    # check's if $obj does not have a value,
-    # or if there are more values than we can handle
-    die "Reference to a scriptlog object called log is required" unless defined $::log;
-    return undef if ( !defined($obj) || scalar(@_) );
-    my $self = {};
-    bless( $self, $class );    # Mark it of the right type
-    $self->{InitiallyCreatedWith} = $$obj;
+	# check's if $obj does not have a value,
+	# or if there are more values than we can handle
+	die "Reference to a scriptlog object called log is required" unless defined $::log;
+	return undef if ( !defined($obj) || scalar(@_) );
+	my $self = {};
+	bless( $self, $class );    # Mark it of the right type
+	$self->{InitiallyCreatedWith} = $$obj;
 
-    # Save identifier part of the $$obj, i.e. "brtype:"
-    ( my $ident = $self->{InitiallyCreatedWith} ) =~ s/(.*:).*/$1/;
+	# Save identifier part of the $$obj, i.e. "brtype:"
+	( my $ident = $self->{InitiallyCreatedWith} ) =~ s/(.*:).*/$1/;
 
-    # Check test that object is qualified with one of the values from %fqt
-    if ( grep { /$ident/ } values %fqt ) {
-        $self->{QualifedName} = $self->{InitiallyCreatedWith};    # Ensure Qualified name
-        $self->{NAME}         = $self->{QualifedName};
-        $::log->information("Object $self->{InitiallyCreatedWith} is accepted, we have an object\n");
-        return $self;                                             # And give it back
-    } else {
-        return undef;                                             #
-    }
+	# Check test that object is qualified with one of the values from %fqt
+	if ( grep { /$ident/ } values %fqt ) {
+		$self->{QualifedName} = $self->{InitiallyCreatedWith};    # Ensure Qualified name
+		$self->{NAME}         = $self->{QualifedName};
+		$::log->information("Object $self->{InitiallyCreatedWith} is accepted, we have an object\n");
+		return $self;                                             # And give it back
+	}
+	else {
+		return undef;                                             #
+	}
 }
 
 sub get_masterreplica {
@@ -134,20 +135,21 @@ Returns undef if the are problems - else it returns that replica name.
 
 =cut
 
-    my $self = shift;
-    unless ( defined $self->{MasterReplica} ) {
-        my $reply = qx(cleartool des -fmt %[master]p $self->{QualifedName} 2>&1 );
+	my $self = shift;
+	unless ( defined $self->{MasterReplica} ) {
+		my $reply = qx(cleartool des -fmt %[master]p $self->{QualifedName} 2>&1 );
 
-        if ($?) {
-            $::log->error("Unable to determine master replica for object [$self->{QualifedName}]\n");
-            $::log->error("The reply from CC was $reply\n");
-            return undef;
-        } else {
-            $self->{MasterReplica} = "replica:$reply";
-        }
-    }
+		if ($?) {
+			$::log->error("Unable to determine master replica for object [$self->{QualifedName}]\n");
+			$::log->error("The reply from CC was $reply\n");
+			return undef;
+		}
+		else {
+			$self->{MasterReplica} = "replica:$reply";
+		}
+	}
 
-    return $self->{MasterReplica};
+	return $self->{MasterReplica};
 }
 
 sub get_replicaname {
@@ -167,25 +169,24 @@ Returns undef if the are problems - else it returns that replica name.
 
 =cut
 
-    my $self = shift;
-    unless ( defined $self->{ReplicaName} ) {
+	my $self = shift;
+	unless ( defined $self->{ReplicaName} ) {
 
-        ( my $vobtag = $self->{QualifedName} ) =~ s/(\S+@)(\S+)$/$2/;    #isolate vobtag
-        my $reply = qx(cleartool des -fmt %[replica_name]p vob:$vobtag 2>&1 );
+		( my $vobtag = $self->{QualifedName} ) =~ s/(\S+@)(\S+)$/$2/;    #isolate vobtag
+		my $reply = qx(cleartool des -fmt %[replica_name]p vob:$vobtag 2>&1 );
 
-        if ($?) {
-            $::log->error("Unable to determine replica name for vob [$vobtag]\n");
-            $::log->error("The reply from CC was $reply\n");
-            return undef;
-        } else {
-            $self->{ReplicaName} = "replica:$reply\@$vobtag";
-        }
-    }
+		if ($?) {
+			$::log->error("Unable to determine replica name for vob [$vobtag]\n");
+			$::log->error("The reply from CC was $reply\n");
+			return undef;
+		}
+		else {
+			$self->{ReplicaName} = "replica:$reply\@$vobtag";
+		}
+	}
 
-    return $self->{ReplicaName};
+	return $self->{ReplicaName};
 }
-
-use Net::Domain;
 
 sub get_replicahost {
 
@@ -203,37 +204,38 @@ Returns undef if the are problems - else it returns that host name.
 
 =cut
 
-    my $self = shift;
+	my $self = shift;
 
-    # update "MasterReplica" if we need it
-    unless ( defined $self->{MasterReplica} ) { $self->get_masterreplica(); }
+	# update "MasterReplica" if we need it
+	unless ( defined $self->{MasterReplica} ) { $self->get_masterreplica(); }
 
-    # update ReplicaName if we need it
-    unless ( defined $self->{ReplicaName} ) { $self->get_replicaname(); }
+	# update ReplicaName if we need it
+	unless ( defined $self->{ReplicaName} ) { $self->get_replicaname(); }
 
-    unless ( defined $self->{ReplicaHost} ) {
+	unless ( defined $self->{ReplicaHost} ) {
 
-        my $reply;
+		my $reply;
         # Are we at the replica master site ?
-        if ( $self->{MasterReplica} eq $self->{ReplicaName} ) {
-            $self->{ReplicaHost} = hostfqdn(); #  from Net::Domain
-        }
-        else
-        {
-	        # or are we not ?
-	        $reply = qx(cleartool des -fmt %[replica_host]p $self->{MasterReplica} 2>&1 );
-	        if ($?) {
-	            $::log->error("Unable to determine the host for replica [$self->{MasterReplica}]\n");
-	            $::log->error("The reply was $reply\n");
-	            $self->{ReplicaHost} = undef;
-	        } else {
-	            chomp $reply;
-	            $self->{ReplicaHost} = $reply;
-	        }
-        }
-    }
+		if ( $self->{MasterReplica} eq $self->{ReplicaName} ) {
+			$self->{ReplicaHost} = hostfqdn();    #  from Net::Domain
+		}
+		else {
 
-    return $self->{ReplicaHost};
+			# or are we not ?
+			$reply = qx(cleartool des -fmt %[replica_host]p $self->{MasterReplica} 2>&1 );
+			if ($?) {
+				$::log->error("Unable to determine the host for replica [$self->{MasterReplica}]\n");
+				$::log->error("The reply was $reply\n");
+				$self->{ReplicaHost} = undef;
+			}
+			else {
+				chomp $reply;
+				$self->{ReplicaHost} = $reply;
+			}
+		}
+	}
+
+	return $self->{ReplicaHost};
 }
 
 sub removetype ($) {
@@ -254,23 +256,24 @@ lost+found, but for for instance label types they is no way back.
 
 =cut
 
-    my $self   = shift;
-    my $byuser = shift;
+	my $self   = shift;
+	my $byuser = shift;
 
-    unless ( defined $self->{Removed} ) {
-        my $reply = qx(cleartool rmtype -force -rmall -c " removed by Troja webservice, on request by $byuser" $self->{InitiallyCreatedWith} 2>&1 );
+	unless ( defined $self->{Removed} ) {
+		my $reply = qx(cleartool rmtype -force -rmall -c " removed by Troja webservice, on request by $byuser" $self->{InitiallyCreatedWith} 2>&1 );
 
-        if ($?) {
-            $::log->error("Unable remove type [$self->{InitiallyCreatedWith}]\n");
-            $::log->error("The reply from CC was $reply\n");
-            return undef;
-        } else {
-            chomp $reply;
-            $self->{Removed} = $reply;
-        }
-    }
+		if ($?) {
+			$::log->error("Unable remove type [$self->{InitiallyCreatedWith}]\n");
+			$::log->error("The reply from CC was $reply\n");
+			return undef;
+		}
+		else {
+			chomp $reply;
+			$self->{Removed} = $reply;
+		}
+	}
 
-    return $self->{Locked};
+	return $self->{Locked};
 }
 
 sub locktype ($) {
@@ -289,23 +292,24 @@ Returns undef
 
 =cut
 
-    my $self   = shift;
-    my $byuser = shift;
+	my $self   = shift;
+	my $byuser = shift;
 
-    unless ( defined $self->{Locked} ) {
-        my $reply = qx(cleartool lock -c "Locked by $byuser" $self->{InitiallyCreatedWith} 2>&1 );
+	unless ( defined $self->{Locked} ) {
+		my $reply = qx(cleartool lock -c "Locked by $byuser" $self->{InitiallyCreatedWith} 2>&1 );
 
-        if ($?) {
-            $::log->error("Unable to lock type [$self->{InitiallyCreatedWith}]\n");
-            $::log->error("The reply from CC was $reply\n");
-            return undef;
-        } else {
-            chomp $reply;
-            $self->{Locked} = qx(cleartool des -fmt %[locked]p $self->{InitiallyCreatedWith} );
-        }
-    }
+		if ($?) {
+			$::log->error("Unable to lock type [$self->{InitiallyCreatedWith}]\n");
+			$::log->error("The reply from CC was $reply\n");
+			return undef;
+		}
+		else {
+			chomp $reply;
+			$self->{Locked} = qx(cleartool des -fmt %[locked]p $self->{InitiallyCreatedWith} );
+		}
+	}
 
-    return $self->{Locked};
+	return $self->{Locked};
 }
 
 sub get_creationdate {
@@ -323,31 +327,32 @@ Returns undef if we can not determine the creation time.
 
 =cut
 
-    my $self = shift;
+	my $self = shift;
 
-    unless ( defined $self->{ObjectCreatedInEpoch} ) {
-        $ENV{'CCASE_ISO_DATE_FMT'} = "1";
-        my $reply = qx(cleartool des -fmt %Nd $self->{QualifedName} 2>&1 );
+	unless ( defined $self->{ObjectCreatedInEpoch} ) {
+		$ENV{'CCASE_ISO_DATE_FMT'} = "1";
+		my $reply = qx(cleartool des -fmt %Nd $self->{QualifedName} 2>&1 );
 
-        if ($?) {
-            $::log->error("Unable to determine creation date for [$self->{QualifedName}]\n");
-            $::log->error("The reply from CC was $reply\n");
-            return undef;
-        } else {
-            $::log->information("$self->{QualifedName} was created $reply\n");
+		if ($?) {
+			$::log->error("Unable to determine creation date for [$self->{QualifedName}]\n");
+			$::log->error("The reply from CC was $reply\n");
+			return undef;
+		}
+		else {
+			$::log->information("$self->{QualifedName} was created $reply\n");
 
-            # The next couple of conversions are not too pretty, but it works
-            my ( $year, $month, $date, $hour, $minute, $second ) = ( $reply =~ /^(\d{4})(\d{2})(\d{2})\.(\d{2})(\d{2})(\d{2})/ );
+			# The next couple of conversions are not too pretty, but it works
+			my ( $year, $month, $date, $hour, $minute, $second ) = ( $reply =~ /^(\d{4})(\d{2})(\d{2})\.(\d{2})(\d{2})(\d{2})/ );
 
-            # make array, while removing leading zeroes, and remap year and month to values that are consistent with perl's time functions
-            my @epoch_creat   = split /,/, sprintf( "%d,%d,%d,%d,%d,%d", $second, $minute, $hour, $date, $month - 1, $year - 1900 );
-            my $epoch_created = timelocal(@epoch_creat);
+			# make array, while removing leading zeroes, and remap year and month to values that are consistent with perl's time functions
+			my @epoch_creat = split /,/, sprintf( "%d,%d,%d,%d,%d,%d", $second, $minute, $hour, $date, $month - 1, $year - 1900 );
+			my $epoch_created = timelocal(@epoch_creat);
 
-            $self->{ObjectCreatedInEpoch} = $epoch_created;
-        }
-    }
+			$self->{ObjectCreatedInEpoch} = $epoch_created;
+		}
+	}
 
-    return $self->{ObjectCreatedInEpoch};
+	return $self->{ObjectCreatedInEpoch};
 
 }
 ## private functions
@@ -363,7 +368,7 @@ an object instance.
 
 =cut
 
-    my $self = shift;
+	my $self = shift;
 }
 
 #########################   END OF SUBS  #######################################

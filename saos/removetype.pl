@@ -148,7 +148,7 @@ $diemsg = $diemsg . "then any version which are on branches created from the typ
 $diemsg = $diemsg . "will end up in lost+found - at the best. \n";
 $diemsg = $diemsg . "The reason is that removal of types could cause a lot of \n";
 
-die "$diemsg";
+#	die "$diemsg";
 
 #########################    Define variables    #########################
 # global variables
@@ -161,11 +161,13 @@ my ( $sw_help, $sw_verbose, $sw_query, $sw_remove, $sw_logfile, $sw_object, $sw_
 my %options = (
  "help"      => \$sw_help,       # Request help
  "query!"    => \$sw_query,      # Query mode
- "lock!"     => \$sw_remove,     # Lock mode
+ "remove!"   => \$sw_remove,     # Remove type mode
  "logfile=s" => \$sw_logfile,    # Your optional logfile
  "object=s"  => \$sw_object,     # object to work on i.e. brtype:mybranch@\vobtag
  "by_user=s" => \$sw_byuser,     # the user that requests the locking of the object
- "max_age=i" => \$sw_max_age     # the user that requests the locking of the object
+ "max_age=i" => \$sw_max_age,    # Integer, maximum object age in hours 
+ "verbose!"  => \$sw_verbose     # verbose output 
+	
 );
 
 #########################    MAIN    #########################
