@@ -199,7 +199,7 @@ sub get_projects ($) {
 sub get_pvobs {
 
 	# find all pvobs, return an array of the vobtags
-	my @retval = grep { /(ucmvob)/ } qx("cleartool lsvob ");
+	my @retval = grep { /(.*ucmvob.*)/ } qx("cleartool lsvob ");
 	foreach (@retval) {
 		s/(^..)(\S+)(\s+.*$)/$2/;
 		chomp;
