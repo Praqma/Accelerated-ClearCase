@@ -4,12 +4,13 @@ use strict;
 our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
-	use File::Basename;
-	$Scriptdir  = dirname($0) . "/";
-	$Scriptfile = basename($0);
+  use File::Basename;
+  $Scriptdir  = dirname(__FILE__) . "\\";
+  $Scriptfile = basename(__FILE__);
 
 }
-use lib $Scriptdir . "../";
+
+use lib $Scriptdir . "..\\";
 
 use praqma::scriptlog;
 use praqma::trigger_helper;
@@ -21,14 +22,14 @@ $| = 1;
 our $TRIGGER_NAME = "ACC_BLOCK_RMNAME_IF_CO";
 
 our %install_params = (
-	"name"     => $TRIGGER_NAME,                     # The name og the trigger
-	"mktrtype" => "-element -all -preop rmname ",    # The stripped-down mktrtype command
-	"supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
+  "name"     => $TRIGGER_NAME,                     # The name og the trigger
+  "mktrtype" => "-element -all -preop rmname ",    # The stripped-down mktrtype command
+  "supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
 );
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "3";
+our $REVISION = "4";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -91,23 +92,23 @@ my ( $msg, $msgvar, $element );
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "rmname" ) {
 
-	if ( $twincfg{AlsoParent} ) {
-		$element = dirname( $ENV{CLEARCASE_PN} );
-		$msgvar  = "'s parent folder";
-		($logfile) && $log->information("Looking for checkouts of parent directory called [$element]");
-		if ( check_co() ) {
-			exit 1;
-		}
-	}
+  if ( $twincfg{AlsoParent} ) {
+    $element = dirname( $ENV{CLEARCASE_PN} );
+    $msgvar  = "'s parent folder";
+    ($logfile) && $log->information("Looking for checkouts of parent directory called [$element]");
+    if ( check_co() ) {
+      exit 1;
+    }
+  }
 
-	$element = $ENV{CLEARCASE_PN};
-	$msgvar  = " is";
-	($logfile) && $log->information("Calling after Alsoparent, Element is [$element]");
-	if ( check_co() ) {
-		exit 1;
+  $element = $ENV{CLEARCASE_PN};
+  $msgvar  = " is";
+  ($logfile) && $log->information("Calling after Alsoparent, Element is [$element]");
+  if ( check_co() ) {
+    exit 1;
 
-	}
-	exit 0;
+  }
+  exit 0;
 }
 
 #
@@ -116,47 +117,47 @@ die "trigger called out of context, we should never end here.";
 ########################### SUBS ###########################
 sub check_co {
 
-	# Returns 0 if there are no (dangerous) checkouts
-	# Returns 1 if there are dangerous checkouts
+  # Returns 0 if there are no (dangerous) checkouts
+  # Returns 1 if there are dangerous checkouts
 
-	my $retval = 0;
-	my $cmd    = "cleartool lscheckout -directory -fmt \"\%Tf,\%u\\n\" \"$element\"";
-	($logfile) && $log->information("Command looking for checkouts : [$cmd]");
+  my $retval = 0;
+  my $cmd    = "cleartool lscheckout -directory -fmt \"\%Tf,\%u\\n\" \"$element\"";
+  ($logfile) && $log->information("Command looking for checkouts : [$cmd]");
 
-	$msg = "ERROR...\nYou cannot rename the element [$element] while it$msgvar is checked out by ";
+  $msg = "ERROR...\nYou cannot rename the element [$element] while it$msgvar is checked out by ";
 
-	# Get view and user pairs for checkouts of element
-	my @co_info = qx($cmd);
+  # Get view and user pairs for checkouts of element
+  my @co_info = qx($cmd);
 
-	($logfile) && $log->information( "Clearcase replies: \n\t" . join( '\t', @co_info ) );
-	if (@co_info) {
-		($logfile) && $log->information("There ARE checkouts");
-		foreach (@co_info) {
+  ($logfile) && $log->information( "Clearcase replies: \n\t" . join( '\t', @co_info ) );
+  if (@co_info) {
+    ($logfile) && $log->information("There ARE checkouts");
+    foreach (@co_info) {
 
-			($logfile) && $log->information("There is a checkout in $_");
-			chomp($_);
-			my ( $view, $user ) = split( /,/, $_ );
-			if ( ( $twincfg{AlsoParent} ) && ( $view eq $ENV{CLEARCASE_VIEW_TAG} ) ) {
+      ($logfile) && $log->information("There is a checkout in $_");
+      chomp($_);
+      my ( $view, $user ) = split( /,/, $_ );
+      if ( ( $twincfg{AlsoParent} ) && ( $view eq $ENV{CLEARCASE_VIEW_TAG} ) ) {
 
-				# In current view, parent dir must be checked out for rename to succeed, so we accept that
-				($logfile) && $log->information("Ignoring co of parent dir, it is this view");
-				next;
-			}
+        # In current view, parent dir must be checked out for rename to succeed, so we accept that
+        ($logfile) && $log->information("Ignoring co of parent dir, it is this view");
+        next;
+      }
 
-			($logfile) && $log->information("Found view $view and user $user ");
+      ($logfile) && $log->information("Found view $view and user $user ");
 
-			$msg .= "$user in view $view";
-			$log->enable(1);
-			$log->set_verbose(1);
+      $msg .= "$user in view $view";
+      $log->enable(1);
+      $log->set_verbose(1);
 
-			$log->information($msg);
-			++$retval;
-		}
-	}
-	else {
-		($logfile) && $log->information("scalar \@co_info is ... not ? ");
-	}
-	return $retval;
+      $log->information($msg);
+      ++$retval;
+    }
+  }
+  else {
+    ($logfile) && $log->information("scalar \@co_info is ... not ? ");
+  }
+  return $retval;
 }
 
 __END__
