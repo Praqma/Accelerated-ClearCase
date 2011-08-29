@@ -13,14 +13,13 @@ BEGIN {
 use lib "$_packagedir";
 use lib "$_packagedir/..";
 
-#our $VERSION = &$set_version();
 # Module version
-# set the version for version checking
 
-our $VERSION = 0.02;
-
+my $major = 0;
+my $minor = 1;
+my $build = 3;
+our $VERSION = &format_version_number(my $major,$minor,$build);
 use vars qw($VERSION);
-
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 
 @ISA         = qw(Exporter);
@@ -57,21 +56,12 @@ my $get_ct_exit_val = sub {
 # make all your functions, whether exported or not;
 #######################################################################################
 #
-my $set_version = sub {
-
-  # File version
-  my $major = 0;
-  my $minor = 0;
-  my $build = 2;
-  die "Versioning failed\n" unless ( $build < 1000 );
-  sprintf( "%.4f", $major + ( $minor / 10 ) + ( $build / 10000 ) );
-};
 
 =head2 pcc->new( )
 Creates an object used access object methods and properties
 =cut
 
-sub new () {
+sub new {
   my $package = shift;
   my %params  = @_;
   my $self    = {};
@@ -122,7 +112,7 @@ Returns an array reference fully qualified streamsof the visible (current region
 sub get_components_invob( ) {
   my $self  = shift;
   my %parms = @_;
-  die "named parameter 'pvob' requiered!" unless defined( $parms{pvob} );
+  die "named parameter 'pvob' required!" unless defined( $parms{pvob} );
 
   my $property = "components_$parms{pvob}";
   my ( @retval, $tagonly );
@@ -174,6 +164,31 @@ sub get_pvobs {
 
 }
 
+=head2 format_version_number (MAJOR,MINOR,BUILD) 
+Perl module version numbers useable for instance use or require statements
+operates solely on numbers, strings are not useable. This sub converts a 3 level 
+version defintion consisting of MAJOR, MINOR and BUILD to a decimal number.
+
+
+Example:
+If MAJOR equals 4, MINOR equals 2 and BUILD equals 16 format will return 
+4.2016
+
+Input: 3 numbers, major, minor and build
+Returns: Decimal representation of the above following the described rules
+
+=cut 
+
+sub format_version_number ($$$)  {
+
+  my $l_major = scalar(@_[0]);
+  my $l_minor = scalar(@_[1]);
+  my $l_build = scalar(@_[2]);
+  die "Versioning failed\n" unless ( $l_build < 1000 );
+  return sprintf( "%.4f", $l_major + ( $l_minor / 10 ) + ( $l_build / 10000 ) );
+}
+
+
 =head2 pcc->DESTROY( )
 Destroys the pcc object
 =cut
@@ -217,7 +232,5 @@ sub func3($$) {
 sub func4(\%) {
   return if (1);
 }
-
-# ref END { return if (1); }
 
 1;
