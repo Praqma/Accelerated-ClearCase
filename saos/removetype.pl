@@ -195,7 +195,7 @@ sub removeobject {
   $epoch_created = $clearobj->{ObjectCreatedInEpoch};
   my $epoch_elapsed = $timenow - $epoch_created;
   if ( $maxseconds > $epoch_elapsed ) {
-   $log->information( "$clearobj->{QualifedName} is around " . int( $epoch_elapsed % 3600 ) . " hours old\n" );
+   $log->information( "$clearobj->{QualifedName} is " . sprintf ("%02d:%02d", (localtime($epoch_elapsed))[2,1]) . " hours old\n" );
    $log->information("so $clearobj->{QualifedName} can be removed, attempting now...\n");
    $log->information( $clearobj->{Removed} ) if ( $clearobj->removetype($sw_byuser) );
   }
