@@ -11,13 +11,13 @@ use Getopt::Long;
 # $_packagedir was defined in BEGIN block
 use lib "$_packagedir";
 use lib "$_packagedir\\..\\..";
-use pcc;
+use praqma::pcc;
 use scriptlog;
 
 #  Script version
 my $major = 0;
 my $minor = 0;
-my $build = 3;
+my $build = 4;
 our $VERSION = pcc::format_version_number( $major, $minor, $build );
 
 # Header history
@@ -43,6 +43,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------------
+2011-09-14  Jens Brejner   Added dryrun switch (0.0004)
 2011-08-29  Jens Brejner   Initial version (0.0003)   
 ----------  -------------  ----------------------------------------------------
  
@@ -55,7 +56,7 @@ $_packagefile -help
 $_packagefile -allvobs | -vob VOBTAG 
 $_packagefile -component COMPONENT-IDENTIFIER 
 
-Auxiliary switches [-debug]  
+Auxiliary switches [-debug] [-dryrun] 
 ENDUSAGE
 
 my $doc = <<ENDDOC;
@@ -75,7 +76,8 @@ my $doc = <<ENDDOC;
                component, must be given as a fully qualied component-identifier
                like this: component:somecomp\@\\vobtag   
                Can't be used with -allvobs or -vob  
-
+-dryrun        Optional. Forcefully enables debug mode and does not perform the
+               upgrade of the baseline.
 ------------------------------------------------------------------------------- 
 ENDDOC
 
@@ -84,7 +86,7 @@ ENDDOC
 my ( $log, $pccobj, $t_begin, @comps, @pvobs, %options, $incremental_pattern, $counter, $t_elapsed );
 
 # Switch specific variables
-my ( $sw_help, $sw_verbose, $sw_debug, $sw_allvobs, $sw_vob, $sw_component );
+my ( $sw_help, $sw_verbose, $sw_debug, $sw_allvobs, $sw_vob, $sw_component, $sw_dryrun );
 $incremental_pattern = "Incrementally Labeled";
 $counter             = 1;                         #
 
@@ -118,18 +120,24 @@ $log->information("Elapsed time (sec): $t_elapsed\n");
 #################################  S U B S   ##################################
 
 sub upgrade_bl {
-  # Expects arrayreference to list of fully qualifed baselines that 
+
+  # Expects arrayreference to list of fully qualifed baselines that
   # should be upraded
-  
+
   my $arrayref = shift;
   foreach (@$arrayref) {
-    $pccobj->ct( command => 'chbl -full ' . $_ );
-
+    if ($sw_dryrun) {
+      $log->information("Would have called: [cleartool chbl -full $_], by this is dryrun only");
+    }
+    else {
+      $pccobj->ct( command => 'chbl -full ' . $_ );
+    }
   }
 }
 
 sub get_incrementally {
-  # Expects arrayreference to list of fully qualifed components that 
+
+  # Expects arrayreference to list of fully qualifed components that
   # should be searched for incrementally labelled baselines
   # Returns array of those found
 
@@ -148,20 +156,25 @@ sub get_incrementally {
 }
 
 sub validate_options {
+
   # Check input paramteres
-  
+
   %options = (
     "help"        => \$sw_help,
     "debug!"      => \$sw_debug,
     "verbose!"    => \$sw_verbose,
     "allvobs!"    => \$sw_allvobs,
     "vob=s"       => \$sw_vob,
-    "component=s" => \$sw_component
+    "component=s" => \$sw_component,
+    "dryrun!"     => \$sw_dryrun
 
   );
 
   die "$usage" unless GetOptions(%options);
 
+  if ($sw_dryrun) {
+    $sw_debug = 1;
+  }
   if ($sw_debug) {
     print "Debug mode on\n";
   }
@@ -170,7 +183,7 @@ sub validate_options {
 
   #  help required
   $exitmessage = "Required option missing:\n";
-  unless ( $sw_allvobs or $sw_vob or $sw_component ) {
+  unless ( $sw_allvobs or $sw_vob or $sw_component or $sw_dryrun) {
     $sw_help = 1;
     print "$exitmessage";
   }
@@ -195,8 +208,9 @@ sub validate_options {
 }    # end sub
 
 sub intialize() {
+
   # Initalize world
-  
+
   $log->enable(1);
   $log->set_verbose(1);
 
@@ -208,13 +222,13 @@ sub intialize() {
   # Set list of components to process
   if ($sw_component) {
     push @comps, $sw_component;
-    $sw_debug && $log->information( "Single component mode execution selected the following" . join( '', @comps ) );
+    $sw_debug && $log->information( "Single component mode execution selected the following" . join( "\n", @comps ) );
   }
   elsif ($sw_vob) {
 
     # list components in specified vob
     @comps = @{ $pccobj->get_components_invob( 'pvob' => $sw_vob ) };
-    $sw_debug && $log->information( "Single vob mode execution selected the following" . join( '', @comps ) );
+    $sw_debug && $log->information( "Single vob mode execution selected the following" . join( "\n", @comps ) );
   }
   else {
 
@@ -222,7 +236,7 @@ sub intialize() {
     foreach ( @{ $pccobj->get_pvobs() } ) {
       push @comps, @{ $pccobj->get_components_invob( 'pvob' => $_ ) };
     }
-    $sw_debug && $log->information( "All vobs mode execution selected the following" . join( '', @comps ) );
+    $sw_debug && $log->information( "All vobs mode execution selected the following:\n" . join( "\n", @comps ) );
   }
 
   $log->information( "Processing " . scalar(@comps) . " components\n" );
@@ -283,7 +297,6 @@ ratlperl I<full_path_to_script> -vob I<vobtag>
 Single Component mode:
 
 ratlperl I<full_path_to_script> -component I<fully qualifed component selector>
-
 
 
 =cut
