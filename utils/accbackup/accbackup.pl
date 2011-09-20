@@ -1035,15 +1035,15 @@ Returns:
 	my $stderrout = `$cmd`;
 	debug_print( "Executed: [$cmd] Return value was: [" . scalar($?) / 256 . "]\n" );
 
-	if ( $stderrout =~ /[*\s]\S+\s+(\S*)/ ) {                                                       # Looking for VOBTAG VOBSTG
+	if ( $stderrout =~ /[*\s]\S+\s+(\S*)/ ) {    # Looking for VOBTAG VOBSTG
 		my $match = "$1";
 		debug_print("\$match:\t$match\n");
-		if ( $match =~ /^\\\\.+/ ) {                                                                # Detected a UNC path (gpath)
+		if ( $match =~ /^\\\\.+/ ) {             # Detected a UNC path (gpath)
 			$vobstg = $match;
 		}
-		else {                                                                                      # Could be that we're running on ClearCase LT
+		else {                                   # Could be that we're running on ClearCase LT
 
-			if ( $match =~ /^(\S+?):(\S+)/ ) {                                                      #Looking for HOST:LOCALPATH
+			if ( $match =~ /^(\S+?):(\S+)/ ) {    #Looking for HOST:LOCALPATH
 				$host   = $1;
 				$vobstg = $2;
 				debug_print("Detected ClearCase LT gpath syntax:\n");
@@ -1051,7 +1051,7 @@ Returns:
 				debug_print("vobstg:\t$vobstg\n");
 				if ( lc($host) ne lc( $ENV{COMPUTERNAME} ) ) {
 					$log->error("$Scriptfile Won't process vob $vob located on remote host $host.\n");
-					return 1;                                                                       # Return error.
+					return 1;                     # Return error.
 				}
 			}
 			else {
