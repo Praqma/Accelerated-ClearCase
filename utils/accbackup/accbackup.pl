@@ -1653,7 +1653,7 @@ Return 1 on failure
 =cut
 
 	my $notrecursive = "/LEV:1 /COPYALL /MIR /SEC /R:2 /A-:A /W:5 ";    # robocopy will only copy 1'st level subdir's a.k.a not recursive
-	my @dirs = split( /,/, $sw_directory );
+	my @dirs         = split( /,/, $sw_directory );
 
 	foreach my $dir (@dirs) {
 
