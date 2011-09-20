@@ -26,7 +26,7 @@ $| = 1;    # autoflush on
 our $VERSION = "1.0";
 
 # BUILD is revision number!
-our $BUILD = "175";
+our $BUILD = "176";
 
 =head1 NAME
 
@@ -101,6 +101,11 @@ DATE         EDITOR         NOTE
 2009-08-29   Jens Brejner   Removing usage of switch.pm. Replace scriptlogccbackup
                             with scriptlog.pm. Publishing this version on launchpad
                             in the acc project.
+                            
+2011-09-20 Margit Bennetzen Fixed bug so -livesync no longer exludes directories 
+							called db in other than vobs.
+							Added feature so the cleartext library c in vobs isn't 
+							copied when backing up vobs.
 
 -------------------------------------------------------------------------
 
@@ -344,17 +349,22 @@ $date = $log->datestamp();
 &debug_print("Entering the main loop\n");
 
 ## DO THE VOBS
+my $robocopy_params_vob;
 
 if ( defined($sw_vobs) ) {
     &debug_print("Doing the VOBs....\n");
+    
+    $log->information("SExcluding cleartext libraries by adding /XD c to robocopy parameters\n");
+    $robocopy_params_vob = $robocopy_params . " /XD c ";
 
     #IF LIVESYNC - WITH OR WITHOUT DATABASE
     ( $sw_livesync && ( $sw_database eq 0 ) ) && do {
         &debug_print("\$sw_database has value [$sw_database]\n");
 
         $log->information("Switch -nodatabase enabled, adding /XD db to robocopy parameters\n");
-        $robocopy_params = $robocopy_params . " /XD db ";
+        $robocopy_params_vob = $robocopy_params_vob . " /XD db ";
     };
+
 
     $log->information("\n");    # Just a spacer
     foreach (@voblist) {
@@ -1057,7 +1067,7 @@ Returns:
             &debug_print("Final target:\t$finaltarget\n");
 
             # make the copy
-            $cmd = "robocopy $vobstg $finaltarget $robocopy_params 2\>\&1";
+            $cmd = "robocopy $vobstg $finaltarget $robocopy_params_vob 2\>\&1";
 
             $log->information("Will copy \"$vobstg\" to \"$finaltarget\"\n");
             my @stderrout = `$cmd`;
