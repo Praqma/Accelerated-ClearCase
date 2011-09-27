@@ -1,0 +1,120 @@
+require 5.000;
+use strict;
+
+our ( $Scriptdir, $Scriptfile );
+
+BEGIN {
+	use File::Basename;
+	$Scriptdir  = dirname(__FILE__) . "\\";
+	$Scriptfile = basename(__FILE__);
+
+}
+
+use lib $Scriptdir . "..\\";
+
+use praqma::scriptlog;
+use praqma::trigger_helper;
+use File::Basename;
+
+$| = 1;
+
+#Required if you call trigger_helper->enable_install
+our $TRIGGER_NAME = "ACC_STOP_LONG_NAMES";
+
+our %install_params = (
+	"name" => $TRIGGER_NAME,    # The name of the trigger
+	"mktrtype" =>
+	  "-element -all -preop lnname ",    # The stripped-down mktrtype command
+	"supports" => "bccvob,ucmvob"
+	,    # csv list of generic and/or custom VOB types (case insensetive)
+);
+
+# File version
+our $VERSION  = "0.1";
+our $REVISION = "1";
+
+# Header and revision history
+our $header = <<ENDHEADER;
+#########################################################################
+#     $Scriptfile  version $VERSION\.$REVISION
+#     This script is intended as trigger script for the
+#     $TRIGGER_NAME trigger.
+#     The trigger runs before rmname on an element
+#     The user cannot rmname if the file is checked out.
+#     This script supports self-install (execute with the -install
+#     switch to learn more).
+#     Read the POD documentation for more details
+#     Date:       2011-27-09
+#     Author:
+#     Copyright:  Praqma A/S
+#     License:    GNU General Pulic License v3.0
+#     Support:    http://launchpad.net/acc
+#########################################################################
+ENDHEADER
+
+# Revision information
+#########################################################################
+our $revision = <<ENDREVISION;
+DATE        EDITOR             NOTE
+----------  -----------------  ---------------------------------------------------
+2011-09-27  Margit Bennetzen   Script added to acc (v0.1)
+------------------------------------------------------------------------------
+ENDREVISION
+
+#Enable the features in trigger_helper
+our $thelp = trigger_helper->new;
+$thelp->enable_install( \%install_params )
+  ;    #Pass a reference to the install-options
+$thelp->require_trigger_context;
+our $semaphore_status = $thelp->enable_semaphore_backdoor;
+
+# Enable external configuration options
+my %twincfg;
+$thelp->get_config( \%twincfg );
+
+# We can now use pathlength
+
+#Enable the features in scriptlog
+
+our $log = scriptlog->new();
+$log->set_verbose();
+
+#Define either environment variable CLEARCASE_TRIGGER_DEBUG=1 or SCRIPTLOG_ENABLE=1 to start logging
+$log->conditional_enable();
+
+my $logfile = $log->get_logfile;
+($logfile)
+  && $log->information("logfile is: $logfile\n")
+  ;    # Logfile is null if logging isn't enabled.
+($logfile) && $log->information($semaphore_status);
+($logfile)
+  && $log->dump_ccvars
+  ;    # Run this statement to have the trigger dump the CLEARCASE variables
+
+########################### MAIN ###########################
+# Vob symbolic links can not be renamed.
+exit 0 if -l $ENV{CLEARCASE_PN};
+
+my ( $msg, $msgvar, $element );
+
+# Only process if proper OP_KIND
+if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
+
+	my $pn_length = length( $ENV{CLEARCASE_XPN} );
+
+	if ( $pn_length > 100 ) {
+		$log->error("pathname $ENV{CLEARCASE_XPN} is = $pn_length ");
+
+	}else
+	{
+	$log->information("Length is ok");
+	}
+	exit $log->get_accumulated_errorlevel();
+
+}
+
+#
+die "trigger called out of context, we should never end here.";
+
+__END__
+
