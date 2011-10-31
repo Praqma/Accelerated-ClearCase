@@ -38,7 +38,11 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "1";
+our $REVISION = "2";
+
+# This trigger won't be feasible on CC Remote Clients, they will use the magic file on the CCRC Server.
+# - please see http://www-01.ibm.com/support/docview.wss?uid=swg21417790
+exit 0 if $ENV{'ATRIA_WEB_GUI'};
 
 my $verbose_mode = 0;                               # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 my $debug_on     =
@@ -77,6 +81,7 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
 2010-07-08  Jens Brejner   1st release prepared for Grundfos (v1.0.1)
+2010-10-02  Jens Brejner   Add silent exit for CC Remote clients (v1.0.2)
 ----------  -------------  ----------------------------------------------
 ENDREVISION
 
@@ -97,7 +102,7 @@ our $logfile = $log->get_logfile;
 ($logfile) && $log->information($semaphore_status);
 ($logfile) && $log->dump_ccvars;                              # Run this statement to have the trigger dump the CLEARCASE variables
 
-my $helphere = "http://dkclearp04.emea.group.grundfos.com";
+my $helphere = "http://dkclearp04.emea.group.grundfos.com/CCHelp";
 
 if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "mkelem" ) {          # continue only if operation type is what we are intended for..
 
@@ -182,7 +187,8 @@ information about the MAGIC_PATH environment variable.
 
 =head2 Restrictions
 
-None
+ClearCase Remote Clients doesn't support usage of MAGIC_PATH environment variable. So
+the trigger exits silently if a CCRC is detected (ATRIA_WEB_GUI environment variable exists).
 
 =head2 Dependencies
 

@@ -6,7 +6,7 @@ no strict 'refs';
 #    next time.
 #    Instead make a copy of this file, and customize it for your needs.
 
-#    Do NOT change the text strings the  pattern ===UPPERCASE===, the are used
+#    Do NOT change the text strings the  pattern ===UPPERCASE===, they are used
 #    to find substitutions later
 #
 
@@ -65,6 +65,17 @@ $_adminsubj = "View_q have processed views:";
 	===WARNVIEWS===
 
 ENDSUMRMV
+
+$_adminnotifyignored = "View_Q: Ignored views report";
+($_notifyignored = <<NOTIFYIGNORED)  =~ s/^\s+//gm;
+
+Hello Administrator.
+View_Q has the following views in ignored state
+
+===IGNOREDVIEWS===
+
+NOTIFYIGNORED
+
 
 
 1;

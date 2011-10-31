@@ -1,16 +1,18 @@
+<?xml version="1.0" ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <title>stop_twin - ClearCase trigger</title>
-<link rel="stylesheet" href="C:/Program Files/OptiPerl/Pod2Html.css" type="text/css" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
 <link rev="made" href="mailto:" />
 </head>
 
-<body>
+<body style="background-color: white">
 
-<p><a name="__index__"></a></p>
+
 <!-- INDEX BEGIN -->
-<!--
+<div name="index">
+<p><a name="__index__"></a></p>
 
 <ul>
 
@@ -22,17 +24,26 @@
 	</ul>
 
 	<li><a href="#description">DESCRIPTION</a></li>
+	<li><a href="#features_of_acc_stop_twin_trigger">Features of <code>ACC_STOP_TWIN</code> trigger</a></li>
 	<ul>
 
-		<li><a href="#case_sensivity">Case sensivity</a></li>
-		<li><a href="#bypassing_the_trigger_">Bypassing the trigger.</a></li>
+		<li><a href="#external_configuration_file_per_site">External Configuration file per site</a></li>
+		<li><a href="#automerge_mode">Automerge Mode</a></li>
+		<li><a href="#casesensivity">CaseSensivity</a></li>
+		<li><a href="#script_generation">Script generation</a></li>
+		<li><a href="#logfile">Logfile</a></li>
+		<li><a href="#debugging">Debugging</a></li>
+		<li><a href="#bypassing_the_trigger_in_general">Bypassing the trigger in general</a></li>
+		<li><a href="#bypassing_the_trigger_by_user_action">Bypassing the trigger by user action</a></li>
 	</ul>
 
 	<li><a href="#author">AUTHOR</a></li>
 	<li><a href="#bugs">BUGS</a></li>
 	<li><a href="#copyright">COPYRIGHT</a></li>
 </ul>
--->
+
+<hr name="index" />
+</div>
 <!-- INDEX END -->
 
 <p>
@@ -40,7 +51,7 @@
 <hr />
 <h1><a name="name">NAME</a></h1>
 <p>stop_twin - ClearCase trigger</p>
-<p>Script:        <em>stop_twin.pl</em></p>
+<p>Script:        <em class="file">stop_twin.pl</em></p>
 <p>Trigger name:  <code>ACC_STOP_TWIN</code></p>
 <p>Used as a generic trigger which prevents creation of evil twins in ClearCase - please see the Description</p>
 <p>
@@ -57,7 +68,7 @@
 <p>
 </p>
 <h2><a name="restrictions">Restrictions</a></h2>
-<p>During the install process, that script is supposed to run under the account which owns the VOB.
+<p>During the install process, that script is supposed to run under the account which owns the VOB, or a member of the ClearCase Administrators group.
 The script will fail if that is not the case.</p>
 <p>An exception is if you execute it in -preview mode</p>
 <p>
@@ -83,52 +94,142 @@ directory if the name has been used. If the name have been used, you are not all
 directory version you are working with.</p>
 <p>
 </p>
-<h2><a name="case_sensivity">Case sensivity</a></h2>
-<p>By default the trigger operates in Case sensitive mode, so elements with for instance  CamelCase errors can be renamed
-without involving the vob owner.</p>
-<p>The case sensitive pattern matching can be changed to case insensitive if that is required, to do that, you will edit the
-trigger script and change the line</p>
-<pre>
-        my $case_sensitive = 1;</pre>
-<p>to</p>
-<pre>
-        my $case_sensitive = 0;</pre>
+<hr />
+<h1><a name="features_of_acc_stop_twin_trigger">Features of <code>ACC_STOP_TWIN</code> trigger</a></h1>
+<ul>
+<li><strong><a name="external_configuration_file_per_site" class="item">External Configuration file per site</a></strong>
+
+</li>
+<li><strong><a name="automerge_mode" class="item">Automerge Mode</a></strong>
+
+</li>
+<li><strong><a name="casesensivity" class="item">CaseSensivity</a></strong>
+
+</li>
+<li><strong><a name="script_generation" class="item">Script generation</a></strong>
+
+</li>
+<li><strong><a name="logfile" class="item">Logfile</a></strong>
+
+</li>
+<li><strong><a name="debugging" class="item">Debugging</a></strong>
+
+</li>
+<li><strong><a name="bypassing_the_trigger" class="item">Bypassing the Trigger.</a></strong>
+
+</li>
+</ul>
 <p>
 </p>
-<h2><a name="bypassing_the_trigger_">Bypassing the trigger.</a></h2>
+<h2><a name="external_configuration_file_per_site">External Configuration file per site</a></h2>
+<p>Some options are configurable by the ClearCase administrator, so you can make the trigger behave like according to your enterprise policies.
+The currently supported configurable options are AutoMerge mode and CaseSensivity</p>
+<p>In order do utilize the External configuration, the Administrator must locate the file stop_twin.pl.ini in the same folder as the trigger script 
+<em class="file">stop_twin.pl</em> and copy it unmodified to the subfolder ..\CustomCfg. 
+Then open the file which looks like this:</p>
+<pre>
+ <span class="comment"># Configuration file for stop_twin.pl</span>
+</pre>
+<pre>
+ <span class="keyword">our</span> <span class="variable">%trigger_parms</span> <span class="operator">=</span> <span class="operator">(</span>
+ <span class="comment"># Casesensensitive Name search</span>
+ <span class="comment"># 0 means off, so a CamelCase rename operation would be stopped</span>
+ <span class="comment"># 1 means on, so a CamelCase rename operation would not be seen as an evil twin attempt</span>
+ <span class="string">"CaseSensitive"</span> <span class="operator">=&gt;</span> <span class="number">0</span><span class="operator">,</span>
+ <span class="comment"># 0 means off, no automatic merge, based on based on best guess</span>
+ <span class="comment"># 1 means active. Partial merge of directory on best guess, do not check in</span>
+ <span class="comment"># 2 means active. Full automatic.Merge directory on best guess, check in changes.</span>
+ <span class="string">"AutoMerge"</span> <span class="operator">=&gt;</span> <span class="number">0</span>
+ <span class="operator">);</span>
+  
+ <span class="comment">__END__
+ </span>
+</pre>
+<p>This is actually perl syntax here, so lines starting with a # sign are comments.
+Now if you for instance want to enable case sensitivity, change the line:</p>
+<pre>
+ &quot;CaseSensitive&quot; =&gt; 0,
+ 
+to</pre>
+<pre>
+  &quot;CaseSensitive&quot; =&gt; 1,
+  
+And save the change.</pre>
+<p>The original file must exists unmmodifed in the original location, or the script will fail, as the file gives the defaults to the script. But if the customized file 
+exists, the settings from the customization takes precedence.</p>
+<p>
+</p>
+<h2><a name="automerge_mode">Automerge Mode</a></h2>
+<p>Automerge mode is optional, and refers to the 3 operating modes for the trigger.</p>
+<p>The default is no merging at all, just stop the action if there is a name clash.</p>
+<p>To make life easier for the users, partial merge mode is supported, that means the trigger will perform a best guess merge, but leave everything checked out, and 
+ask the user to verify that the got what they wanted. It is kind of similar to a deliver operation, were you are asked to 
+build and test before completing the operation.
+In full Automerge mode, we will do as above - but also do the checkin. The mode is by nature not bulletproof, we will only try if we the merge candidate is
+in the previous directory version, and only if the ClearCase Administrator selected this operating mode. To be safe consider this mode experimental.</p>
+<p>
+</p>
+<h2><a name="casesensivity">CaseSensivity</a></h2>
+<p>By default the trigger operates in Case sensitive mode, so elements with for instance CamelCase errors can be renamed
+without involving the vob owner.</p>
+<p>
+</p>
+<h2><a name="script_generation">Script generation</a></h2>
+<p>When the an evil twin possibility is detected we create a batch file for you right in the same folder as the element you attempt add. You can run the batch to
+fix the situation - or let us do - because that is what happens in automatic mode.</p>
+<p>
+</p>
+<h2><a name="logfile">Logfile</a></h2>
+<p>When the an evil twin possibility is detected we create a logfile in the executing users TEMP folder. The logfile will be named like stop_twin.plPID3852.log 
+where the number refers to the PID of that process.</p>
+<p>
+</p>
+<h2><a name="debugging">Debugging</a></h2>
+<p>Additional Debug information will be written to screen and Logfile by defining one or two system environment variables 
+CLEARCASE_TRIGGER_DEBUG=1 and/or CLEARCASE_TRIGGER_VERBOSE=1. After defining them you must restart the proces that will end up spawning the cleartool mkelem 
+command, if you do not, the environment variables won't be seen. 
+With either of these environment variables set, a lot more information will be written.</p>
+<p>
+</p>
+<h2><a name="bypassing_the_trigger_in_general">Bypassing the trigger in general</a></h2>
 <p>To bypass the script you must create the appropriate semaphore file first
 (see the POD documentation for praqma::trigger_helper-&gt;enable_semaphore_backdoor).</p>
 <p>It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
 that triggers are executed - and semaphore files ar looked-up - at locations where common users only
 have read access.</p>
+<p>
+</p>
+<h2><a name="bypassing_the_trigger_by_user_action">Bypassing the trigger by user action</a></h2>
 <p>Trigger script stop_twin.pl respects a local semaphore directory. That means that any user can create the environment varible
 with a value of a existing directory.</p>
 <p>To utilize this functionality follow these steps.</p>
 <ul>
-<li></li>
-Select a directory, and create an User Environment Variable called <strong>CLEARCASE_USE_LOCAL_SEMAPHORE</strong> and assign it a value of the directory selected.
-In the CLI you could do:
-<p></p></ul>
+<li>
+<p>Select a directory, and create an User Environment Variable called <strong>CLEARCASE_USE_LOCAL_SEMAPHORE</strong> and assign it a value of the directory selected.
+In the CLI you could do:</p>
+</li>
+</ul>
 <pre>
  set CLEARCASE_USE_LOCAL_SEMAPHORE=C:\Documents and Settings\student\My Documents\My Pictures</pre>
 <ul>
-<li></li>
-Then create a file named after the user i.e. ``student'' in the selected directory
-<p></p>
-<li></li>
-Edit the file, and add the line stop_twin.pl to it. Close the file.
-<p></p>
-<li></li>
-Now for the next 4 hours (approximately) <code>ACC_STOP_TWIN</code> will exit silently for without checking for evil twins.
-<p></p>
-<li></li>
-If more time is required, the semaphore file must be recreated (not copied, delete it and create a new with the same contents.)
-<p></p></ul>
+<li>
+<p>Then create a file named after the user i.e. &quot;student&quot; in the selected directory</p>
+</li>
+<li>
+<p>Edit the file, and add the line stop_twin.pl to it. Close the file.</p>
+</li>
+<li>
+<p>Now for the next 4 hours (approximately) <code>ACC_STOP_TWIN</code> will exit silently for without checking for evil twins.</p>
+</li>
+<li>
+<p>If more time is required, the semaphore file must be recreated (not copied, delete it and create a new with the same contents.)</p>
+</li>
+</ul>
 <p>
 </p>
 <hr />
 <h1><a name="author">AUTHOR</a></h1>
-<p>Jens Brejner, &lt;<a href="mailto:jbr@praqma.net">jbr@praqma.net</a>&gt;.</p>
+<p>Jens Brejner, &lt;<a href="mailto:jbrejner@praqma.net">jbrejner@praqma.net</a>&gt;.</p>
 <p>
 </p>
 <hr />
@@ -139,7 +240,7 @@ If more time is required, the semaphore file must be recreated (not copied, dele
 <hr />
 <h1><a name="copyright">COPYRIGHT</a></h1>
 <p>This program is distributed under the GNU General Pulic License v3.0</p>
-<p>Support:    <a href="http://launchpad.net/acc">http://launchpad.net/acc</a></p>
+<p>Support:    <a href="http://wiki.praqma.net/acc">http://wiki.praqma.net/acc</a></p>
 <a href="http://launchpad.net/acc">Project home at Launchpad</a>
 </body>
 

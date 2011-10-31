@@ -2,7 +2,7 @@ require 5.001;
 
 package trigger_helper;
 use strict;
-our( $scriptdir, $scriptfile );
+our ( $scriptdir, $scriptfile );
 
 BEGIN {
     $scriptdir  = ".\\";
@@ -14,6 +14,7 @@ use lib "$scriptdir..";
 
 use praqma::acc;
 use Getopt::Long;
+use File::Basename;
 
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK $BUILD);
 
@@ -23,10 +24,11 @@ require Exporter;
 
 use constant MAX_SEMAPHORE_FILE_AGE_DAYS => 0.168;             # real (1 hr ~ 0.042 --> 4 hrs ~ 0.168)
 use constant SEMAPHORE_DIR               => '\\semaphores';    # Relative to the script location dir
+use constant CONFIGFILES                 => '/CustomCfg/';         # Custom configuration files here
 
 # File version
 $VERSION = "1.1";
-$BUILD   = "7";
+$BUILD   = "8";
 
 our $header = <<ENDHEADER;
 #########################################################################
@@ -71,11 +73,12 @@ sub new {
 }
 
 sub require_trigger_context() {
-    defined( $ENV{CLEARCASE_VOB_PN} ) || die $main::header . "File version: $main::VERSION\.$main::BUILD\n" . $main::revision;
+
+    defined( $ENV{CLEARCASE_VOB_PN} ) || die "$main::header\nFile version: $main::VERSION.$main::REVISION\n$main::revision";
 }
 
 sub enable_semaphore_backdoor($) {
-    my $msg = "";         #The status level of the semphore file.
+    my $msg = "";    #The status level of the semphore file.
 
     # If the semaphor file exists and it's not older than MAX_SEMAPHORE_FILE_AGE_DAYS
     # then the trigger will exit silently with 0 - allowing the event the trigger subscribed to, to carry on
@@ -88,7 +91,8 @@ sub enable_semaphore_backdoor($) {
         $msg = "Script '$mainscript' found semaphore file at '$semaphore_file'\n";
         if ( ( -M $semaphore_file ) > MAX_SEMAPHORE_FILE_AGE_DAYS ) {
             $msg = $msg . "...but it's too old to stop us!";
-        } else {
+        }
+        else {
             open( SEMAPHORE, $semaphore_file ) || print $msg = $msg . "...Failed to open the semaphore file for read\n" && return;
             my @sempahore = grep( /^\s*$mainscript\s*$/i, <SEMAPHORE> );
             close(SEMAPHORE);
@@ -100,7 +104,8 @@ sub enable_semaphore_backdoor($) {
             }
             $msg = $msg . "...but it doesn't mention '$mainscript' so the trigger is allowed to continue\n";
         }
-    } else {
+    }
+    else {
         $msg = "Script '$mainscript' looked for semaphore file at '$semaphore_file'\n...but there wasn't any\n";
     }
     return $msg;
@@ -184,7 +189,7 @@ ENDUSAGE
       unless ( -e $trigger_pname );
 
     my @vobtypes = acc::get_vobtypes($sw_vob);
-    my @allowed_vob_context = split ( ',', $trigger_support );
+    my @allowed_vob_context = split( ',', $trigger_support );
     push @allowed_vob_context, lc($trigger_name);
 
     # match the two arrays against each other - get out as soon as a match is found
@@ -213,7 +218,7 @@ ENDUSAGE
     $? && die "Execution of: [$cmd] failed\n";    # assert success
     chomp($raw_triggerblattr);
     $raw_triggerblattr =~ s/\"//g;                # get rid of the 'required' quotes in CC string attributes
-    my @blacklist = split ( ',', $raw_triggerblattr );    # make a list;
+    my @blacklist = split( ',', $raw_triggerblattr );    # make a list;
 
     my $bl_match = 0;
     foreach my $bl (@blacklist) {
@@ -240,9 +245,14 @@ ENDUSAGE
     }
 
     #Compile the trigger installation command
-    my $trig_inst_com           = "\"Created using the -install switch of $::Scriptfile\"";
+    my $trig_inst_com = "\"Created using the -install switch of $::Scriptfile\"";
     my $current_trigger_install =
-      "cleartool" . " mktrtype $replace" . $trigger_mktrtype . " -c $trig_inst_com -exec \"" . acc::TRIGGER_PERL . " $trigger_pname\" $trigger_tag\@$sw_vob 2>&1";
+        "cleartool"
+      . " mktrtype $replace"
+      . $trigger_mktrtype
+      . " -c $trig_inst_com -exec \""
+      . acc::TRIGGER_PERL
+      . " $trigger_pname\" $trigger_tag\@$sw_vob 2>&1";
 
     #If all the uses wanted was a preview it's time to get out
     defined($sw_preview) && do {
@@ -277,7 +287,8 @@ sub uninstall_trtype($$) {
         my $replicationstatus = qx($cmd);
         if ( $replicationstatus =~ m/^replicated/i ) {
             $replicationstatus = " -rmall";
-        } else {
+        }
+        else {
             $replicationstatus = "";
         }
 
@@ -296,7 +307,11 @@ sub uninstall_trtype($$) {
 sub scalar_dump($) {
     my $ref = shift;
     my ( $package, $filename, $line ) = caller;
-    print STDERR "   ########   Dumping scalar   ########\n" . "   Package:          \t$package '$filename'\n" . "   Line:             \t$line\n" . "   $ref: \t[" . $$ref . "]\n";
+    print STDERR "   ########   Dumping scalar   ########\n"
+      . "   Package:          \t$package '$filename'\n"
+      . "   Line:             \t$line\n"
+      . "   $ref: \t["
+      . $$ref . "]\n";
 }
 
 ## The CLEARCASE_MTYPE variable tells which type is involved
@@ -315,6 +330,42 @@ sub mtype2cctype($$) {
     return 0 unless defined( $types{$$mtyperef} );    # Return as FALSE if the match was unsuccesful
     $$ccvarref = $types{$$mtyperef};
     return 1;
+}
+
+sub get_config {
+
+    my ( $self, $parms ) = @_;
+
+    # Get the pathnames
+    my $cfgname    = "$::Scriptfile.ini";
+    my $defaultcfg = "$::Scriptdir/$cfgname";
+    my $customcfg  = $::Scriptdir . CONFIGFILES . $cfgname;
+
+    # my $configfile = -e $customcfg ? $customcfg : $defaultcfg ;
+    if ( -e $defaultcfg ) {
+
+        # read defaults, all option defaults
+        do $defaultcfg;
+        no strict 'vars';
+        while ( ( my $k, $v ) = each(%trigger_parms) ) {
+            $$parms{$k} = $v;
+        }
+
+        #         my %def = %trigger_parms;
+        if ( -e $customcfg ) {
+
+            # if custom options, update those that are different
+
+            do $customcfg;
+            while ( ( my $k, $v ) = each(%trigger_parms) ) {
+                $$parms{$k} = $v;
+            }
+
+        }
+    }
+    else {
+        die "Expected to find a config file at $defaultcfg\n ";
+    }
 }
 
 sub DESTROY {

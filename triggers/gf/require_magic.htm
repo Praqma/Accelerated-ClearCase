@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<title>Z:\launchpad\praqma\acc\trunk\triggers\gf\require_magic.pl</title>
+<title>Z:\bazaar\gf\triggers\gf\require_magic.pl</title>
 <link rel="stylesheet" href="C:/Program Files/OptiPerl/Pod2Html.css" type="text/css" />
 <link rev="made" href="mailto:" />
 </head>
@@ -59,7 +59,8 @@ information about the MAGIC_PATH environment variable.</p>
 <p>
 </p>
 <h2><a name="restrictions">Restrictions</a></h2>
-<p>None</p>
+<p>ClearCase Remote Clients doesn't support usage of MAGIC_PATH environment variable. So
+the trigger exits silently if a CCRC is detected (ATRIA_WEB_GUI environment variable exists).</p>
 <p>
 </p>
 <h2><a name="dependencies">Dependencies</a></h2>
