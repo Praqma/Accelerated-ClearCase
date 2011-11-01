@@ -19,7 +19,7 @@ use File::Basename;
 $| = 1;
 
 #Required if you call trigger_helper->enable_install
-our $TRIGGER_NAME = "ACC_STOP_LONG_NAMES";
+our $TRIGGER_NAME = "ACC_PRE_LNNAME";
 
 our %install_params = (
 	"name" => $TRIGGER_NAME,    # The name of the trigger
@@ -58,6 +58,7 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR             NOTE
 ----------  -----------------  ---------------------------------------------------
 2011-09-27  Margit Bennetzen   Script added to acc (v0.1)
+2011-11-01  Margit Bennetzen   Script rename to pre_lnname and whitespacecheck added (v0.2)
 ------------------------------------------------------------------------------
 ENDREVISION
 
@@ -68,11 +69,13 @@ $thelp->enable_install( \%install_params )
 $thelp->require_trigger_context;
 our $semaphore_status = $thelp->enable_semaphore_backdoor;
 
-# Enable external configuration options
-my %twincfg;
-$thelp->get_config( \%twincfg );
+# Script scope variables
+my ( %trgconfig, $filename );
 
-# We can now use pathlength
+# Enable external configuration options
+$thelp->get_config( \%trgconfig );
+
+$filename = basename( $ENV{CLEARCASE_XPN} );
 
 #Enable the features in scriptlog
 
@@ -95,25 +98,43 @@ my $logfile = $log->get_logfile;
 # Vob symbolic links can not be renamed.
 exit 0 if -l $ENV{CLEARCASE_PN};
 
-my ( $msg, $msgvar, $element );
-
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
 
-	my $pn_length = length( $ENV{CLEARCASE_XPN} );
+	# Check pathlength if requested
+	if ( $trgconfig{pathlength} > 0 ) {
 
-	if ( $pn_length > 100 ) {
-		$log->error("pathname $ENV{CLEARCASE_XPN} is = $pn_length ");
-
-	}else
-	{
-	$log->information("Length is ok");
+		if (length( $ENV{CLEARCASE_XPN} >  $trgconfig{pathlength} ) ) {
+			$log->error(
+"The length of [$ENV{CLEARCASE_XPN}] exceeds $trgconfig{pathlength}, so it is not allowed. Use a shorter name."
+			);
+		}
+		else {
+			$log->information("Length is ok");
+		}
 	}
+
+	# Check for whitespaces
+	if ( $trgconfig{whitespacecheck} ) {
+
+	 #this expression searches for leading and trailing spaces and empty strings
+		if ( $filename =~ m/^\s+.*|.*\s+$|^\s+$/ ) {
+			$log->error("Filename $filename contains bad whitespaces");
+		}
+
+		# finds the extension and checks for whitespaces around the last dot
+		if ( $filename =~ m/.*(\..)/s ) {
+			my $sub = substr $filename, ( index( $filename, $1 ) - 2 );
+			if ( $sub =~ (m/\s\.|\.\s/) ) {
+				$log->error("Filename $filename contains bad whitespaces");
+			}
+
+		}
+	}
+
 	exit $log->get_accumulated_errorlevel();
 
 }
-
-#
 die "trigger called out of context, we should never end here.";
 
 __END__
