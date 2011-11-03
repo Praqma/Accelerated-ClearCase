@@ -208,7 +208,7 @@ DATE        EDITOR  NOTE
                            stepped to version 1.0.3
 2007-07-21  Lars Kruse     Added some support for composite labels
                            and config specs. Stepped to version 1.0.4
-2008-06-20  Jens Brejner   Stepped to v.l.0.6, don´t know what was changed
+2008-06-20  Jens Brejner   Stepped to v.l.0.6, don't know what was changed
                            in v1.0.5. Added 2 constants.
 
 2009-07-28  Jens Brejner   Removed duplicate declaration.
@@ -626,7 +626,7 @@ Parameters:
 Returns:
 
  1     =  Restriction is either created or existed already
- 0     =  ERROR the restriction couldn´t be created.
+ 0     =  ERROR the restriction couldn't be created.
 
 =cut
 
@@ -650,7 +650,7 @@ Returns:
 	my @restlist;
 	if ( get_from_hlinks( \$full_lb, \acc::HLTYPE_RESTRICTED, \@restlist ) && grep $full_br, @restlist ) {
 		print "WARNING:\n" . "$full_lb already has a restriction to \n$full_br\n";
-		return 1;    # Return true even though we didn´t do anything
+		return 1;    # Return true even though we didnt do anything
 	}
 
 	if ( ( lc( $ENV{acc::CLEARCASE_FORCE_RESTRICTION} ) ne "true" ) && get_to_hlinks( \$full_lb, \"GlobalDefinition", \@_ ) ) {
@@ -783,7 +783,7 @@ sub mkattr_unique($$) {
 
 =head2 mkattr_unique(  \$attype, \$obj )
 
-creates an attribute using the attypes default value it doesn´t  already exist. Will not create it if it´s already there.
+creates an attribute using the attypes default value it does not already exist. Will not create it if is already there.
 
 Parameters:
 
@@ -793,7 +793,7 @@ Parameters:
 Returns:
 
  1     =  Succes - created the attribute or validated that it already existed.
- 0     =  ERROR - attribute doesn´t exist and couldn´t be created.
+ 0     =  ERROR - attribute does not exist and could not be created.
 
 =cut
 
@@ -840,7 +840,7 @@ Parameters:
 Returns:
 
  1     =  Succes - removed all hyperlinks or validated that no one existed.
- 0     =  ERROR -  Couldn´t remove all hyperlinks.
+ 0     =  ERROR -  Could not remove all hyperlinks.
 
 =cut
 

@@ -12,7 +12,7 @@ BEGIN {
 }
 use lib "$scriptdir..";
 
-use praqma::acc;
+use acc;
 use Getopt::Long;
 use File::Basename;
 
@@ -131,15 +131,15 @@ sub enable_install($$) {
   -install                Required to run the script in install mode
   -vob vob_tag            The VOB where the trigger should be installed
   -script script_pname    The loation of the trigger script defaults to
-                          the script´s own current path name ($0 as seen
+                          the scripts own current path name ($0 as seen
                           from the perl script). Since triggers must be executed
                           from a loaction that is globally supported  - on Windows
-                          it´s UNC path in the format \\\\server\\share\\... - the
+                          its UNC path in the format \\\\server\\share\\... - the
                           path name to the trigger script be given in UNC format-
                           The switch is only used to override the default value
                           N.B: Show caution if you use this switch, you could
-                          probably just go with the script´s default location
-                          unless you´re testing or debugging!
+                          probably just go with the scripts default location
+                          unless you are testing or debugging!
   -trigger trigger_name   The name of the trigger. The trigger has a default name,
                           as stated by the designer inside the script, this is only
                           used if you wish to override the triggers default name.
@@ -315,7 +315,7 @@ sub scalar_dump($) {
 }
 
 ## The CLEARCASE_MTYPE variable tells which type is involved
-## ...in clear text (%@\#$¤) we need it as a type prefix
+## ...in clear text (%@\#$) we need it as a type prefix
 sub mtype2cctype($$) {
     my $mtyperef = shift;
     my $ccvarref = shift;
@@ -463,15 +463,15 @@ you actually make your trigger scripts support the following syntax (when execut
  -install                Required to run the script in install mode
  -vob vob_tag            The VOB where the trigger should be installed
  -script script_pname    The loation of the trigger script defaults to
-                         the script´s own current path name ($0 as seen
+                         the scriptï¿½s own current path name ($0 as seen
                          from the perl script). Since triggers must be executed
                          from a loaction that is globally supported  - on Windows
-                         it´s UNC path in the format \\server\share\... - the
+                         itï¿½s UNC path in the format \\server\share\... - the
                          path name to the trigger script be given in UNC format-
                          The switch is only used to override the default value
                          N.B: Show caution if you use this switch, you could
-                         probably just go with the script´s default location
-                         unless you´re testing or debugging!
+                         probably just go with the scriptï¿½s default location
+                         unless youï¿½re testing or debugging!
  -trigger trigger_name   The name of the trigger. The trigger has a default name,
                          as stated by the designer inside the script, this is only
                          used if you wish to override the triggers default name.
@@ -497,7 +497,7 @@ It will continue to run for all users - except for the user running the maintena
 
 Another scenario where we use the semaphore files is in cases where triggers turn out to be buggy, and these bugs are discoverd by end-users in the
 environment. Imagine that the fault in the trigger script is of such a nature that the most common regular use is supported allright, but a few users has
-enterered a more complex scenario which - for some reason - wasn´t tested and not these users are stuck due to the misbehaving triggers. Obviously you must
+enterered a more complex scenario which - for some reason - wasnï¿½t tested and not these users are stuck due to the misbehaving triggers. Obviously you must
 fix it, but you afe prevented from doing it right I<now>. If you trigger enabels the semaphore backdoore you can now disable the script only for the few
 users who are affected by the micbehaviour - while the rest of the users still execute it.
 
