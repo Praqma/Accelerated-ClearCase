@@ -190,7 +190,7 @@ use constant BLATEXE => "$Scriptdir..\\..\\praqma\\Blat\\Blat.exe";
 
 # File version
 our $VERSION = "0.7";
-our $BUILD   = "17";
+our $BUILD   = "18";
 
 # Log and monitor default settings (overwriteable at execution)
 my $debug        = 0;                           # Set 1 for testing purpose
@@ -246,6 +246,7 @@ DATE        EDITOR         NOTE
 2011-06-15  Jens Brejner   Version 0.7.15: List ignored views, and optionally report by mail.
 2011-08-31  Jens Brejner   Version 0.7.16: Always exit non-zero if error.
 2011-10-03  Jens Brejner   Version 0.7.17: Support both formats of ignore files
+2011-11-07  Jens Brejner   Version 0.7.18: Simpler syntax in purge_stg
  
 -------------------------------------------------------------------------
  
@@ -1028,18 +1029,25 @@ sub purge_stg ($) {
 	};
 
 	if ($sw_days) {
-		my $age = int( sprintf "%f", -C $view_q_file_loc );
+		my $age = int( -C $view_q_file_loc );
 
-		if ( $age le $sw_days ) {    # too young to purge
-			$log->information("Too new; '$stg' has only been quarantined for $age days, igoring for purge");
+		if ( $sw_days > $age ) {
+
+			# too young for purge
+			$log->information("Too new; '$stg' has only been quarantined for $age days (which is less than $sw_days), ignoring for purge");
 			return 1;
+		}
+		else {
+			$log->information("Age: $age; Would purge '$stg'");
+			return 1;
+
 		}
 
 	}
 
 	my $ignore_file_loc = get_ourfile( location => $stg, lookfor => $view_q_ignore_file );
 	if ( defined($ignore_file_loc) and -e $ignore_file_loc ) {
-		$log->error("ERROR: '$stg' ignored for quarantine");
+		$log->error("ERROR: '$stg' ignored for quarantine and purge");
 		return 0;
 	}
 
