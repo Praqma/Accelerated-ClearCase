@@ -1,170 +1,6 @@
 require 5.001;
 use strict;
 
-=head1 NAME
- 
-view_q.pl - View Quarantine Utilities
- 
-=head1 SYNOPSIS
- 
-A collection of features that enables quarantine, purge and recover of views based on
-the view's 'last accessed' date.
- 
-Execute the script with -help switch to learn the syntax and usage.
- 
-=head1 DESCRIPTION
- 
-A fundamental concept to understand when working with view_q.pl is "Stranded views".
- 
-Stranded views are views that have valid (and registered) view storages, but haven't got any
-view tags in any region.
- 
-Stranded views are unavailable for use, but can easily be brought back to availability by using:
- 
-  cleartool mktag -view ...
- 
-Clearcase has a feature called rgy_check which can report stranded views.
- 
-  rgy_check -views
- 
-Run cleartool man rgy_check to learn more.
- 
-When view_q.pl puts a view into quarantine, it removes all tags in all regions. This puts the
-view into the state of being 'stranded'. An important difference between 'regular" stranded
-and views put into quarantine by view_q.pl is the file called
- 
-  .view_quarantine
- 
-which view_q.pl creates in the the 'admin' subfolder in the view storage. This file contains the history
-of tags in all regions from where they were deleted. and enables a complete restore.
- 
-View_q.pl can be run in a mode where it lists all views not accessed since a certain date. if you whish you
-can even tell view_q.pl to automatically put these views into quarantine.
- 
-View_q.pl has a different mode which lists all views that are currently in quarantine (As you may have figured
-out this is partly determined by the fact that views are stranded, so this mode only works when executed from
-the ClearCase Registry server, which support rgy_check!)
- 
-When listing the quarantined views you can either automatically purge or recover the views.
- 
-Views can also be purged or recovered individually.
- 
-When view_q.pl purges a view it runs the sequence, rmtag, unregister, rmview by uuid, and it will attempt to
-delete the view storage too.
- 
-When a view is recovered by view_q.pl it simply restores all tags in all the regions where it was removed from.
- 
-Some views aren't supposed to be deleted even when they haven't been accessed for a long time. View_q.pl can
-be instructed to disable quarantine of these views.
- 
-View_q.pl will only process views hosted on the machine where the script is being executed.
- 
- 
-=head1 Examples
- 
-=head2 Putting a view in Quarantine
- 
-ratlperl view_p.pl -quarantine \\server\share\views\viewstorage
- 
-The view storage can in either Local File Path notation (d:\views\...) or UNC style
- 
-=head2 Listing view that have not been used since ...
- 
-This operation is achieved by the swithc -nasince. The argument to -nasince can either be
-a date in the form YYYY-MM-DD or a number of days. In the latter case the number of days
-will be subtracted from the current date. This feature adresses the possibility to
-set-up scheduled jobs. So if you call
- 
-ratlperl view_q.pl -nasince 90
- 
-all views that have not been used for 90 dayss or more will be listed. You can add -autoquarantine
-to the command to have all these views quarantined in one operation.
- 
-=head3 - and putting them in quarantine
- 
-ratlperl view_q.pl -nasince 90 -autoquaratine
- 
-=head2 Listing views in quarantine
- 
-So you have used view_q.pl to put views in quarantine. How to know which views are in quarantine ?
-Simple, used the -lsquarantine:
- 
-ratlperl view_q.pl -lsquarantine
- 
-=head3 -have all quarantined views purged (deleted ...)
- 
-Use -autopurge:
- 
-ratlperl view_q.pl -lsq -autopurge
- 
-Any view in quarantine will be removed.
- 
- 
-=head3 purge only views that have been for long enough
- 
-add the -days switch which is only valid together with -lsq -autopurge (or -autorecover )
-With -autopurge the days switch will filter the quarantined views and only purge those
-that have been in quarantine for MORE than I<days>
- 
-ratlperl view_q.pl -lsq -autopurge -days 180
- 
-will remove views that have been in quarantine for more than 180 days
- 
-=head3 or autorecover quarantined views
- 
-Use the -autorecover switch with -lsquarantine. When autorecovering the meaning of
-the -days switch is changed to mean less than, I<days>. So
- 
-ratlperl view_q.pl -lsq -autorecover -days 30
- 
-Will recover quarantined views that have been quarantined less than 30 days
- 
-=head2 One view at a time
- 
-Views can be processed one at a time with:
- 
-=head3 quarantine:
- 
-ratlperl view_q.pl  -quarantine stgloc
- 
-=head3 recover:
- 
-ratlperl view_q.pl -recover stgloc
- 
-=head3 purge:
- 
-ratlperl view_q.pl  -purge stgloc
- 
-Where B<stgloc> can be in eiter UNC style or local file system notation.
- 
-=head2 Ignoring views
- 
-Some views are not accessed - but should however not be quarantined, they build-views
-or have some other purpose for the organization.
- 
-ratlperl view_q.pl  -ignore I<viewtag>
- 
-as the view may not be in the current region, the switch -region is supported
- 
-ratlperl view_q.pl  -ignore I<viewtag> -region I<region>
- 
- 
-=head2 Un-ignoring views
- 
-To remove the ignore flag from a view, just run
- 
-  ratlperl view_q.pl  -noignore I<viewtag> -region I<region>
- 
--and that view will be back in consideration for view_q.pl
- 
- 
- 
-=head1 SUPPORT
- 
-Visit http://www.praqma.net to get help.
- 
-=cut
-
 # Getting the script dir
 our ( $Scriptdir, $Scriptfile );
 
@@ -180,7 +16,6 @@ BEGIN {
 }
 
 # Use clauses
-use strict;
 use lib "$Scriptdir..\\..";
 use Getopt::Long;
 use praqma::scriptlog;
@@ -374,27 +209,6 @@ our (
 $log->assertion_failed("$header\nWrong syntax! Don't know what you want to do ? \n\n$usage");
 ###########################################################################################
 
-=head1 Script Implementation
- 
-=head2 Internal subfunctions
- 
-=head3 validate_options( )
- 
-The sub-functions read the options and switches applied with the execution into
-the global variables that are defined to cache them.
- 
-The function will kill the script execution if unknown switches are used.
- 
-Parameters:
- 
-  none
- 
-Returns:
- 
-  nothing
- 
-=cut
-
 sub get_ourfile {
 
 	#Older version naming for the following files used by this script were like this:
@@ -454,27 +268,6 @@ sub isolatepath ($) {
 
 }
 
-=head3 lsi ()
- 
-NOTE: This function will only run on ClearCase registry servers!!!
- 
-This function lists all the quarantined views.
- 
-The format of the listing is the local view storage (as reported by lsview -age).
- 
-A quarantined view is defined as a view that is reported "stranded" by rgy_check and which has
-a .view_quarantine file in the admin directory of the storage.
- 
-Parameters:
- 
-  none
- 
-Returns:
- 
-  @result    =    The list of quarantined storages.
- 
-=cut
-
 sub lsignored () {
 	my ( @result, @list );
 	push @result, "Date      \tStorage\n";
@@ -526,45 +319,6 @@ sub validate_options () {
 	die "$usage" unless GetOptions(%options);
 
 }
-
-=head3 enable_log ()
- 
- 
-The sub-function overwrites the default settings for log, debug and verbose if set manually and enables the functionality in the logger.
-Prefix option name with "no" for force disable (e.g. -nodebug)
- 
-Debug:
-- enables verbose, unless -noverbose is set in the script call.
-- enables the logfile
-- gives some extra logging information (variable values, additional information, ect.)
- 
-Verbose:
-- enables log to STDOUT
- 
-Logfile:
-- enables the logfile
-- sets the logfilename (and path) if specified
-- the environment variables SCRIPTLOG_ENABLED or CLEARCASE_TRIGGER_DEBUG forces the logfile to enable, not matter what
- 
-Checks for ARGV arguments (unreferenced values):
-- if log is enabled, it dies if there is more then one (expect it to be filename or relative/absolute path AND filename)
-- if log is disabled, it dies if there are any
-- The logger module fails, if the specified log, can't be opened/created
- 
-Parameters:
- 
-  Non
-  Uses -verbose, -debug and -logfile
- 
-Returns:
- 
-  nothing (unless it dies)
- 
-exit:
- 
-  Will kill the script exit 1 (die) on ARGV errors - printing the arguments
- 
-=cut
 
 sub enable_log () {
 
@@ -627,32 +381,6 @@ sub enable_log () {
 	}
 
 }
-
-=head3 xxx_mode ()
- 
-The sub-functions named xxx_mode all work as switches.
- 
-They all start by checking the options and switches applied with the execution to see if the have any work
-to do. if so, they take full responsibility over the remainder of the script execution and exits the script
-with either 1 or 0;
- 
- 
-Parameters:
- 
-  none
- 
-Returns:
- 
-  nothing
- 
-exit:
- 
-Will force the entire script to exit with 0 or 1
- 
-  1  =   Wrong set of switches applied
-  0  =   Successful execution
- 
-=cut
 
 sub help_mode () {
 	defined($sw_help) && do {
@@ -915,27 +643,6 @@ sub ignore_mode () {
 	};    # end noignore
 }
 
-=head3 lsquarantined ()
- 
-NOTE: This function will only run on ClearCase registry servers!!!
- 
-This function lists all the quarantined views.
- 
-The format of the listing is the local view storage (as reported by lsview -age).
- 
-A quarantined view is defined as a view that is reported "stranded" by rgy_check and which has
-a .view_quarantine file in the admin directory of the storage.
- 
-Parameters:
- 
-  none
- 
-Returns:
- 
-  @result    =    The list of quarantined storages.
- 
-=cut
-
 sub lsquarantined () {
 	my @result;
 	foreach ( grep( /-local_path/, `rgy_check -views 2>&1` ) ) {
@@ -946,24 +653,6 @@ sub lsquarantined () {
 	}
 	return @result;
 }
-
-=head3 recover_stg ($stg)
- 
-This function recovers a view storage.
- 
-It will recreate all the tags in all regions where it was tagged at the time it was quarantined.
- 
-Parameters:
- 
-  $stg   = The storage to quarantine (the global one, as reported by a lsview command, or
-           simply the local-path as reported by rgy_check)
- 
-Returns:
- 
-  1    =    Success
-  0    =    The $stg does not contain a .view_quarantine file in the admin directory.
- 
-=cut
 
 sub recover_stg ($) {
 	my $stg = shift;
@@ -997,26 +686,6 @@ sub recover_stg ($) {
 
 	return 1;
 }
-
-=head3 purge_stg ($stg)
- 
-This function purges a view storage.
- 
-It will recreate one intermediate tag to the view stg and then do a regular
-(safe) view removal.
- 
-Parameters:
- 
-  $stg   = The storage to purge (the global one, as reported by a lsview command, or
-           simply the local-path as reported by rgy_check)
- 
-Returns:
- 
-  1    =    Success
-  0    =    The $stg does not contain a .view_quarantine file or the $stg contains
-            a .view_q_ignore file.
- 
-=cut
 
 sub purge_stg ($) {
 	my $stg = shift;
@@ -1160,25 +829,6 @@ sub purge_stg ($) {
 	return 1;
 }
 
-=head3 quarantine_stg ($stg)
- 
-This function quarantines a view storage.
- 
-It will untag tags in all regions and record the reverse commands (the corresponding
-mktag commands) in a file named .view_quarantine located in the admin directory of the
-view storage.
- 
-Parameters:
- 
-  $stg   = The storage to quarantine (the global one, as reported by a lsview command)
- 
-Returns:
- 
-  1    =    Success
-  0    =    The $stg parameter is invalid - nothing to do!
- 
-=cut
-
 sub quarantine_stg ($) {
 	my $stg = shift;
 	chomp($stg);
@@ -1210,29 +860,6 @@ sub quarantine_stg ($) {
 	foreach (@rmtags) { $log->information( $_ . "\n" ); system($_); }
 	return 1;
 }
-
-=head3 vwsstgs_nasince ( $cut_date, \@result)
- 
-This function pushes (global) view storage locations onto the result array
-handed into the sub as a reference if they haven't been accessed since $cut_date.
- 
-The format of the resulting list entries are like this:
- 
-  <YYYY-MM-DD> <view_stg>
- 
-Where  view <YYYY-MM-DD> is the last accessed date, and <view_stg> is the global view storage location.
- 
-Parameters:
- 
-  $cut_date      =  The date to compare against. The scalar must be in the format YYYY-DD-MM
-  \@result       =  An array reference passed into the sub function
- 
-Returns:
- 
-  1    =    The content of @result is trust worthy
-  0    =    The $cut_date is in an unsupported format. The content of @result is crab!
- 
-=cut
 
 sub vwsstgs_nasince ($$$) {
 	my $cut_date = shift;
@@ -1277,42 +904,13 @@ sub vwsstgs_nasince ($$$) {
 	return 1;
 }
 
-=head3 sub prepare_stg_directory ( )
- 
-This function is related to the global hash: %stg_directory.
- 
-%stg_directory is used be several sub functions as a common directory listing of view storages
-and view tags.
- 
-After it has been prepared, the format of the hash entries are like this:
- 
-  keys                 = The global view storage location;
-  values               = A semi-colon separated list of all region/tags pairs in the
-                         format: -region <region> -tag <tag>
- 
-This function validates that the global hash containing all views across all regions is
-loaded and trustworthy.
- 
-All operations querying the directory should call this sub function first.
- 
-Parameters:
- 
-  none
- 
-Returns:
- 
-  0      The %stg_directory is already prepared, it will be reused.
-  1      The %stg_directory has been prepared.
- 
-=cut
-
 sub prepare_stg_directory () {
-	return 0 if keys(%stg_directory);    # Someone else already prepared the directory, reuse it! Let's get out.
+	return 0 if keys(%stg_directory);                        # Someone else already prepared the directory, reuse it! Let's get out.
 
 	# build a unique list of view storages containing the tags in all regions
 	# syntax is different whether on ClearCase LT or not.
 	# The view storage is key in the hash
-	if (acc::is_cclt) {                  # report syntax is different on LT versus Base CC
+	if (acc::is_cclt) {                                      # report syntax is different on LT versus Base CC
 
 		# This is ClearCase LT
 		foreach (`cleartool lsview `) {
@@ -1468,5 +1066,406 @@ sub sendthemail {
 	print MAIL $body;    # now put in the msg body (bigger this way than CL)
 	close(MAIL);
 }
+
+### POD Below this point ###
+
+=head1 NAME
+ 
+view_q.pl - View Quarantine Utilities
+ 
+=head1 SYNOPSIS
+ 
+A collection of features that enables quarantine, purge and recover of views based on
+the view's 'last accessed' date.
+ 
+Execute the script with -help switch to learn the syntax and usage.
+ 
+=head1 DESCRIPTION
+ 
+A fundamental concept to understand when working with view_q.pl is "Stranded views".
+ 
+Stranded views are views that have valid (and registered) view storages, but haven't got any
+view tags in any region.
+ 
+Stranded views are unavailable for use, but can easily be brought back to availability by using:
+ 
+  cleartool mktag -view ...
+ 
+Clearcase has a feature called rgy_check which can report stranded views.
+ 
+  rgy_check -views
+ 
+Run cleartool man rgy_check to learn more.
+ 
+When view_q.pl puts a view into quarantine, it removes all tags in all regions. This puts the
+view into the state of being 'stranded'. An important difference between 'regular" stranded
+and views put into quarantine by view_q.pl is the file called
+ 
+  .view_quarantine
+ 
+which view_q.pl creates in the the 'admin' subfolder in the view storage. This file contains the history
+of tags in all regions from where they were deleted. and enables a complete restore.
+ 
+View_q.pl can be run in a mode where it lists all views not accessed since a certain date. if you whish you
+can even tell view_q.pl to automatically put these views into quarantine.
+ 
+View_q.pl has a different mode which lists all views that are currently in quarantine (As you may have figured
+out this is partly determined by the fact that views are stranded, so this mode only works when executed from
+the ClearCase Registry server, which support rgy_check!)
+ 
+When listing the quarantined views you can either automatically purge or recover the views.
+ 
+Views can also be purged or recovered individually.
+ 
+When view_q.pl purges a view it runs the sequence, rmtag, unregister, rmview by uuid, and it will attempt to
+delete the view storage too.
+ 
+When a view is recovered by view_q.pl it simply restores all tags in all the regions where it was removed from.
+ 
+Some views aren't supposed to be deleted even when they haven't been accessed for a long time. View_q.pl can
+be instructed to disable quarantine of these views.
+ 
+View_q.pl will only process views hosted on the machine where the script is being executed.
+ 
+ 
+=head1 Examples
+ 
+=head2 Putting a view in Quarantine
+ 
+ratlperl view_p.pl -quarantine \\server\share\views\viewstorage
+ 
+The view storage can in either Local File Path notation (d:\views\...) or UNC style
+ 
+=head2 Listing view that have not been used since ...
+ 
+This operation is achieved by the swithc -nasince. The argument to -nasince can either be
+a date in the form YYYY-MM-DD or a number of days. In the latter case the number of days
+will be subtracted from the current date. This feature adresses the possibility to
+set-up scheduled jobs. So if you call
+ 
+ratlperl view_q.pl -nasince 90
+ 
+all views that have not been used for 90 dayss or more will be listed. You can add -autoquarantine
+to the command to have all these views quarantined in one operation.
+ 
+=head3 - and putting them in quarantine
+ 
+ratlperl view_q.pl -nasince 90 -autoquaratine
+ 
+=head2 Listing views in quarantine
+ 
+So you have used view_q.pl to put views in quarantine. How to know which views are in quarantine ?
+Simple, used the -lsquarantine:
+ 
+ratlperl view_q.pl -lsquarantine
+ 
+=head3 -have all quarantined views purged (deleted ...)
+ 
+Use -autopurge:
+ 
+ratlperl view_q.pl -lsq -autopurge
+ 
+Any view in quarantine will be removed.
+ 
+ 
+=head3 purge only views that have been for long enough
+ 
+add the -days switch which is only valid together with -lsq -autopurge (or -autorecover )
+With -autopurge the days switch will filter the quarantined views and only purge those
+that have been in quarantine for MORE than I<days>
+ 
+ratlperl view_q.pl -lsq -autopurge -days 180
+ 
+will remove views that have been in quarantine for more than 180 days
+ 
+=head3 or autorecover quarantined views
+ 
+Use the -autorecover switch with -lsquarantine. When autorecovering the meaning of
+the -days switch is changed to mean less than, I<days>. So
+ 
+ratlperl view_q.pl -lsq -autorecover -days 30
+ 
+Will recover quarantined views that have been quarantined less than 30 days
+ 
+=head2 One view at a time
+ 
+Views can be processed one at a time with:
+ 
+=head3 quarantine:
+ 
+ratlperl view_q.pl  -quarantine stgloc
+ 
+=head3 recover:
+ 
+ratlperl view_q.pl -recover stgloc
+ 
+=head3 purge:
+ 
+ratlperl view_q.pl  -purge stgloc
+ 
+Where B<stgloc> can be in eiter UNC style or local file system notation.
+ 
+=head2 Ignoring views
+ 
+Some views are not accessed - but should however not be quarantined, they build-views
+or have some other purpose for the organization.
+ 
+ratlperl view_q.pl  -ignore I<viewtag>
+ 
+as the view may not be in the current region, the switch -region is supported
+ 
+ratlperl view_q.pl  -ignore I<viewtag> -region I<region>
+ 
+ 
+=head2 Un-ignoring views
+ 
+To remove the ignore flag from a view, just run
+ 
+  ratlperl view_q.pl  -noignore I<viewtag> -region I<region>
+ 
+-and that view will be back in consideration for view_q.pl
+ 
+ 
+ 
+=head1 SUPPORT
+ 
+Visit http://www.praqma.net to get help.
+ 
+=cut
+
+=head1 Script Implementation
+ 
+=head2 Internal subfunctions
+ 
+=head3 validate_options( )
+ 
+The sub-functions read the options and switches applied with the execution into
+the global variables that are defined to cache them.
+ 
+The function will kill the script execution if unknown switches are used.
+ 
+Parameters:
+ 
+  none
+ 
+Returns:
+ 
+  nothing
+ 
+=cut
+
+=head3 lsi ()
+ 
+This function lists all the quarantined views.
+ 
+The format of the listing is the local view storage (as reported by lsview -age).
+ 
+A quarantined view is defined as a view that is reported "stranded" by rgy_check and which has
+a .view_quarantine file in the admin directory of the storage.
+ 
+Parameters:
+ 
+  none
+ 
+Returns:
+ 
+  @result    =    The list of quarantined storages.
+ 
+=cut
+
+=head3 enable_log ()
+ 
+ 
+The sub-function overwrites the default settings for log, debug and verbose if set manually and enables the functionality in the logger.
+Prefix option name with "no" for force disable (e.g. -nodebug)
+ 
+Debug:
+- enables verbose, unless -noverbose is set in the script call.
+- enables the logfile
+- gives some extra logging information (variable values, additional information, ect.)
+ 
+Verbose:
+- enables log to STDOUT
+ 
+Logfile:
+- enables the logfile
+- sets the logfilename (and path) if specified
+- the environment variables SCRIPTLOG_ENABLED or CLEARCASE_TRIGGER_DEBUG forces the logfile to enable, not matter what
+ 
+Checks for ARGV arguments (unreferenced values):
+- if log is enabled, it dies if there is more then one (expect it to be filename or relative/absolute path AND filename)
+- if log is disabled, it dies if there are any
+- The logger module fails, if the specified log, can't be opened/created
+ 
+Parameters:
+ 
+  Non
+  Uses -verbose, -debug and -logfile
+ 
+Returns:
+ 
+  nothing (unless it dies)
+ 
+exit:
+ 
+  Will kill the script exit 1 (die) on ARGV errors - printing the arguments
+ 
+=cut
+
+=head3 xxx_mode ()
+ 
+The sub-functions named xxx_mode all work as switches.
+ 
+They all start by checking the options and switches applied with the execution to see if the have any work
+to do. if so, they take full responsibility over the remainder of the script execution and exits the script
+with either 1 or 0;
+ 
+ 
+Parameters:
+ 
+  none
+ 
+Returns:
+ 
+  nothing
+ 
+exit:
+ 
+Will force the entire script to exit with 0 or 1
+ 
+  1  =   Wrong set of switches applied
+  0  =   Successful execution
+ 
+=cut
+
+=head3 lsquarantined ()
+ 
+NOTE: This function will only run on ClearCase registry servers!!!
+ 
+This function lists all the quarantined views.
+ 
+The format of the listing is the local view storage (as reported by lsview -age).
+ 
+A quarantined view is defined as a view that is reported "stranded" by rgy_check and which has
+a .view_quarantine file in the admin directory of the storage.
+ 
+Parameters:
+ 
+  none
+ 
+Returns:
+ 
+  @result    =    The list of quarantined storages.
+ 
+=cut
+
+=head3 recover_stg ($stg)
+ 
+This function recovers a view storage.
+ 
+It will recreate all the tags in all regions where it was tagged at the time it was quarantined.
+ 
+Parameters:
+ 
+  $stg   = The storage to quarantine (the global one, as reported by a lsview command, or
+           simply the local-path as reported by rgy_check)
+ 
+Returns:
+ 
+  1    =    Success
+  0    =    The $stg does not contain a .view_quarantine file in the admin directory.
+ 
+=cut
+
+=head3 purge_stg ($stg)
+ 
+This function purges a view storage.
+ 
+It will recreate one intermediate tag to the view stg and then do a regular
+(safe) view removal.
+ 
+Parameters:
+ 
+  $stg   = The storage to purge (the global one, as reported by a lsview command, or
+           simply the local-path as reported by rgy_check)
+ 
+Returns:
+ 
+  1    =    Success
+  0    =    The $stg does not contain a .view_quarantine file or the $stg contains
+            a .view_q_ignore file.
+ 
+=cut
+
+=head3 quarantine_stg ($stg)
+ 
+This function quarantines a view storage.
+ 
+It will untag tags in all regions and record the reverse commands (the corresponding
+mktag commands) in a file named .view_quarantine located in the admin directory of the
+view storage.
+ 
+Parameters:
+ 
+  $stg   = The storage to quarantine (the global one, as reported by a lsview command)
+ 
+Returns:
+ 
+  1    =    Success
+  0    =    The $stg parameter is invalid - nothing to do!
+ 
+=cut
+
+=head3 vwsstgs_nasince ( $cut_date, \@result)
+ 
+This function pushes (global) view storage locations onto the result array
+handed into the sub as a reference if they haven't been accessed since $cut_date.
+ 
+The format of the resulting list entries are like this:
+ 
+  <YYYY-MM-DD> <view_stg>
+ 
+Where  view <YYYY-MM-DD> is the last accessed date, and <view_stg> is the global view storage location.
+ 
+Parameters:
+ 
+  $cut_date      =  The date to compare against. The scalar must be in the format YYYY-DD-MM
+  \@result       =  An array reference passed into the sub function
+ 
+Returns:
+ 
+  1    =    The content of @result is trust worthy
+  0    =    The $cut_date is in an unsupported format. The content of @result is crab!
+ 
+=cut
+
+=head3 sub prepare_stg_directory ( )
+ 
+This function is related to the global hash: %stg_directory.
+ 
+%stg_directory is used be several sub functions as a common directory listing of view storages
+and view tags.
+ 
+After it has been prepared, the format of the hash entries are like this:
+ 
+  keys                 = The global view storage location;
+  values               = A semi-colon separated list of all region/tags pairs in the
+                         format: -region <region> -tag <tag>
+ 
+This function validates that the global hash containing all views across all regions is
+loaded and trustworthy.
+ 
+All operations querying the directory should call this sub function first.
+ 
+Parameters:
+ 
+  none
+ 
+Returns:
+ 
+  0      The %stg_directory is already prepared, it will be reused.
+  1      The %stg_directory has been prepared.
+ 
+=cut
 
 __END__
