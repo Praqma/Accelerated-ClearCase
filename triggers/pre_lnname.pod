@@ -57,8 +57,6 @@ There cannot be a whitespace just before an extension seperator ("element .ext" 
 
 =item * External Configuration file per site
 
-=item * Automerge Mode
-
 =item * Script generation
 
 =item * Logfile
