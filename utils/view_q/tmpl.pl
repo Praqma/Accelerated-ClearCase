@@ -33,7 +33,7 @@ $_warnsubject = "You have unused ClearCase views, that will be removed in $_grac
 
 	Some views are only used for reading or are old build-views you want to keep. That kind of views can be flagged by $_ccadmin_name so this house keeping job will ignore it in future runs.
 
-	You will get now further notifications about the view removal, but please feel free to contact $_ccadmin_name.
+	You will not get further notifications about the view removal, but please feel free to contact $_ccadmin_name.
 
 	===VIEWLIST===
 
