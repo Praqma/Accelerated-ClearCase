@@ -1,0 +1,163 @@
+######################## DOCUMENTATION ##############################
+
+=pod
+
+=head1 NAME
+
+checkout_latest - ClearCase trigger
+
+Script:        F<pre_lnname.pl>
+
+Trigger name:  C<ACC_PRE_LNNAME>
+
+Used as a trigger which validates filepath and filename.
+At present it prevents the creation of too long filenames in ClearCase and the use of whitespaces in the filename.
+
+=head1 SYNOPSIS
+
+Runs as ClearCase trigger script installed on any vob, but primarily on basevobs and ucmvobs.
+
+The script installs itself correctly when executed outside a trigger context using:
+
+  pre_lnname.pl -install -vob \thevob
+
+To learn the full syntax simply execute the the script without the -vob switch:
+
+   pre_lnname.pl -install
+
+=head2 Restrictions
+
+During the install process, that script is supposed to run under the account which owns the VOB.
+The script will fail if that is not the case.
+
+An exception is if you execute it in -preview mode
+
+=head1 DESCRIPTION
+
+Long filenames
+
+ClearCase can handle pretty long file names (longer than 283 characters gave us some problems), 
+but some versions of Windows have a limit of 255 characters. If you make too long filenames, then 
+the action will fail. This trigger can help avoid this situation. As Windows can get into trouble 
+above 255 characters, and as a file in ClearCase gets the .mkelem extension when adding to source 
+control, our recommended maximum length for a path + file name in ClearCase is 247 characters.
+
+Whitespaces
+
+Badly places whitespaces in the filename can stop ClearCase from checkin in the file, and then it 
+disappears from ClearCase Explorer. This trigger stops filenames whith the following whitespaces:
+Filename cannot start with whitespace (" element" is prohibited)
+Filename cannot end with whitespace ("element " is prohibited)
+There cannot be a whitespace just before an extension seperator ("element .ext" is prohibited)
+
+
+=head1 Features of C<ACC_PRE_LNNAME> trigger
+
+=over
+
+=item * External Configuration file per site
+
+=item * Script generation
+
+=item * Logfile
+
+=item * Debugging
+
+=item * Bypassing the Trigger.
+
+=back
+
+=head2 External Configuration file per site
+
+Some options are configurable by the ClearCase administrator, so you can make the trigger behave according to your enterprise policies.
+
+The currently supported configurable options are the maximum filepath length and whether to check for whitespaces.
+
+In order do utilize the External configuration, the Administrator must locate the file pre_lnname.pl.ini in the same folder as the trigger script 
+
+F<pre_lnname.pl> and copy it unmodified to the subfolder ..\CustomCfg. 
+
+Then open the file which looks like this:
+
+# Configuration file for re_lnname.pl
+
+# change the pathlength to control how long paths you want on the system
+
+our %trigger_parms = (
+# lenght of path, 0 means off, a number means max pathlength
+"pathlength" => 180,
+# check for whitespaces
+# 0 means off, 1 means on
+"whitespacecheck" => 1
+
+);
+
+__END__
+
+
+
+This is actually perl syntax here, so lines starting with a # sign are comments.
+
+Now if you want to allow longer filenames, change 
+
+ "pathlength" => 180,
+
+to 
+
+  "pathlength" => 283,
+
+
+and save the change.
+
+If you don't want to check the pathlength, change 
+
+ "pathlength" => 180,
+
+to 
+
+  "pathlength" => 0
+
+If you dont want to check your elements for whitespaces, change
+
+  "whitespacecheck" => 1
+
+to
+
+  "whitespacecheck" => 0
+
+The original file must exists unmodifed in the original location, or the script will fail, as the file gives the defaults to the script. But if the customized file 
+exists, the settings from the customization takes precedence.
+
+=head2 Logfile
+
+When a too long file name is detected and stopped, we create a logfile in the executing users TEMP folder. The logfile will be named something like validate_filepath.plPID3852.log 
+
+where the number refers to the PID of that process.
+
+=head2 Debugging
+
+Additional Debug information will be written to screen and logfile by defining one or two system environment variables 
+
+CLEARCASE_TRIGGER_DEBUG=1 and/or CLEARCASE_TRIGGER_VERBOSE=1. After defining them you must restart the proces that will end up spawning the cleartool mkelem 
+
+command, if you do not, the environment variables won't be seen. 
+
+With either of these environment variables set, a lot more information will be written.
+
+=head1 AUTHOR
+
+Margit Bennetzen, E<lt>mab@praqma.netE<gt>.
+
+=head1 BUGS
+
+See the website below.
+
+=head1 COPYRIGHT
+
+This program is distributed under the GNU General Pulic License v3.0
+
+Support:    http://launchpad.net/acc
+
+=for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
+
+=cut
