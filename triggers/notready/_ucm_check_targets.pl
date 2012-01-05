@@ -13,6 +13,8 @@
 #
 #   ct mkattype -vtype string -nc check_targets
 
+die "The script $0 is not ready for deployment\n";
+
 # web views and snapshot views don't have derived objects
 exit 0 if $ENV{CLEARCASE_VIEW_KIND} =~ /snapshot/;
 

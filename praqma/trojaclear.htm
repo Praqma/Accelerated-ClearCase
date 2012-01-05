@@ -1,0 +1,140 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Z:\launchpad\praqma\trojaperl\modules\trojaclear.pm</title>
+<link rel="stylesheet" href="C:/Program Files/OptiPerl/Pod2Html.css" type="text/css" />
+<link rev="made" href="mailto:" />
+</head>
+
+<body>
+
+<p><a name="__index__"></a></p>
+<!-- INDEX BEGIN -->
+<!--
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<li><a href="#description">DESCRIPTION</a></li>
+	<li><a href="#functions">Functions</a></li>
+	<ul>
+
+		<li><a href="#new">new</a></li>
+		<li><a href="#get_masterreplica">get_masterreplica</a></li>
+		<li><a href="#get_replicahost">get_replicahost</a></li>
+		<li><a href="#removetype____">removetype ($)</a></li>
+		<li><a href="#locktype____">locktype ($)</a></li>
+		<li><a href="#get_creationdate">get_creationdate</a></li>
+		<li><a href="#destroy">DESTROY</a></li>
+	</ul>
+
+	<li><a href="#support">SUPPORT</a></li>
+</ul>
+-->
+<!-- INDEX END -->
+
+<p>
+</p>
+<hr />
+<h1><a name="name">NAME</a></h1>
+<p>trojaclear.pm is a perl module which can be used with scripts executed by
+Praqma's Troja Server.</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>In a multisite environment Praqma's Troja Server will have to distribute the command
+to execute to the relevant host (most often the host that is mastering the object).</p>
+<p>Tha involves looking up the host etc, and it made sense to package theses functions
+that will be used repeatedly in a module.</p>
+<p>The module is constructed a class.</p>
+<p>
+</p>
+<hr />
+<h1><a name="description">DESCRIPTION</a></h1>
+<p>Throughout the module reporting depends on an instance of a reference to the scriptlog
+ module and the it must have been instantiated las $log in the script that uses
+ trojaclear.pm.</p>
+<p>For that reason, the constructor ``new'' will fail if the we can not find $::log</p>
+<p>The module is ``lazy''. It means that means that a get_ method will return the corresponding
+property value - if it exist, else it will be calculated.</p>
+<p>The remainder of the methods are described below.</p>
+<p>
+</p>
+<hr />
+<h1><a name="functions">Functions</a></h1>
+<p>
+</p>
+<h2><a name="new">new</a></h2>
+<p>Create a new instance of the class object</p>
+<p>Returns the blessed object reference, if the identifier part maps to one of the
+the supported types (see the %fgt in the code).</p>
+<p>To get an instance, first make sure that you have use clause for trojaclear and scriptlog:</p>
+<pre>
+ use scriptlog;
+ use trojaclear;
+ my $log=scriptlog-&gt;new();
+ my $clearobj=trojaclear-&gt;new('brtype:some@vob');</pre>
+<p>Returns:
+Object reference if successfull
+undef if not.</p>
+<p>
+</p>
+<h2><a name="get_masterreplica">get_masterreplica</a></h2>
+<p>Determines the master replica of the object.</p>
+<p>To use it you must first have an instance (see ``new'') then you can do</p>
+<pre>
+ my $replica = $clearobj-&gt;(get_masterreplica);</pre>
+<p>which will assign the fully qualified replica name to $replica</p>
+<p>Returns undef if the are problems - else it returns that replica name.</p>
+<p>
+</p>
+<h2><a name="get_replicahost">get_replicahost</a></h2>
+<p>Determines the host for a replica object.</p>
+<p>To use it you must first have an instance (see ``new'') then you can do</p>
+<pre>
+ my $replica = $clearobj-&gt;(get_masterreplica);</pre>
+<p>which will assign the fully qualified replica name to $replica</p>
+<p>Returns undef if the are problems - else it returns that host name.</p>
+<p>
+</p>
+<h2><a name="removetype____">removetype ($)</a></h2>
+<p>Removes a type object from clearcase - use it carefully
+It will remove - or attempt to remove the specified type object, but be warned,
+removing a type object, will remove any instances to.</p>
+<p>If you are removing a branch type object, and it has been used for branching of any
+element, any version of that branch are removed as well. For versions they end up in
+lost+found, but for for instance label types they is no way back.</p>
+<p>
+</p>
+<h2><a name="locktype____">locktype ($)</a></h2>
+<p>locks a type.</p>
+<p>To use it call</p>
+<pre>
+ $clearojb-&gt;(locktype)</pre>
+<p>Returns the locked state on success
+Returns undef</p>
+<p>
+</p>
+<h2><a name="get_creationdate">get_creationdate</a></h2>
+<p>Find object creation time, and convert to seconds since epoch.</p>
+<p>Returns creation time in seconds since epoch</p>
+<pre>
+        $clearojb-&gt;(get_creationdate);</pre>
+<p>Returns undef if we can not determine the creation time.</p>
+<p>
+</p>
+<h2><a name="destroy">DESTROY</a></h2>
+<p>This is a standard object destructor.
+Called automatically on script exit, but here it is, if you want to get rid of
+an object instance.</p>
+<p>
+</p>
+<hr />
+<h1><a name="support">SUPPORT</a></h1>
+<p>Visit <a href="http://www.praqma.net">http://www.praqma.net</a> to get help.</p>
+
+</body>
+
+</html>

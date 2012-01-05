@@ -1,0 +1,81 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Z:\bazaar\trunk\saos\REMO~FE6.PL</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:" />
+</head>
+
+<body style="background-color: white">
+
+
+<!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<li><a href="#description">DESCRIPTION</a></li>
+	<li><a href="#examples">Examples</a></li>
+	<ul>
+
+		<li><a href="#query_mode">Query mode</a></li>
+		<li><a href="#lock_mode">Lock mode</a></li>
+	</ul>
+
+	<li><a href="#support">SUPPORT</a></li>
+</ul>
+
+<hr name="index" />
+</div>
+<!-- INDEX END -->
+
+<p>
+</p>
+<hr />
+<h1><a name="name">NAME</a></h1>
+<p>removetype.pl is a perl script intended for use with Praqma's Troja Server.
+The purpose is to remove a type in a multisite environment.</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>Removal of clearcase type objects in multisite environment is subject to
+mastership issues.</p>
+<p>So in order to remove a type object successfully, the remove operation should be carried
+out on the host mastering the type object.</p>
+<p>
+</p>
+<hr />
+<h1><a name="description">DESCRIPTION</a></h1>
+<p>To avoid mastership issues, the script must be called twice. First time in -query
+mode, that will determine, if the object exists, the master replica of the type,
+and the master replica host.
+The second call is in -lock mode, and this time the script is intended to run
+on the replica master host.</p>
+<p>
+</p>
+<hr />
+<h1><a name="examples">Examples</a></h1>
+<p>
+</p>
+<h2><a name="query_mode">Query mode</a></h2>
+<pre>
+ ratlperl locktype.pl -query -object lbtype:SOMELABEL@\vobtag</pre>
+<p>
+</p>
+<h2><a name="lock_mode">Lock mode</a></h2>
+<pre>
+ ratlperl locktype.pl -lock -object lbtype:SOMELABEL@\vobtag</pre>
+<p>
+</p>
+<hr />
+<h1><a name="support">SUPPORT</a></h1>
+<p>Visit <a href="http://www.praqma.net">http://www.praqma.net</a> to get help.</p>
+
+</body>
+
+</html>

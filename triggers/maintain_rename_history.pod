@@ -1,0 +1,120 @@
+######################## DOCUMENTATION ##############################
+
+=pod
+
+=head1 NAME
+
+maintain_rename_history - ClearCase trigger
+
+Script:        F<maintain_rename_history.pl>
+
+Trigger name:  C<ACC_RENAME_HISTORY>
+
+Used as a generic trigger which preserves history when renaming an element in ClearCase - please see the Description
+
+=head1 SYNOPSIS
+
+Runs as ClearCase trigger script installed on any vob.
+
+The scripts installs itself correctly when executed outside a trigger context using:
+
+  (ratl)perl maintain_rename_history -install -vob \thevob
+
+To learn the full syntax simply execute the the script without the -vob switch:
+
+  maintain_rename_history -install
+
+=head2 Restrictions
+
+During the install process, that script is supposed to run under the account which owns the VOB.
+The script will fail if that is not the case.
+
+An exception is if you execute it in -preview mode
+
+=head1 DESCRIPTION
+
+In ClearCase a directory sees its files (elements) as just a list of names. If a file in a directory is renamed, the directory 
+will just see a new list of element names - and not keep track of which element was renamed to what. The renamed element itself
+will not see itself as changed - as it is only its name and not its contents that is changed. This means, that if a.txt is renamed
+to B.txt, and b.txt is renamed to A.txt, then ClearCase will not show this in any way, and it is impossible for users to guess 
+which file was previously named what. 
+This trigger will add a comment to the directory that contains the changed element saying that "Element B.txt previously named a.txt".
+The same comment will be added to the renamed element. 
+
+=head2 Case sensivity
+
+By default the trigger operates in Case sensitive mode, so elements with for instance CamelCase errors can be renamed
+without involving the vob owner.
+
+The case sensitive pattern matching can be changed to case insensitive if that is required, to do that, you will edit the
+trigger script and change the line
+
+        my $case_sensitive = 1;
+
+to
+
+        my $case_sensitive = 0;
+
+=head2 Bypassing the trigger.
+
+To bypass the script you must create the appropriate semaphore file first
+(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
+
+It goes without saying, that to avoid misuse of this ability, ClearCase administrators should make sure
+that triggers are executed - and semaphore files are looked-up - at locations where common users only
+have read access.
+
+Trigger script maintain_rename_history.pl respects a local semaphore directory. That means that any user can create the environment variable
+with a value of a existing directory.
+
+To utilize this functionality follow these steps.
+
+=over
+
+=item *
+
+Select a directory, and create an User Environment Variable called B<CLEARCASE_USE_LOCAL_SEMAPHORE> and assign it a value of the directory selected.
+In the CLI you could do:
+
+=back
+
+ set CLEARCASE_USE_LOCAL_SEMAPHORE=C:\Documents and Settings\student\My Documents\My Pictures
+
+=over
+
+=item *
+
+Then create a file named after the user i.e. "student" in the selected directory
+
+=item *
+
+Edit the file, and add the line maintain_rename_history.pl to it. Close the file.
+
+=item *
+
+Now for the next 4 hours (approximately) C<ACC_RENAME_HISTORY> will exit silently without adding comments about renaming.
+
+=item *
+
+If more time is required, the semaphore file must be recreated (not copied, delete it and create a new with the same contents.)
+
+=back
+
+
+=head1 AUTHOR
+
+Margit Bennetzen, E<lt>mab@praqma.netE<gt>.
+
+=head1 BUGS
+
+See the website below.
+
+=head1 COPYRIGHT
+
+This program is distributed under the GNU General Pulic License v3.0
+
+Support:    http://launchpad.net/acc
+
+=for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
+
+=cut

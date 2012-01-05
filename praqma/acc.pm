@@ -1,6 +1,8 @@
 package acc;
 require 5.001;
 require Exporter;
+use File::Basename;
+
 @ISA = qw(Exporter);
 our @EXPORT = qw( get_adminvob
   get_hlinks
@@ -99,7 +101,7 @@ These constants defines environment variables which code may be looking for to o
  CLEARCASE_ADMINVOB          = 'CLEARCASE_ADMINVOB'          # -c "Environment Variable, when set it overrides the default ACC meta Data VOB - obsoletede - use CLEARCASE_ACCMETADATAVOB"
  CLEARCASE_ACCMETADATAVOBVOB = 'CLEARCASE_ACCMETADATAVOB'    # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
 
-=head2 Standart VOBtype definition
+=head2 Standard VOBtype definition
 
 ACC has some functions used to identify the VOB type.
 This functions are especially important for
@@ -130,41 +132,50 @@ Selfcontained VOBs (VOBs with no AdminVOB hyperlink, what so ever) have essitial
 =cut
 
 ###PRAQMA:INITMETA:BEGIN
-use constant ATTYPE_FROZEN          => 'Frozen';                    # -c "ACC meta type" -vtype string -default \"\"
-use constant ATTYPE_PROMOTION_LEVEL => 'PromotionLevel';            # -c "ACC meta type" -vtype string -enum \"released\",\"tested\",\"built\",\"integrated\"
-use constant ATTYPE_KEYWORDS        => 'Keywords';                  # -c "ACC meta type" -vtype string -default \"\"
-use constant ATTYPE_LBTYPE_TEMPLATE => 'LbtypeTemplate';            # -c "ACC meta type" -vtype string -default \"[A-Z][A-Z0-9_-\.]{3,30}\"
-use constant ATTYPE_BRTYPE_TEMPLATE => 'BrtypeTemplate';            # -c "ACC meta type" -vtype string -default \"[a-z][a-z0-9_]{3,30}\"
-use constant ATTYPE_ATTYPE_TEMPLATE => 'AttypeTemplate';            # -c "ACC meta type" -vtype string -default \"[a-zA-Z][a-zA-Z0-9]{3,30}\"
-use constant ATTYPE_HLTYPE_TEMPLATE => 'HltypeTemplate';            # -c "ACC meta type" -vtype string -default \"[a-zA-Z][a-zA-Z0-9]{3,30}\"
-use constant ATTYPE_ACCMETADATA     => 'AccMetaData';               # -c "ACC meta type" -vtype string -default \"\"
-use constant HLTYPE_PUBLISHED       => 'Published';                 # -c "ACC meta type"
-use constant HLTYPE_COMPOSITE       => 'CompositeLbtype';           # -c "ACC meta type"
-use constant HLTYPE_RESTRICTED      => 'Restricted';                # -c "ACC meta type"
-use constant LBTYPE_INITIAL         => 'INITIAL';                   # -c "ACC meta type"
-use constant ATTYPE_LBINPROGRESS    => 'AccLabellingInProgress';    # -c "ACC meta type" -vtype string -default \"\"
+use constant ATTYPE_FROZEN          => 'Frozen';             # -c "ACC meta type" -vtype string -default \"\"
+use constant ATTYPE_PROMOTION_LEVEL => 'PromotionLevel';     # -c "ACC meta type" -vtype string -enum \"released\",\"tested\",\"built\",\"integrated\"
+use constant ATTYPE_KEYWORDS        => 'Keywords';           # -c "ACC meta type" -vtype string -default \"\"
+use constant ATTYPE_LBTYPE_TEMPLATE => 'LbtypeTemplate';     # -c "ACC meta type" -vtype string -default \"[A-Z][A-Z0-9_-\.]{3,30}\"
+use constant ATTYPE_BRTYPE_TEMPLATE => 'BrtypeTemplate';     # -c "ACC meta type" -vtype string -default \"[a-z][a-z0-9_]{3,30}\"
+use constant ATTYPE_ATTYPE_TEMPLATE => 'AttypeTemplate';     # -c "ACC meta type" -vtype string -default \"[a-zA-Z][a-zA-Z0-9]{3,30}\"
+use constant ATTYPE_HLTYPE_TEMPLATE => 'HltypeTemplate';     # -c "ACC meta type" -vtype string -default \"[a-zA-Z][a-zA-Z0-9]{3,30}\"
+use constant ATTYPE_ACCMETADATA     => 'AccMetaData';        # -c "ACC meta type" -vtype string -default \"\"
+use constant HLTYPE_PUBLISHED       => 'Published';          # -c "ACC meta type"
+use constant HLTYPE_COMPOSITE       => 'CompositeLbtype';    # -c "ACC meta type"
+use constant HLTYPE_RESTRICTED      => 'Restricted';         # -c "ACC meta type"
+use constant LBTYPE_INITIAL         => 'INITIAL';            # -c "ACC meta type"
+use constant ATTYPE_LBINPROGRESS => 'AccLabellingInProgress';    # -c "ACC meta type" -vtype string -default \"\"
 ###PRAQMA:INITMETA:END
 
 # ACC global constants
-use constant TRIGGER_PERL => 'ratlperl';                            # -c "perl interpreter for triggers scripts"
-use constant GLOBAL_SCOPE => 'global';                              # -c "Keyword"
+use constant TRIGGER_PERL => 'ratlperl';                         # -c "perl interpreter for triggers scripts"
+use constant GLOBAL_SCOPE => 'global';                           # -c "Keyword"
 
-use constant LOCAL_TYPE_PREFIX      => '^[Ll][Oo][Cc][Aa][Ll]_';             # -c "RegExp which defines local types prefix (local types must have this prefix)"
+use constant LOCAL_TYPE_PREFIX => '^[Ll][Oo][Cc][Aa][Ll]_';      # -c "RegExp which defines local types prefix (local types must have this prefix)"
 use constant REGEXP_METADATADEFAULT => '<:AccMetaDataDefault::\\(/s*):>';    # -c "RegExp which determins the AccMetaDateDefault VOB within a region"
 use constant ACC_TEMP_LBTYPE_NAME =>
   '^_\._\d+_\._\d+$';    # -c "RegExp defining temp lbtype name while applying Restricted labels with the applyrestricted.pl utility script."
 
 use constant CLEARCASE_FORCE_RESTRICTION => 'CLEARCASE_FORCE_RESTRICTION';    # -c "Environment Variable, when set restrictions can be forced"
-use constant CLEARCASE_ADMINVOB          => 'CLEARCASE_ADMINVOB';             # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
-use constant CLEARCASE_ACCMETADATAVOBVOB => 'CLEARCASE_ACCMETADATAVOB';       # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
+use constant CLEARCASE_ADMINVOB => 'CLEARCASE_ADMINVOB';    # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
+use constant CLEARCASE_ACCMETADATAVOBVOB =>
+  'CLEARCASE_ACCMETADATAVOB';                               # -c "Environment Variable, when set it overrides the default ACC meta Data VOB"
 
 # These Constants are used to identify VOB types:
-use constant VOBTYPE_PVOB                => 'pvob';
-use constant VOBTYPE_ADMINVOB            => 'adminvob';
-use constant VOBTYPE_UCM_CLIENT          => 'ucmvob';
-use constant VOBTYPE_BCC_CLIENT          => 'bccvob';
-use constant ATTYPE_CUSTOM_VOBTYPE       => 'ACC_VOBType';                     # -vtype string -c "Used to define Custom VOB types to be used be the trigger_helper module"
-use constant ATTYPE_TRIGGER_BLACKLIST    => 'ACC_TriggerBlacklist';            # -vtype string -c "Used to blacklist explicit triggers on VOBs when istalled by the trigger_helper module"
+use constant VOBTYPE_PVOB          => 'pvob';
+use constant VOBTYPE_ADMINVOB      => 'adminvob';
+use constant VOBTYPE_UCM_CLIENT    => 'ucmvob';
+use constant VOBTYPE_BCC_CLIENT    => 'bccvob';
+use constant ATTYPE_CUSTOM_VOBTYPE => 'ACC_VOBType';    # -vtype string -c "Used to define Custom VOB types to be used be the trigger_helper module"
+use constant ATTYPE_TRIGGER_BLACKLIST =>
+  'ACC_TriggerBlacklist';    # -vtype string -c "Used to blacklist explicit triggers on VOBs when istalled by the trigger_helper module"
+
+# These constants are use to allow for naming conventions
+use constant ATTYPE_ACTIVITY_NAME_TEMPLATE => 'ACC_ActivityNameConvention';    # -vtype string -c "Used to define regex for allowed activity names"
+
+# These constants are use to allow for naming conventions
+use constant ATTYPE_UCM_INTEGRATORS => 'ACC_UcmIntegrators'
+  ; # -vtype string -c "Used by trtype:ACC_PRE_SETACT. Defines semicolon seperated list of users that has elevated rights on a project's integration stream"
 
 # package globals
 use vars qw($clearcaselt);
@@ -173,7 +184,7 @@ my $self = {};    #Reference to an anonymous hash, Will be blessed later
 
 # Module version
 $VERSION = "1.0.";
-$BUILD   = "9";
+$BUILD   = "12";
 
 my $header = <<ENDHEADER;
 #########################################################################
@@ -207,10 +218,15 @@ DATE        EDITOR  NOTE
                            (v1.0.8)
 2009-11-18  Jens Brejner   Rebase from trunk. Interface changed, added is_cclt
                            (v1.0.9)
-
+2010-02-24  Jens Brejner   Added constant ATTYPE_ACTIVITY_NAME_TEMPLATE (v1.0.10)
+                           Added constant ATTYPE_UCM_INTEGRATORS (v1.0.10)
+2010-08-06  Jens Brejner   Fixed bug in split_dir_file, could not handle path that
+                           contained "\c\", as it was considered a control char.
+                           Uses File::Basename instead of regex'es.
+2011-06-14  Jens Brejner   Corrected logic error in get_vobtypes (v1.0.11)
 -------------------------------------------------------------------------
-ENDREVISION
 
+ENDREVISION
 
 =head1 FUNCTIONS
 
@@ -220,9 +236,9 @@ Look in the acc.pm file to seee what is actually exported.
 =cut
 
 sub new {
-    my $class = shift;    #Cache the package name
-    bless( $self, $class );
-    return $self;
+	my $class = shift;    #Cache the package name
+	bless( $self, $class );
+	return $self;
 }
 
 #############################################################################
@@ -247,16 +263,17 @@ Returns:
 
 =cut
 
-    my $vob = "vob:".shift;
-    $vob =~ s/vob:vob:/vob:/;
-    my $retval = join "", get_hlinks( $vob, "->", "AdminVOB" );
-    if ( $retval eq "" ) {
-        $vob =~ s/vob://;
-        return $vob;
-    } else {
-        $retval =~ s/vob://;
-        return $retval;
-    }
+	my $vob = "vob:" . shift;
+	$vob =~ s/vob:vob:/vob:/;
+	my $retval = join "", get_hlinks( $vob, "->", "AdminVOB" );
+	if ( $retval eq "" ) {
+		$vob =~ s/vob://;
+		return $vob;
+	}
+	else {
+		$retval =~ s/vob://;
+		return $retval;
+	}
 }
 
 sub get_top_adminvob($) {
@@ -279,16 +296,17 @@ Returns:
 
 =cut
 
-    my $vob = "vob:".shift;
-    $vob =~s/vob:vob:/vob:/;
+	my $vob = "vob:" . shift;
+	$vob =~ s/vob:vob:/vob:/;
 
-    my $retval = join "", get_hlinks( $vob, "->", "AdminVOB" );
-    if ( $retval eq "" ) {
-        $vob =~ s/vob://;
-        return $vob;
-    } else {
-        return &get_top_adminvob($retval);
-    }
+	my $retval = join "", get_hlinks( $vob, "->", "AdminVOB" );
+	if ( $retval eq "" ) {
+		$vob =~ s/vob://;
+		return $vob;
+	}
+	else {
+		return &get_top_adminvob($retval);
+	}
 }
 
 ##############################################################################
@@ -310,73 +328,78 @@ Returns:
 
 =cut
 
-    my $vob = "vob:".shift;    # Prefix the vob tag to make it a vob object
-    $vob =~ s/vob:vob:/vob:/;  # Clean up if vob: object prefix is now doubbled
+	my $vob = "vob:" . shift;    # Prefix the vob tag to make it a vob object
+	$vob =~ s/vob:vob:/vob:/;    # Clean up if vob: object prefix is now doubbled
 
-	my @clients = get_hlinks( $vob, "<-", "AdminVOB");
+	my @clients = get_hlinks( $vob, "<-", "AdminVOB" );
 	my $clientcount = scalar @clients;
 	$clientcount && return $clientcount;
 }
 
 ##############################################################################
 
-sub is_pvob($){
-# When you lsvob a PVOB it will list the (ucmvob) keyword in the end:
-# cleratool lsvob  \PDS_PVOB
-#   \PDS_PVOB            APPDKHI013:E:\ClearCaseStorage\VOBs\PDS_PVOB.vbs  (ucmvob)
-	my $vob = shift;
+sub is_pvob($) {
+
+	# When you lsvob a PVOB it will list the (ucmvob) keyword in the end:
+	# cleratool lsvob  \PDS_PVOB
+	#   \PDS_PVOB            APPDKHI013:E:\ClearCaseStorage\VOBs\PDS_PVOB.vbs  (ucmvob)
+	my $vob    = shift;
 	my $retval = `cleartool lsvob $vob`;
-	if ($retval =~ /\(ucmvob\)$/){return 1};
+	$retval =~ s/\(ucmvob\)/\(ucmvob , replicated\)/;
+
+	if ( $retval =~ /\(.*(ucmvob).*\)/ ) {
+		return 1;
+	}
+
 	return 0;
 }
 
 ##############################################################################
 
-sub get_vobtypes{
+sub get_vobtypes {
 	my $vob = shift;
 
 	# Get the ACC_VOBType attribute: a csv list of supported custom vob type
-	my $cmd = "cleartool desc -s -aattr ".ATTYPE_CUSTOM_VOBTYPE." vob:$vob";
+	my $cmd             = "cleartool desc -s -aattr " . ATTYPE_CUSTOM_VOBTYPE . " vob:$vob";
 	my $raw_vobtypeattr = `$cmd`;
-  $? && die "Execution of: [$cmd] failed\n"; # assert success
+	$? && die "Execution of: [$cmd] failed\n";    # assert success
 	chomp($raw_vobtypeattr);
-	$raw_vobtypeattr =~ s/\"//g; # get rid of the 'required' quotes in CC string attributes
-	my @result = split(',', $raw_vobtypeattr); # feed it to the result
+	$raw_vobtypeattr =~ s/\"//g;                  # get rid of the 'required' quotes in CC string attributes
+	my @result = split( ',', $raw_vobtypeattr );  # feed it to the result
 
 	# Determine the generic VOB type
 
+	my $adminvob = get_adminvob($vob);
+
 	# Is it a PVOB?
-	is_pvob($vob) && do{
+	if ( is_pvob($vob) ) {
 		push @result, VOBTYPE_PVOB;
-		return @result;
-	};
+	}
 
 	# Is it an AdminVOB
-	is_adminvob($vob) && do{
+	if ( is_adminvob($vob) ) {
 		push @result, VOBTYPE_ADMINVOB;
-		return @result;
-	};
+	}
 
 	#Is it a Base ClearCase VOB (one without an AdminVOB hyperlink?
-	my $adminvob = get_adminvob($vob);
-	($adminvob eq $vob) && do {
-		push @result, VOBTYPE_BCC_CLIENT; # The Vob is self-contained - it has No AdminVOB
-		return @result;
-  };
+	if ( $adminvob eq $vob ) {
+		push @result, VOBTYPE_BCC_CLIENT unless ( grep { VOBTYPE_ADMINVOB } @result );    # The Vob is self-contained - it has No AdminVOB
+	}
 
-  # Is it an UCM vob
-	(is_pvob($adminvob)) && do {
-  	push @result, VOBTYPE_UCM_CLIENT; # The VOB has an AdminVOB hlink pointin to a PVOB
-		return @result;
-	};
+	# Is it an UCM client vob
+	if ( is_pvob($adminvob) ) {
+		push @result, VOBTYPE_UCM_CLIENT;                                                 # The VOB has an AdminVOB hlink pointin to a PVOB
+	}
 
-  # OK The is't a Base ClearCase VOB (one with a hlink to a regular AdminVOB )
- 	push @result, VOBTYPE_BCC_CLIENT; # The VOB has an AdminVOB hlink pointin to a PVOB
+	# OK The is a Base ClearCase VOB (one with a hlink to a regular AdminVOB )
+	unless ( grep { VOBTYPE_UCM_CLIENT | VOBTYPE_BCC_CLIENT } @result ) {
+		push @result, VOBTYPE_BCC_CLIENT;                                                 # The VOB has an AdminVOB hlink pointin to a PVOB
+	}
+
 	return @result;
 }
 
 ##############################################################################
-
 
 sub get_restriction($$) {
 
@@ -398,18 +421,19 @@ Returns:
 
 =cut
 
-    my $qual_lbtype = shift;
-    my $resultref   = shift;
+	my $qual_lbtype = shift;
+	my $resultref   = shift;
 
-    my @restlist;
-    get_from_hlinks( \$qual_lbtype, \acc::HLTYPE_RESTRICTED, \@restlist );
-    if ( scalar(@restlist) > 1 ) {
-        print "WARNING:\n" . "$qual_lbtype has more than one restriction - that is wrong! ...FIX IT!\n";
-        return 0;
-    } else {
-        $$resultref = ( scalar(@restlist) > 0 ) ? $restlist[0] : "";
-        return 1;
-    }
+	my @restlist;
+	get_from_hlinks( \$qual_lbtype, \acc::HLTYPE_RESTRICTED, \@restlist );
+	if ( scalar(@restlist) > 1 ) {
+		print "WARNING:\n" . "$qual_lbtype has more than one restriction - that is wrong! ...FIX IT!\n";
+		return 0;
+	}
+	else {
+		$$resultref = ( scalar(@restlist) > 0 ) ? $restlist[0] : "";
+		return 1;
+	}
 }
 
 ###############################################################
@@ -430,14 +454,12 @@ Returns:
 
 =cut
 
-    my ( $dir, $file );
-    $file = shift;
-    $dir  = ".\\";
-    $file =~ /(.*\\)(.*)$/ && do {
-        $dir  = $1;
-        $file = $2;
-    };
-    return ( $dir, $file );
+	my ( $dir, $file );
+	$file = shift;
+
+	( $file, $dir ) = fileparse($file);
+
+	return ( $dir, $file );
 }
 
 ###############################################################
@@ -460,18 +482,18 @@ Returns:
 
 =cut
 
-    my $obj       = shift;
-    my $direction = shift;
-    my $hltype    = shift;
-    my @retval;
-    my $cmd = "cleartool desc -ahlink $hltype $obj";
-    my $res = `$cmd`;
-    foreach my $ln ( split /\n/, $res ) {
-        if ( $ln =~ /\s*$hltype\s*$direction\s*(.*)\s*$/ ) {
-            push @retval, $1;
-        }
-    }
-    return @retval;
+	my $obj       = shift;
+	my $direction = shift;
+	my $hltype    = shift;
+	my @retval;
+	my $cmd = "cleartool desc -ahlink $hltype $obj";
+	my $res = `$cmd`;
+	foreach my $ln ( split /\n/, $res ) {
+		if ( $ln =~ /\s*$hltype\s*$direction\s*(.*)\s*$/ ) {
+			push @retval, $1;
+		}
+	}
+	return @retval;
 }
 
 ###############################################################
@@ -494,15 +516,15 @@ Returns:
 
 =cut
 
-    my $fqlbtyperef = shift;
-    my $label       = $$fqlbtyperef;
+	my $fqlbtyperef = shift;
+	my $label       = $$fqlbtyperef;
 
-    $label = "lbtype:" . $label;
-    $label =~ s/^lbtype:lbtype:/lbtype:/;
-    my $cmd = "cleartool desc -s -aattr " . acc::ATTYPE_FROZEN . " " . $label;
-    my @res = `$cmd`;
+	$label = "lbtype:" . $label;
+	$label =~ s/^lbtype:lbtype:/lbtype:/;
+	my $cmd = "cleartool desc -s -aattr " . acc::ATTYPE_FROZEN . " " . $label;
+	my @res = `$cmd`;
 
-    return scalar(@res);
+	return scalar(@res);
 
 }
 
@@ -527,23 +549,23 @@ Returns:
 
 =cut
 
-    my $typeref      = shift;
-    my $hltyperef    = shift;
-    my $returnarrref = shift;
-    my $cmd          = "cleartool desc -ahlink $$hltyperef $$typeref";
-    my $res          = `$cmd`;
-    $? && do {
-        my ( $package, $filename, $line ) = caller;
-        print STDERR "ERROR:\n" . "Command:\t'$cmd'\n" . "Retuned:\t$res\n" . "Line: $line in '$filename'\n";
-        return -1;
-    };
-    my $direction = "->";
-    foreach my $ln ( split /\n/, $res ) {
-        if ( $ln =~ /\s*$$hltyperef\s*$direction\s*(.*)\s*$/ ) {
-            push @$returnarrref, $1;
-        }
-    }
-    return scalar(@$returnarrref);
+	my $typeref      = shift;
+	my $hltyperef    = shift;
+	my $returnarrref = shift;
+	my $cmd          = "cleartool desc -ahlink $$hltyperef $$typeref";
+	my $res          = `$cmd`;
+	$? && do {
+		my ( $package, $filename, $line ) = caller;
+		print STDERR "ERROR:\n" . "Command:\t'$cmd'\n" . "Retuned:\t$res\n" . "Line: $line in '$filename'\n";
+		return -1;
+	};
+	my $direction = "->";
+	foreach my $ln ( split /\n/, $res ) {
+		if ( $ln =~ /\s*$$hltyperef\s*$direction\s*(.*)\s*$/ ) {
+			push @$returnarrref, $1;
+		}
+	}
+	return scalar(@$returnarrref);
 }
 
 ###############################################################
@@ -567,23 +589,23 @@ Returns:
 
 =cut
 
-    my $typeref      = shift;
-    my $hltyperef    = shift;
-    my $returnarrref = shift;
-    my $cmd          = "cleartool desc -ahlink $$hltyperef $$typeref";
-    my $res          = `$cmd`;
-    $? && do {
-        my ( $package, $filename, $line ) = caller;
-        print STDERR "ERROR:\n" . "Command:\t'$cmd'\n" . "Retuned:\t$res\n" . "Line: $line in '$filename'\n";
-        return -1;
-    };
-    my $direction = "<-";
-    foreach my $ln ( split /\n/, $res ) {
-        if ( $ln =~ /\s*$$hltyperef\s*$direction\s*(.*)\s*$/ ) {
-            push @$returnarrref, $1;
-        }
-    }
-    return scalar(@$returnarrref);
+	my $typeref      = shift;
+	my $hltyperef    = shift;
+	my $returnarrref = shift;
+	my $cmd          = "cleartool desc -ahlink $$hltyperef $$typeref";
+	my $res          = `$cmd`;
+	$? && do {
+		my ( $package, $filename, $line ) = caller;
+		print STDERR "ERROR:\n" . "Command:\t'$cmd'\n" . "Retuned:\t$res\n" . "Line: $line in '$filename'\n";
+		return -1;
+	};
+	my $direction = "<-";
+	foreach my $ln ( split /\n/, $res ) {
+		if ( $ln =~ /\s*$$hltyperef\s*$direction\s*(.*)\s*$/ ) {
+			push @$returnarrref, $1;
+		}
+	}
+	return scalar(@$returnarrref);
 }
 
 ###############################################################
@@ -608,49 +630,49 @@ Returns:
 
 =cut
 
-    my $lbtyperef = shift;
-    my $brtyperef = shift;
-    my $vobref    = shift;
-    my $full_lb   = "lbtype:" . $$lbtyperef . "\@" . $$vobref;
-    my $full_br   = "brtype:" . $$brtyperef . "\@" . $$vobref;
+	my $lbtyperef = shift;
+	my $brtyperef = shift;
+	my $vobref    = shift;
+	my $full_lb   = "lbtype:" . $$lbtyperef . "\@" . $$vobref;
+	my $full_br   = "brtype:" . $$brtyperef . "\@" . $$vobref;
 
-    system("cleartool desc $full_lb >nul");
-    $? && exit 1;
-    system("cleartool desc $full_br >nul");
-    $? && exit 1;
-    system( "cleartool desc hltype:" . acc::HLTYPE_RESTRICTED . "\@$$vobref >nul" );
-    $? && exit 1;
+	system("cleartool desc $full_lb >nul");
+	$? && exit 1;
+	system("cleartool desc $full_br >nul");
+	$? && exit 1;
+	system( "cleartool desc hltype:" . acc::HLTYPE_RESTRICTED . "\@$$vobref >nul" );
+	$? && exit 1;
 
-    my $cmd = "cleartool mkhlink " . acc::HLTYPE_RESTRICTED . " " . $full_lb . " " . $full_br;
+	my $cmd = "cleartool mkhlink " . acc::HLTYPE_RESTRICTED . " " . $full_lb . " " . $full_br;
 
-    # scalar_dump(\$cmd);
+	# scalar_dump(\$cmd);
 
-    my @restlist;
-    if ( get_from_hlinks( \$full_lb, \acc::HLTYPE_RESTRICTED, \@restlist ) && grep $full_br, @restlist ) {
-        print "WARNING:\n" . "$full_lb already has a restriction to \n$full_br\n";
-        return 1;    # Return true even though we didn´t do anything
-    }
+	my @restlist;
+	if ( get_from_hlinks( \$full_lb, \acc::HLTYPE_RESTRICTED, \@restlist ) && grep $full_br, @restlist ) {
+		print "WARNING:\n" . "$full_lb already has a restriction to \n$full_br\n";
+		return 1;    # Return true even though we didn´t do anything
+	}
 
-    if ( ( lc( $ENV{acc::CLEARCASE_FORCE_RESTRICTION} ) ne "true" ) && get_to_hlinks( \$full_lb, \"GlobalDefinition", \@_ ) ) {
-        print STDERR "WARNING:\n" . "$full_lb is already instantiated with the following children:\n";
-        foreach (@_) { print STDERR "\t-> " . $_ . "\n"; }
-        print STDERR "You should manually run:\n"
-          . "\tcleartool find -avobs -version lbtype($$lbtyperef) -print\n"
-          . "\tcleartool find -avobs -version \"{lbtype($$lbtyperef) && !brtype($$brtyperef)}\" -print\n"
-          . "Note: You need to be in a view context when you run it and also be aware, that it will potentially\n"
-          . "take a long time to finish\n"
-          . "You should only carry on if you can validate the result (the output from the command should \n"
-          . "be completely EMPTY\n"
-          . "$$brtyperef ...NO EXCEPTIONS!)\n"
-          . "Define a system variabel named "
-          . acc::CLEARCASE_FORCE_RESTRICTION
-          . " (value should be \"true\")\n"
-          . "And run the command again\n";
-        return 0;
-    }
+	if ( ( lc( $ENV{acc::CLEARCASE_FORCE_RESTRICTION} ) ne "true" ) && get_to_hlinks( \$full_lb, \"GlobalDefinition", \@_ ) ) {
+		print STDERR "WARNING:\n" . "$full_lb is already instantiated with the following children:\n";
+		foreach (@_) { print STDERR "\t-> " . $_ . "\n"; }
+		print STDERR "You should manually run:\n"
+		  . "\tcleartool find -avobs -version lbtype($$lbtyperef) -print\n"
+		  . "\tcleartool find -avobs -version \"{lbtype($$lbtyperef) && !brtype($$brtyperef)}\" -print\n"
+		  . "Note: You need to be in a view context when you run it and also be aware, that it will potentially\n"
+		  . "take a long time to finish\n"
+		  . "You should only carry on if you can validate the result (the output from the command should \n"
+		  . "be completely EMPTY\n"
+		  . "$$brtyperef ...NO EXCEPTIONS!)\n"
+		  . "Define a system variabel named "
+		  . acc::CLEARCASE_FORCE_RESTRICTION
+		  . " (value should be \"true\")\n"
+		  . "And run the command again\n";
+		return 0;
+	}
 
-    system($cmd);
-    return $? / 256;
+	system($cmd);
+	return $? / 256;
 }
 
 ##########################################################################################
@@ -670,13 +692,13 @@ Returns:
 
 =cut
 
-    my $ref = shift;
-    my ( $package, $filename, $line ) = caller;
-    print STDERR "   ########   Dumping scalar   ########\n"
-      . "   Package:          \t$package '$filename'\n"
-      . "   Line:             \t$line\n"
-      . "   $ref: \t["
-      . $$ref . "]\n";
+	my $ref = shift;
+	my ( $package, $filename, $line ) = caller;
+	print STDERR "   ########   Dumping scalar   ########\n"
+	  . "   Package:          \t$package '$filename'\n"
+	  . "   Line:             \t$line\n"
+	  . "   $ref: \t["
+	  . $$ref . "]\n";
 }
 
 ###############################################################
@@ -698,10 +720,10 @@ Returns:
 
 =cut
 
-    my $objref = shift;
-    my $cmd    = "cleartool desc vob:" . $$objref . " >nul 2>\&1";
-    system($cmd);
-    return ($?) ? 0 : 1;    # Cleartool desc returns 1 on error and 0 on succes, so it'll have to be inverted:
+	my $objref = shift;
+	my $cmd    = "cleartool desc vob:" . $$objref . " >nul 2>\&1";
+	system($cmd);
+	return ($?) ? 0 : 1;    # Cleartool desc returns 1 on error and 0 on succes, so it'll have to be inverted:
 }
 
 ###############################################################
@@ -725,34 +747,34 @@ Returns:
 
 =cut
 
-    my $fromobjref = shift;
-    my $toobjref   = shift;
-    my $hltyperef  = shift;
+	my $fromobjref = shift;
+	my $toobjref   = shift;
+	my $hltyperef  = shift;
 
-    get_from_hlinks( $fromobjref, $hltyperef, \@_ );
+	get_from_hlinks( $fromobjref, $hltyperef, \@_ );
 
-    my @matches;
-    foreach (@_) {
-        $_ eq $$toobjref && push @matches, $_;
-    }
+	my @matches;
+	foreach (@_) {
+		$_ eq $$toobjref && push @matches, $_;
+	}
 
-    my $count = scalar @matches;
-    ( $count > 1 ) && do {
-        print STDERR "WARNING: $$fromobjref is already pointing to $$toobjref\n" . "         with hyperlink $$hltyperef $count times\n";
-    };
+	my $count = scalar @matches;
+	( $count > 1 ) && do {
+		print STDERR "WARNING: $$fromobjref is already pointing to $$toobjref\n" . "         with hyperlink $$hltyperef $count times\n";
+	};
 
-    ( $count eq 1 ) && do {
-        print STDERR "$$fromobjref is already pointing to $$toobjref\n";
-    };
+	( $count eq 1 ) && do {
+		print STDERR "$$fromobjref is already pointing to $$toobjref\n";
+	};
 
-    exit 1 if $count > 0;
+	exit 1 if $count > 0;
 
-    my $cmd = "cleartool mkhlink $$hltyperef $$fromobjref  $$toobjref";
-    system($cmd);
-    $? && do {
-        print STDERR "ERROR: Failed to create the hyperlink:\nCommand executed was: '$cmd'\n";
-        exit 0;
-    };
+	my $cmd = "cleartool mkhlink $$hltyperef $$fromobjref  $$toobjref";
+	system($cmd);
+	$? && do {
+		print STDERR "ERROR: Failed to create the hyperlink:\nCommand executed was: '$cmd'\n";
+		exit 0;
+	};
 }
 
 ###############################################################
@@ -775,29 +797,30 @@ Returns:
 
 =cut
 
-    my $attyperef = shift;
-    my $objref    = shift;
+	my $attyperef = shift;
+	my $objref    = shift;
 
-    my $cmd = "cleartool desc -s -aattr " . $$attyperef . " " . $$objref . " 2>\&1";
+	my $cmd = "cleartool desc -s -aattr " . $$attyperef . " " . $$objref . " 2>\&1";
 
-    my @res = `$cmd`;
-    $? && do {
-        $_ = join '', @res;
-        print STDERR "ERROR: Failed to query attribute:\nCommand executed was: '$cmd'\n It returned: '$_'\n";
-        exit 0;
-    };
+	my @res = `$cmd`;
+	$? && do {
+		$_ = join '', @res;
+		print STDERR "ERROR: Failed to query attribute:\nCommand executed was: '$cmd'\n It returned: '$_'\n";
+		exit 0;
+	};
 
-    if ( scalar(@res) ) {
-        print "Object " . $$objref . " already has an attribute of type " . $$attyperef . "\n";
-    } else {
-        my $cmd = "cleartool mkattr -default " . $$attyperef . " " . $$objref;
-        system($cmd);
-        $? && do {
-            print STDERR "ERROR: Failed to create the attribute:\nCommand executed was: '$cmd'\n";
-            exit 0;
-        };
-        return 1;
-    }
+	if ( scalar(@res) ) {
+		print "Object " . $$objref . " already has an attribute of type " . $$attyperef . "\n";
+	}
+	else {
+		my $cmd = "cleartool mkattr -default " . $$attyperef . " " . $$objref;
+		system($cmd);
+		$? && do {
+			print STDERR "ERROR: Failed to create the attribute:\nCommand executed was: '$cmd'\n";
+			exit 0;
+		};
+		return 1;
+	}
 }
 
 ###############################################################
@@ -821,85 +844,86 @@ Returns:
 
 =cut
 
-    my $fromobjref = shift;
-    my $toobjref   = shift;
-    my $hltyperef  = shift;
+	my $fromobjref = shift;
+	my $toobjref   = shift;
+	my $hltyperef  = shift;
 
-    my $cmd = "cleartool desc -l -ahlink $$hltyperef $$fromobjref";
-    @_ = `$cmd`;
-    $? && do {
-        print "the command '$cmd' failed!\n";
-        exit 0;
-    };
+	my $cmd = "cleartool desc -l -ahlink $$hltyperef $$fromobjref";
+	@_ = `$cmd`;
+	$? && do {
+		print "the command '$cmd' failed!\n";
+		exit 0;
+	};
 
-    my $direction = "->";
-    my $type      = $$toobjref;
-    $type =~ s/\\/\\\\/;
+	my $direction = "->";
+	my $type      = $$toobjref;
+	$type =~ s/\\/\\\\/;
 
-    my $retval = 1;
-    my @matches;
-    foreach my $ln (@_) {
-        chomp($ln);
-        if ( $ln =~ /^\s*(\S*)\s*$direction\s*($type)$/ ) {
-            push @matches, $1;
-            $_ = "cleartool rmhlink $1";
-            system($_);
-            $? && do {
-                print "ERROR: The command '$_' failed!\n";
-                $retval--;
-              }
-        }
-    }
-    if ( scalar(@matches) == 0 ) { print "No hyperlinks to remove\n"; exit 0; }
-    exit $retval;
+	my $retval = 1;
+	my @matches;
+	foreach my $ln (@_) {
+		chomp($ln);
+		if ( $ln =~ /^\s*(\S*)\s*$direction\s*($type)$/ ) {
+			push @matches, $1;
+			$_ = "cleartool rmhlink $1";
+			system($_);
+			$? && do {
+				print "ERROR: The command '$_' failed!\n";
+				$retval--;
+			  }
+		}
+	}
+	if ( scalar(@matches) == 0 ) { print "No hyperlinks to remove\n"; exit 0; }
+	exit $retval;
 }
 
 ###############################################################
 
 sub _list_published($$) {
 
-    my $vobref = shift;
-    my $long   = shift;
+	my $vobref = shift;
+	my $long   = shift;
 
-    #  my $cmd = "cleartool desc vob:$$vobref \>nul";
-    #  system($cmd);
-    #  $? && die "ERROR $$vob is not a legal VOB\n";
-    #  my $adminvob = get_adminvob("vob:".$$vobref);
-    #  my $xpublish_hltype = "hltype:".acc::HLTYPE_PUBLISHED."\@".$adminvob;
-    my $xpublish_hltype = "hltype:" . acc::HLTYPE_PUBLISHED . "\@" . $$vobref;
+	#  my $cmd = "cleartool desc vob:$$vobref \>nul";
+	#  system($cmd);
+	#  $? && die "ERROR $$vob is not a legal VOB\n";
+	#  my $adminvob = get_adminvob("vob:".$$vobref);
+	#  my $xpublish_hltype = "hltype:".acc::HLTYPE_PUBLISHED."\@".$adminvob;
+	my $xpublish_hltype = "hltype:" . acc::HLTYPE_PUBLISHED . "\@" . $$vobref;
 
-    #  $cmd = "cleartool desc $xpublish_hltype \>nul";
-    #  system($cmd);
-    #  $? && do {print STDERR "$xpublish_hltype doesnt exist\n"; return 1};
+	#  $cmd = "cleartool desc $xpublish_hltype \>nul";
+	#  system($cmd);
+	#  $? && do {print STDERR "$xpublish_hltype doesnt exist\n"; return 1};
 
-    if ( !$long ) {
-        get_from_hlinks( \$xpublish_hltype, \acc::HLTYPE_PUBLISHED, \@_ );
-        foreach (@_) {
-            chomp($_);
-            $_ =~ /lbtype:(.*)\@.*/;
+	if ( !$long ) {
+		get_from_hlinks( \$xpublish_hltype, \acc::HLTYPE_PUBLISHED, \@_ );
+		foreach (@_) {
+			chomp($_);
+			$_ =~ /lbtype:(.*)\@.*/;
 
-            # s/lbtype://;
-            # print $_."\n";
-            print $1. "\n";
-        }
-    } else {
-        my $cmd = "cleartool desc -l -ahlink " . acc::HLTYPE_PUBLISHED . " $xpublish_hltype";
-        @_ = `$cmd`;
-        $? && do {
-            print "the command '$cmd' failed!\n";
-            exit 1;
-        };
-        my $direction = "->";
-        my $hltype    = acc::HLTYPE_PUBLISHED;
-        foreach my $ln (@_) {
-            chomp($ln);
-            if ( $ln =~ /^\s*($hltype\@\d+\@.+\s+$direction\s.+)$/ ) {
-                print $1. "\n";
-            }
-        }
-    }
+			# s/lbtype://;
+			# print $_."\n";
+			print $1. "\n";
+		}
+	}
+	else {
+		my $cmd = "cleartool desc -l -ahlink " . acc::HLTYPE_PUBLISHED . " $xpublish_hltype";
+		@_ = `$cmd`;
+		$? && do {
+			print "the command '$cmd' failed!\n";
+			exit 1;
+		};
+		my $direction = "->";
+		my $hltype    = acc::HLTYPE_PUBLISHED;
+		foreach my $ln (@_) {
+			chomp($ln);
+			if ( $ln =~ /^\s*($hltype\@\d+\@.+\s+$direction\s.+)$/ ) {
+				print $1. "\n";
+			}
+		}
+	}
 
-    return 0;
+	return 0;
 }
 
 ###############################################################
@@ -922,11 +946,11 @@ Returns:
 
 =cut
 
-    my $vobref = shift;
-    my $long   = shift;
-    my $retval = get_published( $vobref, $long, \@_ );
-    foreach (@_) { print $_}
-    return $retval;
+	my $vobref = shift;
+	my $long   = shift;
+	my $retval = get_published( $vobref, $long, \@_ );
+	foreach (@_) { print $_}
+	return $retval;
 }
 
 ###############################################################
@@ -948,20 +972,20 @@ Returns:
 
 =cut
 
-    my $returnarrayref = shift;
+	my $returnarrayref = shift;
 
-    my $cmd = "cleartool lsvob -s 2>\&1";
-    $_ = `$cmd`;
+	my $cmd = "cleartool lsvob -s 2>\&1";
+	$_ = `$cmd`;
 
-    # $? || return 0;
-    foreach my $vob ( split /^/, $_ ) {
-        chomp($vob);
-        my $cmd = "cleartool desc -fmt \"\%n:\%[" . acc::ATTYPE_ACCMETADATA . "]Na\" vob:$vob";
-        $_ = `$cmd`;
-        my $regexp = "(.*):" . acc::ATTYPE_ACCMETADATA;
-        $_ =~ /$regexp/ && push @$returnarrayref, $1;
-    }
-    return 1;
+	# $? || return 0;
+	foreach my $vob ( split /^/, $_ ) {
+		chomp($vob);
+		my $cmd = "cleartool desc -fmt \"\%n:\%[" . acc::ATTYPE_ACCMETADATA . "]Na\" vob:$vob";
+		$_ = `$cmd`;
+		my $regexp = "(.*):" . acc::ATTYPE_ACCMETADATA;
+		$_ =~ /$regexp/ && push @$returnarrayref, $1;
+	}
+	return 1;
 }
 
 ###############################################################
@@ -985,35 +1009,36 @@ Returns:
 
 =cut
 
-    my $vobref          = shift;
-    my $long            = shift;
-    my $returnarrayref  = shift;
-    my $xpublish_hltype = "hltype:" . acc::HLTYPE_PUBLISHED . "\@" . $$vobref;
+	my $vobref          = shift;
+	my $long            = shift;
+	my $returnarrayref  = shift;
+	my $xpublish_hltype = "hltype:" . acc::HLTYPE_PUBLISHED . "\@" . $$vobref;
 
-    if ( !$long ) {
-        get_from_hlinks( \$xpublish_hltype, \acc::HLTYPE_PUBLISHED, \@_ );
-        foreach (@_) {
-            chomp($_);
-            $_ =~ /lbtype:(.*)\@.*/;
-            push @$returnarrayref, $1 . "\n";
-        }
-    } else {
-        my $cmd = "cleartool desc -l -ahlink " . acc::HLTYPE_PUBLISHED . " $xpublish_hltype";
-        @_ = `$cmd`;
-        $? && do {
-            print "the command '$cmd' failed!\n";
-            exit 1;
-        };
-        my $direction = "->";
-        my $hltype    = acc::HLTYPE_PUBLISHED;
-        foreach my $ln (@_) {
-            chomp($ln);
-            if ( $ln =~ /^\s*($hltype\@\d+\@.+\s+$direction\s.+)$/ ) {
-                push @$returnarrayref, $1 . "\n";
-            }
-        }
-    }
-    return 0;
+	if ( !$long ) {
+		get_from_hlinks( \$xpublish_hltype, \acc::HLTYPE_PUBLISHED, \@_ );
+		foreach (@_) {
+			chomp($_);
+			$_ =~ /lbtype:(.*)\@.*/;
+			push @$returnarrayref, $1 . "\n";
+		}
+	}
+	else {
+		my $cmd = "cleartool desc -l -ahlink " . acc::HLTYPE_PUBLISHED . " $xpublish_hltype";
+		@_ = `$cmd`;
+		$? && do {
+			print "the command '$cmd' failed!\n";
+			exit 1;
+		};
+		my $direction = "->";
+		my $hltype    = acc::HLTYPE_PUBLISHED;
+		foreach my $ln (@_) {
+			chomp($ln);
+			if ( $ln =~ /^\s*($hltype\@\d+\@.+\s+$direction\s.+)$/ ) {
+				push @$returnarrayref, $1 . "\n";
+			}
+		}
+	}
+	return 0;
 }
 
 ###############################################################
@@ -1036,32 +1061,32 @@ Returns:
 
 =cut
 
-    my $lbtype    = shift;
-    my $level     = shift;
-    my $resultref = shift;
+	my $lbtype    = shift;
+	my $level     = shift;
+	my $resultref = shift;
 
-    push @$resultref, &indent( $level++ ) . $lbtype;
-    my @children;
-    get_to_hlinks( \$lbtype, \acc::HLTYPE_COMPOSITE, \@children );
-    foreach my $child (@children) {
-        &get_composite( $child, $level, $resultref );
-    }
+	push @$resultref, &indent( $level++ ) . $lbtype;
+	my @children;
+	get_to_hlinks( \$lbtype, \acc::HLTYPE_COMPOSITE, \@children );
+	foreach my $child (@children) {
+		&get_composite( $child, $level, $resultref );
+	}
 
-    sub indent($)
+	sub indent($)
 
-      # Internal to get_composite
-    {
-        my $level = shift;
+	  # Internal to get_composite
+	{
+		my $level = shift;
 
-        #my $count = shift;
-        my $str = join "", $level;
+		#my $count = shift;
+		my $str = join "", $level;
 
-        #for (my $i = 0; $i < $count; $i++) {
-        # $str = $str."\t";
-        #}
-        $str = $str . "#";
-        return $str;
-    }
+		#for (my $i = 0; $i < $count; $i++) {
+		# $str = $str."\t";
+		#}
+		$str = $str . "#";
+		return $str;
+	}
 }
 
 ###############################################################
@@ -1085,28 +1110,28 @@ Returns:
 
 =cut
 
-    my $lbtype = shift;
-    $lbtype = $$lbtype;
-    my $retvalref = shift;
+	my $lbtype = shift;
+	$lbtype = $$lbtype;
+	my $retvalref = shift;
 
-    #Make sure lbtype: is prefixed only once
-    $lbtype = "lbtype:" . $lbtype;
-    $lbtype =~ s/^lbtype:lbtype:/lbtype:/;
+	#Make sure lbtype: is prefixed only once
+	$lbtype = "lbtype:" . $lbtype;
+	$lbtype =~ s/^lbtype:lbtype:/lbtype:/;
 
-    # The format will return a string in the format:
-    # <global|ordinary> lbtype:<tag>@<AdminVOB>
-    my $cmd = "cleartool desc -fmt \"\%[type_scope]p \%Xn\" $lbtype";
-    my ( $scope, $xlbtype ) = split / /, `$cmd`;
+	# The format will return a string in the format:
+	# <global|ordinary> lbtype:<tag>@<AdminVOB>
+	my $cmd = "cleartool desc -fmt \"\%[type_scope]p \%Xn\" $lbtype";
+	my ( $scope, $xlbtype ) = split / /, `$cmd`;
 
-    # Quit if the cleartool describe command failed
-    $? && do { print STDERR "$lbtype is not a legal lbtype\n"; return 0 };
+	# Quit if the cleartool describe command failed
+	$? && do { print STDERR "$lbtype is not a legal lbtype\n"; return 0 };
 
-    # Quit if scope of type is not global
-    ( $scope ne acc::GLOBAL_SCOPE ) && do { print STDERR "$xlbtype doesn't have " . acc::GLOBAL_SCOPE . " scope\n"; return 0 };
+	# Quit if scope of type is not global
+	( $scope ne acc::GLOBAL_SCOPE ) && do { print STDERR "$xlbtype doesn't have " . acc::GLOBAL_SCOPE . " scope\n"; return 0 };
 
-    # OK! Set the out-parameter to the fq_typename
-    $$retvalref = $xlbtype;
-    return 1;
+	# OK! Set the out-parameter to the fq_typename
+	$$retvalref = $xlbtype;
+	return 1;
 }
 
 ###############################################################
@@ -1129,19 +1154,19 @@ Returns:
 
 =cut
 
-    my $lbtyperef = shift;
-    my $qual_lbtype;
-    validate_lbtype( $lbtyperef, \$qual_lbtype );
+	my $lbtyperef = shift;
+	my $qual_lbtype;
+	validate_lbtype( $lbtyperef, \$qual_lbtype );
 
-    #my $cmd = "cleartool mkattr -default ".acc::ATTYPE_FROZEN." ".$qual_lbtype;
+	#my $cmd = "cleartool mkattr -default ".acc::ATTYPE_FROZEN." ".$qual_lbtype;
 
-    #system($cmd);
-    #$? && do {
-    #   print STDERR "ERROR: Failed to create the attribute:\nCommand executed was: '$cmd'\n";
-    #   exit 0;
-    # };
-    #return 1;
-    return mkattr_unique( \acc::ATTYPE_FROZEN, \$qual_lbtype );
+	#system($cmd);
+	#$? && do {
+	#   print STDERR "ERROR: Failed to create the attribute:\nCommand executed was: '$cmd'\n";
+	#   exit 0;
+	# };
+	#return 1;
+	return mkattr_unique( \acc::ATTYPE_FROZEN, \$qual_lbtype );
 }
 
 ###############################################################
@@ -1174,66 +1199,66 @@ Returns:
 
 =cut
 
-    my $labelcsv = shift;
-    my $branch   = shift;
-    my $csref    = shift;
+	my $labelcsv = shift;
+	my $branch   = shift;
+	my $csref    = shift;
 
-    my $qual_labels;
-    foreach ( split /,/, $labelcsv ) {
-        my $qual_lbtype;
-        validate_lbtype( \$_, \$qual_lbtype ) || do {
-            print "ERROR: $_ couldnt't be validated as 'global' in the adminvob\n";
-            return 0;
-        };
-        $qual_labels = $qual_labels . $qual_lbtype . ",";
-    }
-    chop($qual_labels);    ## get rid of the tailing comma
+	my $qual_labels;
+	foreach ( split /,/, $labelcsv ) {
+		my $qual_lbtype;
+		validate_lbtype( \$_, \$qual_lbtype ) || do {
+			print "ERROR: $_ couldnt't be validated as 'global' in the adminvob\n";
+			return 0;
+		};
+		$qual_labels = $qual_labels . $qual_lbtype . ",";
+	}
+	chop($qual_labels);    ## get rid of the tailing comma
 
-    push @$csref, "##################### ACCELERATED CLEARCASE ###################";
-    push @$csref, "##  THIS CONFIG SPEC IS AUTOMATICALLY CREATED. UNDER NORMAL  ##";
-    push @$csref, "## CONDITIONS YOU SHOULD NOT EDIT THIS CONFIG SPEC YOURSELF. ##";
-    push @$csref, "## THIS COMMENT BLOCK CONTAINS INFORMATION WHICH IS REQUIRED ##";
-    push @$csref, "##   FOR THE ABILITY TO RE-SYNCHRONIZE THE CONFIG SPEC WITH  ##";
-    push @$csref, "##    THE COMPOSITE LABLES - IF YOU CHANGE THAT INFORMATION  ##";
-    push @$csref, "##           THEN YOU REALLY ASKED FOR IT YOURSELF           ##";
-    push @$csref, "##                 ...YOU'LL BE ON YOUR OWN!!!               ##";
-    push @$csref, "###############################################################";
-    push @$csref, "## acc::view::lbtypes::" . $qual_labels;
-    push @$csref, "## acc::view::workbranch::" . $branch;
-    push @$csref, "###############################################################";
-    push @$csref, "";
+	push @$csref, "##################### ACCELERATED CLEARCASE ###################";
+	push @$csref, "##  THIS CONFIG SPEC IS AUTOMATICALLY CREATED. UNDER NORMAL  ##";
+	push @$csref, "## CONDITIONS YOU SHOULD NOT EDIT THIS CONFIG SPEC YOURSELF. ##";
+	push @$csref, "## THIS COMMENT BLOCK CONTAINS INFORMATION WHICH IS REQUIRED ##";
+	push @$csref, "##   FOR THE ABILITY TO RE-SYNCHRONIZE THE CONFIG SPEC WITH  ##";
+	push @$csref, "##    THE COMPOSITE LABLES - IF YOU CHANGE THAT INFORMATION  ##";
+	push @$csref, "##           THEN YOU REALLY ASKED FOR IT YOURSELF           ##";
+	push @$csref, "##                 ...YOU'LL BE ON YOUR OWN!!!               ##";
+	push @$csref, "###############################################################";
+	push @$csref, "## acc::view::lbtypes::" . $qual_labels;
+	push @$csref, "## acc::view::workbranch::" . $branch;
+	push @$csref, "###############################################################";
+	push @$csref, "";
 
-    my $rule_clause = " -nocheckout";    ##assume that we need the -nocheckout clause
-    if ( $branch ne "" ) {
-        $rule_clause = "";               ##detronize the -nocheckout clause
-        push @$csref, "element * CHECKEDOUT";
-        push @$csref, "element * .../" . $branch . "/LATEST";
-        push @$csref, "";
-        push @$csref, "mkbranch " . $branch;
-        push @$csref, "";
-    }
+	my $rule_clause = " -nocheckout";    ##assume that we need the -nocheckout clause
+	if ( $branch ne "" ) {
+		$rule_clause = "";               ##detronize the -nocheckout clause
+		push @$csref, "element * CHECKEDOUT";
+		push @$csref, "element * .../" . $branch . "/LATEST";
+		push @$csref, "";
+		push @$csref, "mkbranch " . $branch;
+		push @$csref, "";
+	}
 
-    foreach my $qual_lbtype ( split /,/, $qual_labels ) {
+	foreach my $qual_lbtype ( split /,/, $qual_labels ) {
 
-        push @$csref, "############# BEGIN expanding:" . $label;
-        my @composite;
+		push @$csref, "############# BEGIN expanding:" . $label;
+		my @composite;
 
-        get_composite( $qual_lbtype, 0, \@composite );
-        foreach my $br (@composite) {
-            print "\$br:\t$br\n";
-            lbtype_to_csrule( \$br, \$_ ) && push @$csref, $_ . $rule_clause;
-        }
-        push @$csref, "#############  END  expanding:" . $label;
-        push @$csref, "";
+		get_composite( $qual_lbtype, 0, \@composite );
+		foreach my $br (@composite) {
+			print "\$br:\t$br\n";
+			lbtype_to_csrule( \$br, \$_ ) && push @$csref, $_ . $rule_clause;
+		}
+		push @$csref, "#############  END  expanding:" . $label;
+		push @$csref, "";
 
-    }
+	}
 
-    if ( $branch ne "" ) {
-        push @$csref, "element * /main/0";
-        push @$csref, "";
-        push @$csref, "end mkbranch " . $branch;
-    }
-    return 1;
+	if ( $branch ne "" ) {
+		push @$csref, "element * /main/0";
+		push @$csref, "";
+		push @$csref, "end mkbranch " . $branch;
+	}
+	return 1;
 }
 
 ###############################################################
@@ -1257,18 +1282,19 @@ Returns:
 
 =cut
 
-    my $lbref  = shift;
-    my $retref = shift;
+	my $lbref  = shift;
+	my $retref = shift;
 
-    print "\$\$lbref:\t$$lbref\n";
+	print "\$\$lbref:\t$$lbref\n";
 
-    if ( $$lbref =~ /(\s*)lbtype:(.*)\@(.*)$/ ) {
-        $$retref = $1 . "element * " . $2;
-        return 1;
-    } else {
-        $$retref = "";
-        return 0;
-    }
+	if ( $$lbref =~ /(\s*)lbtype:(.*)\@(.*)$/ ) {
+		$$retref = $1 . "element * " . $2;
+		return 1;
+	}
+	else {
+		$$retref = "";
+		return 0;
+	}
 }
 
 ###############################################################
@@ -1290,83 +1316,84 @@ Returns:
 
 =cut
 
-    $_ = shift;
-    my $vob = $$_;
+	$_ = shift;
+	my $vob = $$_;
 
-    system("cleartool desc vob:$vob >nul 2>\&1");
-    ($?) && do {
-        print STDERR "ERROR: The VOB $vob doesn't exist\n";
-        exit 1;
-    };
+	system("cleartool desc vob:$vob >nul 2>\&1");
+	($?) && do {
+		print STDERR "ERROR: The VOB $vob doesn't exist\n";
+		exit 1;
+	};
 
-    # Create the required types
+	# Create the required types
 
-    # defined them first:
-    my %types = (
-        "attype:" . acc::ATTYPE_FROZEN . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
-        "attype:"
-          . acc::ATTYPE_PROMOTION_LEVEL . "\@"
-          . $vob => "-c \"ACC meta type\" -vtype string -enum \\\"released\\\",\\\"tested\\\",\\\"built\\\",\\\"integrated\\\" ",
-        "attype:" . acc::ATTYPE_KEYWORDS . "\@" . $vob        => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
-        "attype:" . acc::ATTYPE_LBTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[A-Z][A-Z0-9_-\\\\.]{3,30}\\\" ",
-        "attype:" . acc::ATTYPE_BRTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-z][a-z0-9_]{3,30}\\\" ",
-        "attype:" . acc::ATTYPE_ATTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-zA-Z][a-zA-Z0-9]{3,30}\\\" ",
-        "attype:" . acc::ATTYPE_HLTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-zA-Z][a-zA-Z0-9]{3,30}\\\" ",
-        "attype:" . acc::ATTYPE_ACCMETADATA . "\@" . $vob     => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
-        "hltype:" . acc::HLTYPE_PUBLISHED . "\@" . $vob       => "-c \"ACC meta type\" ",
-        "hltype:" . acc::HLTYPE_COMPOSITE . "\@" . $vob       => "-c \"ACC meta type\" ",
-        "hltype:" . acc::HLTYPE_RESTRICTED . "\@" . $vob      => "-c \"ACC meta type\" ",
-        "lbtype:" . acc::LBTYPE_INITIAL . "\@" . $vob         => "-c \"ACC meta type\" "
-    );
+	# defined them first:
+	my %types = (
+		"attype:" . acc::ATTYPE_FROZEN . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
+		"attype:"
+		  . acc::ATTYPE_PROMOTION_LEVEL . "\@"
+		  . $vob => "-c \"ACC meta type\" -vtype string -enum \\\"released\\\",\\\"tested\\\",\\\"built\\\",\\\"integrated\\\" ",
+		"attype:" . acc::ATTYPE_KEYWORDS . "\@" . $vob        => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
+		"attype:" . acc::ATTYPE_LBTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[A-Z][A-Z0-9_-\\\\.]{3,30}\\\" ",
+		"attype:" . acc::ATTYPE_BRTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-z][a-z0-9_]{3,30}\\\" ",
+		"attype:" . acc::ATTYPE_ATTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-zA-Z][a-zA-Z0-9]{3,30}\\\" ",
+		"attype:" . acc::ATTYPE_HLTYPE_TEMPLATE . "\@" . $vob => "-c \"ACC meta type\" -vtype string -default \\\"[a-zA-Z][a-zA-Z0-9]{3,30}\\\" ",
+		"attype:" . acc::ATTYPE_ACCMETADATA . "\@" . $vob     => "-c \"ACC meta type\" -vtype string -default \\\"\\\" ",
+		"hltype:" . acc::HLTYPE_PUBLISHED . "\@" . $vob       => "-c \"ACC meta type\" ",
+		"hltype:" . acc::HLTYPE_COMPOSITE . "\@" . $vob       => "-c \"ACC meta type\" ",
+		"hltype:" . acc::HLTYPE_RESTRICTED . "\@" . $vob      => "-c \"ACC meta type\" ",
+		"lbtype:" . acc::LBTYPE_INITIAL . "\@" . $vob         => "-c \"ACC meta type\" "
+	);
 
-    foreach ( keys(%types) ) {
+	foreach ( keys(%types) ) {
 
-        # if it altready exist set the -replace switch
-        my $cmd = "cleartool desc $_ >nul 2>\&1";
-        system($cmd);
-        my $replace = ($?) ? "" : " -replace  ";
+		# if it altready exist set the -replace switch
+		my $cmd = "cleartool desc $_ >nul 2>\&1";
+		system($cmd);
+		my $replace = ($?) ? "" : " -replace  ";
 
-        # Construct and execute the command;
-        my ( $type, $tag ) = split /:/, $_;
-        $cmd = "cleartool mk" . $type . $replace . " -global -acquire " . $types{$_} . " " . $tag . " 2>\&1";
-        $_   = `$cmd`;
-        chomp($_);
+		# Construct and execute the command;
+		my ( $type, $tag ) = split /:/, $_;
+		$cmd = "cleartool mk" . $type . $replace . " -global -acquire " . $types{$_} . " " . $tag . " 2>\&1";
+		$_   = `$cmd`;
+		chomp($_);
 
-        # make the proper output
-        if ( !$? ) {
-            print $_. "\n";
-        } else {
-            print STDERR "ERROR:\nThe command:\t'$cmd'\nreturned:\t'$_'\n";
-        }
-    }
+		# make the proper output
+		if ( !$? ) {
+			print $_. "\n";
+		}
+		else {
+			print STDERR "ERROR:\nThe command:\t'$cmd'\nreturned:\t'$_'\n";
+		}
+	}
 
-    # Attach the necessary attributes (templates) to the vob
+	# Attach the necessary attributes (templates) to the vob
 
-    # Set the META DATA attribute
-    my $fqvob = "vob:" . $vob;
-    mkattr_unique( \acc::ATTYPE_ACCMETADATA, \$fqvob );
+	# Set the META DATA attribute
+	my $fqvob = "vob:" . $vob;
+	mkattr_unique( \acc::ATTYPE_ACCMETADATA, \$fqvob );
 
-    # Apply the naming template attributes
+	# Apply the naming template attributes
 
-    mkattr_unique( \acc::ATTYPE_ATTYPE_TEMPLATE, \$fqvob );
-    mkattr_unique( \acc::ATTYPE_HLTYPE_TEMPLATE, \$fqvob );
-    mkattr_unique( \acc::ATTYPE_BRTYPE_TEMPLATE, \$fqvob );
-    mkattr_unique( \acc::ATTYPE_LBTYPE_TEMPLATE, \$fqvob );
+	mkattr_unique( \acc::ATTYPE_ATTYPE_TEMPLATE, \$fqvob );
+	mkattr_unique( \acc::ATTYPE_HLTYPE_TEMPLATE, \$fqvob );
+	mkattr_unique( \acc::ATTYPE_BRTYPE_TEMPLATE, \$fqvob );
+	mkattr_unique( \acc::ATTYPE_LBTYPE_TEMPLATE, \$fqvob );
 
-    # lock the INITIAL lbtype ...make frozen!
-    my $fqlbtype_initial = "lbtype:" . acc::LBTYPE_INITIAL . "\@$vob";
+	# lock the INITIAL lbtype ...make frozen!
+	my $fqlbtype_initial = "lbtype:" . acc::LBTYPE_INITIAL . "\@$vob";
 
-    mkattr_unique( \acc::ATTYPE_FROZEN, \$fqlbtype_initial );
+	mkattr_unique( \acc::ATTYPE_FROZEN, \$fqlbtype_initial );
 
-    # APPLY TRIGGERS!
+	# APPLY TRIGGERS!
 
-    print "\n"
-      . "###########################################################\n"
-      . "##   REMEMBER TO APPLY ALL THE NECESSARY TRIGGERS!!!!    ##\n"
-      . "##   Both on the ACC Meta Data VOB  and all Client VOBs  ##\n"
-      . "###########################################################\n";
+	print "\n"
+	  . "###########################################################\n"
+	  . "##   REMEMBER TO APPLY ALL THE NECESSARY TRIGGERS!!!!    ##\n"
+	  . "##   Both on the ACC Meta Data VOB  and all Client VOBs  ##\n"
+	  . "###########################################################\n";
 
-    return 1;
+	return 1;
 }
 
 ###############################################################
@@ -1390,14 +1417,14 @@ Returns:
 
 =cut
 
-    $_ = shift;
-    my $vob = $$_;
-    $_ = shift;
-    my $region = $$_;
+	$_ = shift;
+	my $vob = $$_;
+	$_ = shift;
+	my $region = $$_;
 
-    scalar_dump( \$vob );
-    scalar_dump( \$region );
-    return 1;
+	scalar_dump( \$vob );
+	scalar_dump( \$region );
+	return 1;
 }
 
 ###############################################################
@@ -1420,10 +1447,10 @@ Returns:
 
 =cut
 
-    my $resultref = shift;
-    $$resultref = defined( $ENV{acc::CLEARCASE_ACCMETADATAVOBVOB} ) ? $ENV{acc::CLEARCASE_ACCMETADATAVOBVOB} : "none";
-    $_ = ( $$resultref ne "" ) ? 1 : 0;
-    return $_;
+	my $resultref = shift;
+	$$resultref = defined( $ENV{acc::CLEARCASE_ACCMETADATAVOBVOB} ) ? $ENV{acc::CLEARCASE_ACCMETADATAVOBVOB} : "none";
+	$_ = ( $$resultref ne "" ) ? 1 : 0;
+	return $_;
 }
 
 ###############################################################
@@ -1451,9 +1478,9 @@ Returns:
 
 =cut
 
-    my $vobref  = shift;
-    my $typeref = shift;
-    my $kindref = shift;
+	my $vobref  = shift;
+	my $typeref = shift;
+	my $kindref = shift;
 }
 
 ###############################################################
@@ -1490,15 +1517,16 @@ This function will return 1 if we are on ClearCase LT, else it returns 0
 
 =cut
 
-    return $clearcaselt if ( $clearcaselt ne "" ); # If we have already established the value
+	return $clearcaselt if ( $clearcaselt ne "" );    # If we have already established the value
 
-    # my $found = grep { /Rational ClearCase LT/ } qx(cleartool -ver);
-    if ( grep { /Rational ClearCase LT/ } qx(cleartool -ver) ) {    # true if found
-        $clearcaselt = 1;
-    } else {
-        $clearcaselt = 0;
-    }
-    return $clearcaselt;
+	# my $found = grep { /Rational ClearCase LT/ } qx(cleartool -ver);
+	if ( grep { /Rational ClearCase LT/ } qx(cleartool -ver) ) {    # true if found
+		$clearcaselt = 1;
+	}
+	else {
+		$clearcaselt = 0;
+	}
+	return $clearcaselt;
 
 }
 

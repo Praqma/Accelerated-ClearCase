@@ -45,7 +45,7 @@ BEGIN {
 
 # Use clauses
 use strict;
-use lib "$Scriptdir..//..";
+use lib "$Scriptdir/../..";
 use praqma::scriptlog;
 use Getopt::Long;
 use File::Compare;

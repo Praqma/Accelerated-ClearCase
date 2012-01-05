@@ -50,6 +50,9 @@
 #   ct mkattype -vtype string -nc deliver_to_stream@{pvob_tag}
 #   ct mkattype -vtype integer -default 1 -nc auto_baseline_diff@{pvob_tag}
 
+die "The script $0 is not ready for deployment\n";
+
+
 # The following modules is required for the send_baseline_email()
 # subroutine.
 use MIME::Lite;

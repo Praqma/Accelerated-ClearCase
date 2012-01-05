@@ -30,7 +30,7 @@ our %install_params = (
 
 # File version
 our $VERSION = "1.0";
-our $BUILD   = "1";
+our $BUILD   = "2";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -67,6 +67,8 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
 2010-03-10  Jens Brejner   1st release prepared for Novo (version 1.0.1)
+2010-06-02  Jens Brejner   Regex that extract stream name from activities
+                           has trouble if stream name contains decimal numbers
 -------------------------  ----------------------------------------------
 
 ENDREVISION
@@ -105,9 +107,9 @@ my $src_stream = $ENV{'CLEARCASE_SRC_STREAM'};
 # pvob from project name
 my ($pvob) = ( $project =~ m{\@(.+)$} );
 
-# Rebase cheaph is 'cheapes' we'll chech that first.
+# Rebase cheaph is 'cheapes' we'll check that first.
 
-my $rebase = run("cleartool rebase -status -stream $stream");
+my $rebase = &run("cleartool rebase -status -stream $stream");
 
 if ( $rebase !~ /No rebase in progress/ ) {    #        Rebase is in progress
     $log->enable(1);
@@ -117,26 +119,31 @@ if ( $rebase !~ /No rebase in progress/ ) {    #        Rebase is in progress
 
 # Deliver activities are named in the format deliver.<stream>.<YYYYMMDD>.<HHMMSS>
 # regex to find deliver activity
-my $rx = 'deliver\.([^.]+)\.';
+# my $rx = 'deliver\.([^.]+)\.';
+#
+# Version  1.0.2, try improved regex, accepts that a stream name can contain
+# a decimals like in "our_release_2.0" - that will confuse the previous
+# definition of $rx.
+my $rx = 'deliver\.(\S+)\.\d{8}\.\d{6}$';
 
 # Get the delivery activities on the integration stream
 #   cleartool desc -fmt \%[activities]p stream:$stream
 # Is significantly faster than
 #   cleartool lsactivity -short -in $stream
 # But return value is a space separated string
-my $delim = ' '; # a single space;
+my $delim = ' ';    # a single space;
 
-my @activities = map { chomp; $_ } grep { /^$rx/o } split /$delim/,run("cleartool desc -fmt \%[activities]p stream:$stream");
+my @activities = map { chomp; $_ } grep { /^$rx/o } split /$delim/, &run("cleartool desc -fmt \%[activities]p stream:$stream");
 
 # look at the three last delivery activities
 my $i = 0;
-my $activity = pop(@activities);
-while ( $activity && $i++ <3){
+my $activity = pop (@activities);
+while ( $activity && $i++ < 3 ) {
 
     # get status of stream which originated the activity
     my ($ostream) = ( $activity =~ /$rx/o );
-    my $delivery = run("cleartool deliver -status -stream $ostream\@$pvob");
-    
+    my $delivery = &run("cleartool deliver -status -stream $ostream\@$pvob");
+
     # if the activity name is in the status, then the delivery
     # is in progress
     if ( $delivery =~ /$activity/ ) {
@@ -144,23 +151,22 @@ while ( $activity && $i++ <3){
         $log->error("*******A DELIVER OPERATION IS ALREADY IN PROGRESS. Details about the delivery:\n\n$delivery\n*******Please try again later.\n");
         exit 1;
     }
-   $activity = pop(@activities);
+    $activity = pop (@activities);
 }
 
 # no deliver or rebase found, normal exit
 exit 0;
 
-sub run($$){
-	my $cmd = shift;
-	my $aslist = shift;
-	my $cmdex = $cmd.' 2>&1';
-	my @retval_list = qx{$cmdex};
-	my $retval_scl  = join '',@retval_list;
-	$? && do {
-  	$log->enable(1);
-	  $log->error("The command: $cmd failed!.\nIt returned:\n$retval_scl\n");
-	};
-	return @retval_list if $aslist;
-	return $retval_scl;
+sub run($$) {
+    my $cmd         = shift;
+    my $aslist      = shift;
+    my $cmdex       = $cmd . ' 2>&1';
+    my @retval_list = qx{$cmdex};
+    my $retval_scl  = join '', @retval_list;
+    $? && do {
+        $log->enable(1);
+        $log->error("The command: $cmd failed!.\nIt returned:\n$retval_scl\n");
+    };
+    return @retval_list if $aslist;
+    return $retval_scl;
 }
-
