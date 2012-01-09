@@ -1,6 +1,15 @@
 require 5.000;
 use strict;
 
+BEGIN {
+
+  # Ensure that the view-private file will get named back on rejection.
+  END {
+    rename( "$ENV{CLEARCASE_PN}.mkelem", $ENV{CLEARCASE_PN} )
+      if $? && !-e $ENV{CLEARCASE_PN} && -e "$ENV{CLEARCASE_PN}.mkelem";
+  }
+}
+
 our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
@@ -66,12 +75,10 @@ $thelp->require_trigger_context;
 our $semaphore_status = $thelp->enable_semaphore_backdoor;
 
 # Script scope variables
-my ( %trgconfig, $filename );
+my %trgconfig;
 
 # Enable external configuration options
 $thelp->get_config( \%trgconfig );
-
-$filename = basename( $ENV{CLEARCASE_XPN} );
 
 #Enable the features in scriptlog
 
@@ -82,10 +89,9 @@ $log->set_verbose();
 $log->conditional_enable();
 
 my $logfile = $log->get_logfile;
-($logfile)
-  && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
+($logfile) && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 ($logfile) && $log->information($semaphore_status);
-($logfile) && $log->dump_ccvars;                      # Run this statement to have the trigger dump the CLEARCASE variables
+($logfile) && $log->dump_ccvars;                              # Run this statement to have the trigger dump the CLEARCASE variables
 
 ########################### MAIN ###########################
 # Vob symbolic links can not be renamed.
@@ -96,47 +102,52 @@ if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
 
   # Check pathlength if requested
   if ( $trgconfig{pathlength} > 0 ) {
-
-    if ( length( $ENV{CLEARCASE_XPN} > $trgconfig{pathlength} ) ) {
-      $log->error("The length of [$ENV{CLEARCASE_XPN}] exceeds $trgconfig{pathlength}, so it is not allowed. Use a shorter name.");
+    my $pathlength = length( $ENV{CLEARCASE_PN} );
+    if ( $pathlength > $trgconfig{pathlength} ) {
+      $log->error("The length of [$ENV{CLEARCASE_PN}] is $pathlength, which exceeds $trgconfig{pathlength}. Use a shorter name.");
+      $log->error("The path length limitation of $trgconfig{pathlength}, has been chosen by ClearCase Administrator.");
     }
     else {
-      $log->information("Length is ok");
+      $log->information("Length of [$ENV{CLEARCASE_XPN}] is OK; $pathlength is less than $trgconfig{pathlength}");
     }
   }
+
   # Check for whitespaces
   if ( $trgconfig{whitespacecheck} ) {
+    my ( $name, $extension ) = ( fileparse( $ENV{CLEARCASE_PN}, qr/\.[^.]*/ ) )[ 0, 2 ];
+    my $filename = $name . $extension;
 
-    #this expression searches for leading and trailing spaces and empty strings
-    if ( $filename =~ m/^\s+.*|.*\s+$|^\s+$/ ) {
+    # Double whitespace anywhere ?
+    complain( $filename, $name )      if ( $name      =~ m/\s{2,}/g );
+    complain( $filename, $extension ) if ( $extension =~ m/\s{2,}/g );
 
-      # TODO Can you tell where the white space was found ?
+    # Starts with whitespace ?
+    complain( $filename, $name )      if ( $name      =~ m/^\s+.*/g );
+    complain( $filename, $extension ) if ( $extension =~ m/^\s+.*/g );
 
-      $log->error("Filename $filename contains bad whitespaces");
-    }
-## TODO Maybe code like this instead of the if below
-    #my @parts = split(/\./, $filename);
-## Part before last dot
-    #if ($parts[( $#parts -1 )] =~ /.*\s+$/) print "Disallowed whitespace detected in [$parts[($#parts-1)].]";
-## Part after last dot
-    #if ($parts[$#parts] =~ /^\s+.*/) print "Disallowed whitespace detected in [.$parts[$#parts]]";
-    #
+    # Ends with whitespace ?
+    complain( $filename, $name )      if ( $name      =~ m/.*\s+$/g );
+    complain( $filename, $extension ) if ( $extension =~ m/.*\s+$/g );
 
-    # finds the extension and checks for whitespaces around the last dot
-    if ( $filename =~ m/.*(\..)/s ) {
-      my $sub = substr $filename, ( index( $filename, $1 ) - 2 );
-      if ( $sub =~ (m/\s\.|\.\s/) ) {
-        $log->error("Filename $filename contains bad whitespaces");
-      }
-
-    }
   }
 
   exit $log->get_accumulated_errorlevel();
 
 }
 
-die "trigger called out of context, we should never end here.";
+die "Trigger called out of context, we should never end here.";
+
+############################## S U B S ########################################
+
+sub complain {
+  my $filename = shift;
+  my $part     = shift;
+  my $msg      = "\n\"$filename\" contains forbidden whitespace in this part:\n\"$part\"\n\"";
+  $msg = $msg . "+" x ( length($part) ) . "\"\n";
+
+  $log->error($msg);
+
+}
 
 __END__
 
