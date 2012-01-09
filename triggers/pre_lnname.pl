@@ -4,17 +4,16 @@ use strict;
 our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
-	use File::Basename;
-	$Scriptdir  = dirname(__FILE__) . "\\";
-	$Scriptfile = basename(__FILE__);
+  use File::Basename;
+  $Scriptdir  = dirname(__FILE__) . "\\";
+  $Scriptfile = basename(__FILE__);
 
 }
 
 use lib $Scriptdir . "..\\";
 
-use scriptlog;
-use trigger_helper;
-use File::Basename;
+use praqma::scriptlog;
+use praqma::trigger_helper;
 
 $| = 1;
 
@@ -22,9 +21,9 @@ $| = 1;
 our $TRIGGER_NAME = "ACC_PRE_LNNAME";
 
 our %install_params = (
-	"name"     => $TRIGGER_NAME,                     # The name of the trigger
-	"mktrtype" => "-element -all -preop lnname ",    # The stripped-down mktrtype command
-	"supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
+  "name"     => $TRIGGER_NAME,                     # The name of the trigger
+  "mktrtype" => "-element -all -preop lnname ",    # The stripped-down mktrtype command
+  "supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
 );
 
 # File version
@@ -86,8 +85,7 @@ my $logfile = $log->get_logfile;
 ($logfile)
   && $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn't enabled.
 ($logfile) && $log->information($semaphore_status);
-($logfile)
-  && $log->dump_ccvars;                              # Run this statement to have the trigger dump the CLEARCASE variables
+($logfile) && $log->dump_ccvars;                      # Run this statement to have the trigger dump the CLEARCASE variables
 
 ########################### MAIN ###########################
 # Vob symbolic links can not be renamed.
@@ -96,49 +94,48 @@ exit 0 if -l $ENV{CLEARCASE_PN};
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
 
-	# Check pathlength if requested
-	if ( $trgconfig{pathlength} > 0 ) {
+  # Check pathlength if requested
+  if ( $trgconfig{pathlength} > 0 ) {
 
-		if ( length( $ENV{CLEARCASE_XPN} > $trgconfig{pathlength} ) ) {
-			$log->error( "The length of [$ENV{CLEARCASE_XPN}] exceeds $trgconfig{pathlength}, so it is not allowed. Use a shorter name." );
-		}
-		else {
-			$log->information("Length is ok");
-		}
-	}
+    if ( length( $ENV{CLEARCASE_XPN} > $trgconfig{pathlength} ) ) {
+      $log->error("The length of [$ENV{CLEARCASE_XPN}] exceeds $trgconfig{pathlength}, so it is not allowed. Use a shorter name.");
+    }
+    else {
+      $log->information("Length is ok");
+    }
+  }
+  # Check for whitespaces
+  if ( $trgconfig{whitespacecheck} ) {
 
+    #this expression searches for leading and trailing spaces and empty strings
+    if ( $filename =~ m/^\s+.*|.*\s+$|^\s+$/ ) {
 
+      # TODO Can you tell where the white space was found ?
 
-	# Check for whitespaces
-	if ( $trgconfig{whitespacecheck} ) {
-
-		#this expression searches for leading and trailing spaces and empty strings
-		if ( $filename =~ m/^\s+.*|.*\s+$|^\s+$/ ) {
-# TODO Can you tell where the white space was found ?
-
-			$log->error("Filename $filename contains bad whitespaces");
-		}
+      $log->error("Filename $filename contains bad whitespaces");
+    }
 ## TODO Maybe code like this instead of the if below
-#my @parts = split(/\./, $filename);
+    #my @parts = split(/\./, $filename);
 ## Part before last dot
-#if ($parts[( $#parts -1 )] =~ /.*\s+$/) print "Disallowed whitespace detected in [$parts[($#parts-1)].]";
+    #if ($parts[( $#parts -1 )] =~ /.*\s+$/) print "Disallowed whitespace detected in [$parts[($#parts-1)].]";
 ## Part after last dot
-#if ($parts[$#parts] =~ /^\s+.*/) print "Disallowed whitespace detected in [.$parts[$#parts]]";
-#
+    #if ($parts[$#parts] =~ /^\s+.*/) print "Disallowed whitespace detected in [.$parts[$#parts]]";
+    #
 
-		# finds the extension and checks for whitespaces around the last dot
-		if ( $filename =~ m/.*(\..)/s ) {
-			my $sub = substr $filename, ( index( $filename, $1 ) - 2 );
-			if ( $sub =~ (m/\s\.|\.\s/) ) {
-				$log->error("Filename $filename contains bad whitespaces");
-			}
+    # finds the extension and checks for whitespaces around the last dot
+    if ( $filename =~ m/.*(\..)/s ) {
+      my $sub = substr $filename, ( index( $filename, $1 ) - 2 );
+      if ( $sub =~ (m/\s\.|\.\s/) ) {
+        $log->error("Filename $filename contains bad whitespaces");
+      }
 
-		}
-	}
+    }
+  }
 
-	exit $log->get_accumulated_errorlevel();
+  exit $log->get_accumulated_errorlevel();
 
 }
+
 die "trigger called out of context, we should never end here.";
 
 __END__
