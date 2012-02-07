@@ -392,7 +392,7 @@ sub get_vobtypes {
 	}
 
 	# OK The is a Base ClearCase VOB (one with a hlink to a regular AdminVOB )
-	unless ( grep { VOBTYPE_UCM_CLIENT | VOBTYPE_BCC_CLIENT } @result ) {
+	unless ( grep { /VOBTYPE_UCM_CLIENT|VOBTYPE_BCC_CLIENT/ } @result ) {
 		push @result, VOBTYPE_BCC_CLIENT;                                                 # The VOB has an AdminVOB hlink pointin to a PVOB
 	}
 
