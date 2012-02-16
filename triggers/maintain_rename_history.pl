@@ -153,7 +153,7 @@ sub elementmoved {
 
 sub elementrenamed {
 
-	my $cmd = "cleartool diff –serial_format -predecessor \"$targetfolder\" 2>&1";
+	my $cmd = "cleartool diff -serial_format -predecessor \"$targetfolder\" 2>&1";
 	$log->information("Diffcommand is [$cmd]") if ($debug_on);
 	my @diffoutput = qx($cmd);
 	$log->information( "\@diffoutput contains " . scalar(@diffoutput) . " lines: " . join(@diffoutput) ) if ($debug_on);
