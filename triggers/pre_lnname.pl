@@ -121,7 +121,7 @@ if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
 
 		# Starts with whitespace ?
 		complain( $filename, $name )      if ( $name      =~ m/^\s+.*/g );
-		complain( $filename, $extension ) if ( $extension =~ m/^\s+.*/g );
+		complain( $filename, $extension ) if ( $extension =~ m/^\.\s+.*/g );
 
 		# Ends with whitespace ?
 		complain( $filename, $name )      if ( $name      =~ m/.*\s+$/g );
