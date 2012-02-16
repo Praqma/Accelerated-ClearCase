@@ -24,7 +24,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "4";
+our $REVISION = "5";
 my $debug_on = defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} ) ? $ENV{'CLEARCASE_TRIGGER_DEBUG'} : 0;
 
 # Header and revision history
@@ -53,6 +53,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         		NOTE
 ----------  -----------------   -------------------------------------------
+2012-02-16  Jens Brejner        No abbreviation in cleartool command (v 0.1.5)
 2012-01-30  Jens Brejner        Support for move between directories (v 0.1.4)
 2011-08-24  Jens Brejner        Fixed bug on write to element (v 0.1.3)
 2011-08-17  Jens Brejner        Praqmatized (v 0.1.2)
@@ -152,7 +153,7 @@ sub elementmoved {
 
 sub elementrenamed {
 
-	my $cmd = "cleartool diff -ser -pre \"$targetfolder\" 2>&1";
+	my $cmd = "cleartool diff –serial_format -predecessor \"$targetfolder\" 2>&1";
 	$log->information("Diffcommand is [$cmd]") if ($debug_on);
 	my @diffoutput = qx($cmd);
 	$log->information( "\@diffoutput contains " . scalar(@diffoutput) . " lines: " . join(@diffoutput) ) if ($debug_on);
@@ -209,7 +210,7 @@ sub update_event () {
 	# update object event
 	my %parms = @_;
 	$log->information("Called sub update_event with [comment] = [$parms{'comment'}] and [object] = $parms{'object'}") if ($debug_on);
-	my $cmd = "cleartool chevent -append -c \"$parms{'comment'}\" \"$parms{'object'}\" 2>&1";
+	my $cmd = "cleartool chevent -append -comment \"$parms{'comment'}\" \"$parms{'object'}\" 2>&1";
 	$log->information("Will call [$cmd]") if ($debug_on);
 	my @reply = qx($cmd);
 	$log->warning( "Trouble appending comment: " . join(@reply) ) if ($?);

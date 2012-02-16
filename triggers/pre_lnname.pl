@@ -34,7 +34,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "1";
+our $REVISION = "2";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -60,8 +60,9 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR             NOTE
 ----------  -----------------  ---------------------------------------------------
-2011-09-27  Margit Bennetzen   Script added to acc (v0.1)
+2012-02-16  Jens Brejner       No abbreviation in cleartool command (v 0.1.2)
 2011-11-01  Margit Bennetzen   Script rename to pre_lnname and whitespacecheck added (v0.2)
+2011-09-27  Margit Bennetzen   Script added to acc (v0.1)
 ------------------------------------------------------------------------------
 ENDREVISION
 
@@ -137,17 +138,17 @@ if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
 		# is parentdir checked-out ?
 		if ( -w $parentdir ) {
 			$log->information("[$parentdir] is checkedout");
-
-			if (`cleartool diff -pre \"$parentdir\"`) {
+ 
+			if (`cleartool diff -predecessor \"$parentdir\"`) {
 
 				# "cleartool diff" returns 0 if versions are identical
 				$log->information("[$parentdir] is being checked in");
-				qx(cleartool checkin -nc \"$parentdir\");
+				qx(cleartool checkin -ncomment \"$parentdir\");
 
 			}
 			else {
 				$log->information("Undoing checkout of [$parentdir]");
-				qx(cleartool uncheckout -rm -nc \"$parentdir\");
+				qx(cleartool uncheckout -rm -ncomment \"$parentdir\");
 			}
 
 		}
