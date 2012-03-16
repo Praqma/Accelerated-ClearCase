@@ -1,4 +1,3 @@
-######################## DOCUMENTATION ##############################
 
 =pod
 
@@ -12,6 +11,8 @@ Trigger name:  C<ACC_STOP_TWIN>
 
 Used as a generic trigger which prevents creation of evil twins in ClearCase - please see the Description
 
+=cut
+
 =head1 SYNOPSIS
 
 Runs as ClearCase trigger script installed on any vob, but primaryly on basevobs and ucmvobs ( it less likely to create elements on adminvobs or pvobs).
@@ -23,6 +24,8 @@ The scripts installs itself correctly when executed outside a trigger context us
 To learn the full syntax simply execute the the script without the -vob switch:
 
   stop_twin -install
+
+=cut
 
 =head2 Restrictions
 
@@ -82,8 +85,8 @@ directory version you are working with.
 Some options are configurable by the ClearCase administrator, so you can make the trigger behave like according to your enterprise policies.
 The currently supported configurable options are AutoMerge mode and CaseSensivity
 
-In order do utilize the External configuration, the Administrator must locate the file stop_twin.pl.ini in the same folder as the trigger script 
-F<stop_twin.pl> and copy it unmodified to the subfolder ..\CustomCfg. 
+In order do utilize the External configuration, the Administrator must locate the file stop_twin.pl.ini in the same folder as the trigger script
+F<stop_twin.pl> and copy it unmodified to the subfolder ..\CustomCfg.
 Then open the file which looks like this:
 
  # Configuration file for stop_twin.pl
@@ -95,37 +98,34 @@ Then open the file which looks like this:
  "CaseSensitive" => 0,
  # 0 means off, no automatic merge, based on based on best guess
  # 1 means active. Partial merge of directory on best guess, do not check in
- # 2 means active. Full automatic.Merge directory on best guess, check in changes.
  "AutoMerge" => 0
  );
-  
+
  __END__
 
 This is actually perl syntax here, so lines starting with a # sign are comments.
 Now if you for instance want to enable case sensitivity, change the line:
 
  "CaseSensitive" => 0,
- 
-to 
+
+to
 
   "CaseSensitive" => 1,
-  
+
 And save the change.
 
-The original file must exists unmmodifed in the original location, or the script will fail, as the file gives the defaults to the script. But if the customized file 
+The original file must exists unmmodifed in the original location, or the script will fail, as the file gives the defaults to the script. But if the customized file
 exists, the settings from the customization takes precedence.
 
 =head2 Automerge Mode
 
-Automerge mode is optional, and refers to the 3 operating modes for the trigger.
+Automerge mode is optional, and refers to the 2 operating modes for the trigger.
 
 The default is no merging at all, just stop the action if there is a name clash.
 
-To make life easier for the users, partial merge mode is supported, that means the trigger will perform a best guess merge, but leave everything checked out, and 
-ask the user to verify that the got what they wanted. It is kind of similar to a deliver operation, were you are asked to 
+To make life easier for the users, partial merge mode is supported, that means the trigger will perform a best guess merge, but leave everything checked out, and
+ask the user to verify that the got what they wanted. It is kind of similar to a deliver operation, were you are asked to
 build and test before completing the operation.
-In full Automerge mode, we will do as above - but also do the checkin. The mode is by nature not bulletproof, we will only try if we the merge candidate is
-in the previous directory version, and only if the ClearCase Administrator selected this operating mode. To be safe consider this mode experimental.
 
 =head2 CaseSensivity
 
@@ -139,14 +139,14 @@ fix the situation - or let us do - because that is what happens in automatic mod
 
 =head2 Logfile
 
-When the an evil twin possibility is detected we create a logfile in the executing users TEMP folder. The logfile will be named like stop_twin.plPID3852.log 
+When the an evil twin possibility is detected we create a logfile in the executing users TEMP folder. The logfile will be named like stop_twin.plPID3852.log
 where the number refers to the PID of that process.
 
 =head2 Debugging
 
-Additional Debug information will be written to screen and Logfile by defining one or two system environment variables 
-CLEARCASE_TRIGGER_DEBUG=1 and/or CLEARCASE_TRIGGER_VERBOSE=1. After defining them you must restart the proces that will end up spawning the cleartool mkelem 
-command, if you do not, the environment variables won't be seen. 
+Additional Debug information will be written to screen and Logfile by defining one or two system environment variables
+CLEARCASE_TRIGGER_DEBUG=1 and/or CLEARCASE_TRIGGER_VERBOSE=1. After defining them you must restart the proces that will end up spawning the cleartool mkelem
+command, if you do not, the environment variables won't be seen.
 With either of these environment variables set, a lot more information will be written.
 
 =head2 Bypassing the trigger in general

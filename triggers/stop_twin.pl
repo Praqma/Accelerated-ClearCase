@@ -38,7 +38,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "34";
+our $REVISION = "35";
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 my $debug_on = defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} ) ? $ENV{'CLEARCASE_TRIGGER_DEBUG'} : undef;
 
@@ -87,6 +87,7 @@ DATE        EDITOR         NOTE
 2011-04-06  Jens Brejner   Add external config file dependency (v1.0.32)
 2011-06-07  Jens Brejner   Implement Automatic merge to fix evil twin (v1.0.33)
 2011-10-11  Jens Brejner   Updated documentation, minor beautification (v1.0.34)
+2012-03-15  Jens Brejner   Remove full automerge - it is too unpredictable (v1.0.35)
 
 ------------------------   ----------------------------------------------
 
@@ -144,12 +145,9 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		if ($debug_on) {
 			$log->information("Found evil twin, value of \$twincfg{AutoMerge} is $twincfg{AutoMerge}");
 		}
-		if ( $twincfg{AutoMerge} eq 2 ) {
-
-			# check if auto merge appears to be safe
-			has_one_diff_only();
+		unless ( $twincfg{AutoMerge} eq 0 || $twincfg{AutoMerge} eq 1 ) {
+			$log->assertion_failed("Value [$twincfg{AutoMerge}] is not a valid value for automerge options");
 		}
-
 		if ( $twincfg{AutoMerge} eq 0 ) {
 
 			# We will do no work for user, just inform and block OP
@@ -162,25 +160,15 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 
 		# Script default is overwritten, they want us to try to fix during script execution
 		# Write batch files to fix the situation
-		my $fixcommand = build_fixcommands();
+
 		if ( $twincfg{AutoMerge} eq 1 ) {
+			my $fixcommand = build_fixcommands();
 
 			# Merge that name back for the user
 			runcmd( 'cmd' => "call \"$fixcommand\"" );
 			$log->information("Evil twin detected.");
 			$log->information("We have tried to get around it, but haven't checked in the changes, please verify the result");
-			$log->information("And check in if you are satisfied");
-			exit 1;
-		}
-		if ( $twincfg{AutoMerge} eq 2 ) {
-
-			# Do the required merge and check in
-			runcmd( 'cmd' => "call \"$fixcommand\"" );
-			$log->information("Evil twin detected. We have tried to get around it, we hope you are happy with it.");
-			exit 0;
-		}
-		else {
-			$log->assertion_failed("No idea why we ended here, the value of [\$twincfg{AutoMerge}] was not in range from 0 to 2");
+			$log->information("and check in if you are satisfied");
 			exit 1;
 		}
 	}
@@ -196,55 +184,19 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		exit 0;
 	}
 
-	# Prevent the OP anyway - as we should never end here
+	# Prevent the operation anyway - as we should never end here
 	exit 1;
 }    # End if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "lnname" )
+
 $log->assertion_failed("Script ran out of context");
 
 ############################## SUBS BELOW  ####################################
-
-sub has_one_diff_only {
-
-	#	We can only attempt an automatic merge if there is one
-	#	and only one difference between old directory version and merge target
-	#   Cleartool diff uses the pattern below to show start of each diff, so we count them to find number of diff's
-
-	# check if we could do safe merge
-	my $pattern = '-------|-------';
-	if ($debug_on) { $log->information("UNCAT $uncatalogued{$element}\n"); }
-	if ($debug_on) { $log->information("ADDED $added{$element}\n"); }
-	my $version = exists $uncatalogued{$element} ? $uncatalogued{$element} : $added{$element};
-	my $cmd = "cleartool diff $parent $parent_dna" . $version . ' 2>&1';
-	if ($debug_on) { $log->information("Doing diff with command [$cmd]"); }
-
-	# not using runcmd() because diff exits with 1, when there are any differences
-	my @diffreport = `$cmd`;
-
-	if ($debug_on) { $log->information( "Diff returned:\n" . join( '', @diffreport ) ); }
-
-	my $count = grep { /$pattern/ } @diffreport;
-
-	if ($debug_on) {
-		$log->information("Counting $count differencies in directory versions");
-	}
-	if ( $count eq 1 ) {
-		if ($debug_on) { $log->information("Automerge mode, found only one diff. Continueing..."); }
-
-	}
-	else {
-		if ($debug_on) { $log->information("Can not safely merge, reverting to assisted merge method"); }
-		$twincfg{AutoMerge} = 1;
-
-	}
-
-	$log->information("Value of \$twincfg{AutoMerge} is now $twincfg{AutoMerge}");
-}
 
 sub runcmd {
 	my %args = (@_);
 	$log->assertion_failed("A command is required") unless exists $args{'cmd'};
 	my $command = $args{'cmd'} . ' 2>&1';
-    my @retval  = qx($command);
+	my @retval  = qx($command);
 	if ($?) {
 		$log->assertion_failed( "The command [$args{'cmd'}] exited with " . scalar($?) / 256 . " :\n" . join( '', @retval ) );
 	}
@@ -255,18 +207,8 @@ sub build_fixcommands {
 
 	my ( $fixcmd, $tmpfilename, $foundpath, @mkmerge, @mkci, $version, $win32parent, $win32foundpath, $win32element, $mergeoptions );
 
-	if ( $twincfg{AutoMerge} eq 2 ) {
-		$mergeoptions = "-delete";
-		$version = exists $uncatalogued{$element} ? $uncatalogued{$element} : $added{$element};
-	}
-	elsif ( $twincfg{AutoMerge} lt 2 ) {
-		$mergeoptions = "-graphical";
-		$version      = $added{$element};
-	}
-	else {
-		$log->assertion_failed("Unknown automerge option");
-
-	}
+	$mergeoptions = "-graphical";
+	$version      = $added{$element};
 
 	$tmpfilename = time();
 	$foundpath   = $parent_dna . $version;
@@ -289,15 +231,6 @@ copy /y $tmpfilename "$win32element"
 
 END_OF_MKMERGE
 
-	@mkci = ( <<"END_OF_MKCI" =~ m/^\s*(.+)/gm );
-
-cleartool ci -nc -ident "$win32element"
-cleartool ci .
-
-END_OF_MKCI
-
-	# Add checkin commands if fully automatic
-	push @mkmerge, @mkci if ( $twincfg{AutoMerge} eq 2 );
 	# Write commands to batch file
 	my $fixbat = $parent . "fix_evil_twin_of_" . $element . "_" . $tmpfilename . ".bat";
 	open( AUTOBAT, " > $fixbat" ) or die "Couldn't open $fixbat for writing : $!";

@@ -124,8 +124,8 @@ directory version you are working with.</p>
 <h2><a name="external_configuration_file_per_site">External Configuration file per site</a></h2>
 <p>Some options are configurable by the ClearCase administrator, so you can make the trigger behave like according to your enterprise policies.
 The currently supported configurable options are AutoMerge mode and CaseSensivity</p>
-<p>In order do utilize the External configuration, the Administrator must locate the file stop_twin.pl.ini in the same folder as the trigger script 
-<em class="file">stop_twin.pl</em> and copy it unmodified to the subfolder ..\CustomCfg. 
+<p>In order do utilize the External configuration, the Administrator must locate the file stop_twin.pl.ini in the same folder as the trigger script
+<em class="file">stop_twin.pl</em> and copy it unmodified to the subfolder ..\CustomCfg.
 Then open the file which looks like this:</p>
 <pre>
  <span class="comment"># Configuration file for stop_twin.pl</span>
@@ -138,35 +138,29 @@ Then open the file which looks like this:</p>
  <span class="string">"CaseSensitive"</span> <span class="operator">=&gt;</span> <span class="number">0</span><span class="operator">,</span>
  <span class="comment"># 0 means off, no automatic merge, based on based on best guess</span>
  <span class="comment"># 1 means active. Partial merge of directory on best guess, do not check in</span>
- <span class="comment"># 2 means active. Full automatic.Merge directory on best guess, check in changes.</span>
  <span class="string">"AutoMerge"</span> <span class="operator">=&gt;</span> <span class="number">0</span>
  <span class="operator">);</span>
-  
- <span class="comment">__END__
- </span>
 </pre>
+<pre>
+ __END__</pre>
 <p>This is actually perl syntax here, so lines starting with a # sign are comments.
 Now if you for instance want to enable case sensitivity, change the line:</p>
 <pre>
- &quot;CaseSensitive&quot; =&gt; 0,
- 
-to</pre>
+ &quot;CaseSensitive&quot; =&gt; 0,</pre>
+<p>to</p>
 <pre>
-  &quot;CaseSensitive&quot; =&gt; 1,
-  
-And save the change.</pre>
-<p>The original file must exists unmmodifed in the original location, or the script will fail, as the file gives the defaults to the script. But if the customized file 
+  &quot;CaseSensitive&quot; =&gt; 1,</pre>
+<p>And save the change.</p>
+<p>The original file must exists unmmodifed in the original location, or the script will fail, as the file gives the defaults to the script. But if the customized file
 exists, the settings from the customization takes precedence.</p>
 <p>
 </p>
 <h2><a name="automerge_mode">Automerge Mode</a></h2>
-<p>Automerge mode is optional, and refers to the 3 operating modes for the trigger.</p>
+<p>Automerge mode is optional, and refers to the 2 operating modes for the trigger.</p>
 <p>The default is no merging at all, just stop the action if there is a name clash.</p>
-<p>To make life easier for the users, partial merge mode is supported, that means the trigger will perform a best guess merge, but leave everything checked out, and 
-ask the user to verify that the got what they wanted. It is kind of similar to a deliver operation, were you are asked to 
-build and test before completing the operation.
-In full Automerge mode, we will do as above - but also do the checkin. The mode is by nature not bulletproof, we will only try if we the merge candidate is
-in the previous directory version, and only if the ClearCase Administrator selected this operating mode. To be safe consider this mode experimental.</p>
+<p>To make life easier for the users, partial merge mode is supported, that means the trigger will perform a best guess merge, but leave everything checked out, and
+ask the user to verify that the got what they wanted. It is kind of similar to a deliver operation, were you are asked to
+build and test before completing the operation.</p>
 <p>
 </p>
 <h2><a name="casesensivity">CaseSensivity</a></h2>
@@ -180,14 +174,14 @@ fix the situation - or let us do - because that is what happens in automatic mod
 <p>
 </p>
 <h2><a name="logfile">Logfile</a></h2>
-<p>When the an evil twin possibility is detected we create a logfile in the executing users TEMP folder. The logfile will be named like stop_twin.plPID3852.log 
+<p>When the an evil twin possibility is detected we create a logfile in the executing users TEMP folder. The logfile will be named like stop_twin.plPID3852.log
 where the number refers to the PID of that process.</p>
 <p>
 </p>
 <h2><a name="debugging">Debugging</a></h2>
-<p>Additional Debug information will be written to screen and Logfile by defining one or two system environment variables 
-CLEARCASE_TRIGGER_DEBUG=1 and/or CLEARCASE_TRIGGER_VERBOSE=1. After defining them you must restart the proces that will end up spawning the cleartool mkelem 
-command, if you do not, the environment variables won't be seen. 
+<p>Additional Debug information will be written to screen and Logfile by defining one or two system environment variables
+CLEARCASE_TRIGGER_DEBUG=1 and/or CLEARCASE_TRIGGER_VERBOSE=1. After defining them you must restart the proces that will end up spawning the cleartool mkelem
+command, if you do not, the environment variables won't be seen.
 With either of these environment variables set, a lot more information will be written.</p>
 <p>
 </p>

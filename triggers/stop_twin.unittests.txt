@@ -1,4 +1,3 @@
-
 Test what: Script can inform about it self if called out of context
 Test how: ratlperl stop_twin.pl
 Expect: Header information printed to STDOUT
@@ -79,58 +78,5 @@ Test how: Make an evil twin
 Expect: Message box - and logfile, identifies element name, directory name and directory version where name was last used
 Result: Pass
 
-Test what: 
-Test how: 
-Expect: 
-Result: 
 
-Test what: 
-Test how: 
-Expect: 
-Result: 
-
-Test what: 
-Test how: 
-Expect: 
-Result: 
-
-Test what: 
-Test how: 
-Expect: 
-Result: 
-
-Test what: 
-Test how: 
-Expect: 
-Result: 
-
-Test what: 
-Test how: 
-Expect: 
-Result: 
-
-Test what: 
-Test how: 
-Expect: 
-Result: 
-
-Test what: 
-Test how: 
-Expect: 
-Result: 
-
-Test what: 
-Test how: 
-Expect: 
-Result: 
-
-Test what: 
-Test how: 
-Expect: 
-Result: 
-
-Test what: 
-Test how: 
-Expect: 
-Result: 
 
