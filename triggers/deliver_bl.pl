@@ -87,7 +87,7 @@ our $semaphore_status = $thelp->enable_semaphore_backdoor();
 
 #Enable the features in scriptlog
 
-our $log = praqma::scriptlog->new();
+our $log = scriptlog->new();
 
 if ( $ENV{COMPUTERNAME} eq "VM-JBR-CC2" ) {
 
@@ -185,18 +185,16 @@ if ( $ENV{CLEARCASE_OP_KIND} eq 'mkbl_complete' ) {
 		}
 	}
 	push @to_be_delivered, @bl_list unless ( $#to_be_delivered > -1 );
-	#
+	my $deliver_cmd = "deliver -stream $ENV{CLEARCASE_STREAM} -baseline " . join  (',',  @to_be_delivered );
 	# Start deliver of baseline to default target.
-
-	exit 1;
+	$clearcase->ct( command => $deliver_cmd);
+	
+	exit 0;
 
 }
 
 print "Change to happy exit \n";
 exit 1;
 
-sub ch_bl_mastership {
-
-}
 
 __END__
