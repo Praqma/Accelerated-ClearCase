@@ -28,7 +28,7 @@ our %install_params = (
 
 # File version
 our $VERSION = "1.0";
-our $BUILD   = "4";
+our $BUILD   = "5";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -140,12 +140,17 @@ sub master_site_actions {
 	# 
 	foreach (@bl_list) {
 		$log->information( "Retrieving dependencies for baseline $_");
-		$ignore_these{"baseline:$_"}++;
+		$ignore_these{$_}++;
 		# Only need the lines that looks like baseline names from the output, a baseline name contains the @ sign
-		my @members = split ( / /, grep {/\S+@\\\S+/} $clearcase->ct( command => 'lsbl -fmt %[member_of_closure]p ' . $_));
+		my @output = $clearcase->ct( command => 'lsbl -fmt %[member_of_closure]p ' . $_);
+		$log->information( "Got output:\n" . join( "\t", @output ) );
+		chomp @output;
 		
-		foreach my $string (@members) {
+		my @members = grep {/\S+@\\\S+/} @output ;
+		$log->information( "Isolated strings output:\n" . join( "\t", @members ) );		
+		foreach my $string (split (/\s+/, join (' ', @members) ) ){
 			chomp($string);
+			$log->information( "Ignoring $string");		
 			$ignore_these{"baseline:$string"}++
 		}
  
