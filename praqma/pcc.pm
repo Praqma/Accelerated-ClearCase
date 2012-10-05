@@ -99,6 +99,28 @@ sub get_cchome {
 
 }
 
+=head2 pccObject->get_multisite_class_bays ()
+
+Return a hash with storage class as key and it's storagebay as value 
+
+=cut 
+
+sub get_multisite_class_bays {
+
+    my $homekey = 'LMachine/SOFTWARE/Atria/ClearCase/CurrentVersion/MultiSite/StorageClass/';
+    my $home = $Registry->{"$homekey"} or die "Can't read $homekey key: $^E\n";
+
+    my %sbays = ();
+
+    foreach ( keys %{$home} ) {
+        chop;
+        my $var = $home->{"$_"}->{"StorageBay"};
+        $sbays{$_} = $var;
+
+    }
+    return %sbays
+}
+
 =head2 pccObject->get_replicahost (vobtag => "vobtag")
 
 Return hostname of replica (vob)
@@ -184,7 +206,8 @@ sub get_siblings ($) {
     chomp @siblings;
     if ( scalar(@siblings) ) {
         return join( ',', @siblings );
-    } else {
+    }
+    else {
         return 0;
     }
 }
@@ -316,7 +339,7 @@ Depending on the caller context, either list or scalar is returned, it looks for
 sub ct ($) {
     my $self  = shift;
     my %parms = @_;
-    die "input parameter for key 'command' requied" unless ( $parms{command} );
+    die "input parameter for key 'command' required" unless ( $parms{command} );
 
     # unless $parms{err_ok} is set, force it to be zero
     $parms{err_ok} = defined( $parms{err_ok} ) ? $parms{err_ok} : 0;

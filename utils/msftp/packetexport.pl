@@ -13,6 +13,8 @@ BEGIN {
 # Use clauses
 use File::Basename;
 use Getopt::Long;
+use Net::Ftp;
+use Cwd;
 
 use lib "$Scriptdir..//..";
 use scriptlog;
@@ -33,6 +35,11 @@ my (
     @normaltransport,                                   # list of replica that use default shipping
     %specialtransport,                                  # list of replica's that use non default
 );
+
+my $puser = 'jbr';
+my $pass  = 'Praqma2';
+
+warn "Whoah hardcoded user !\n";
 
 my $log       = scriptlog->new;
 my $pccObject = pcc->new;
@@ -94,6 +101,7 @@ my $doc = <<ENDDOC;
 ENDDOC
 
 my @burnlicense = qx(cleartool lsvob 2>&1);
+my $cwd         = getcwd();
 
 # Validate options
 # TODO finish the validate_options function, currently we only get the options
@@ -108,30 +116,96 @@ my @vobtags = @{ $pccObject->get_vobtags() };
 # sort replica's by transport type
 get_candidates();
 
-my %result = ();
-print "For normal sync:\n";
-foreach (@normaltransport) {
-    /(.*)(@.*)/;
-    push @{ $result{$2} }, $1;
-
+if ( scalar( keys %specialtransport ) ) {
+    print "Something is special\nWe should try to import\n";
 }
 
-foreach my $vob ( keys %result ) {
-    my $first = pop @{ $result{$vob} };
-    $first = $first . $vob;
-    print join( ',', $first, @{ $result{$vob} } ) . "\n";
+create_default();
 
-}
+create_special();
 
-print "For special sync:\n";
-%result = ();
-
-foreach my $replica ( keys %specialtransport ) {
-    my ( $sclass, $server, $path ) = split( /,/, $specialtransport{$replica} );
-    print "Replica $replica should use storage class $sclass, to server $server in directory at $path\n ";
-}
+send_ftp();
 
 ################################ SUBS ################################
+
+sub send_ftp {
+    my %storageclasses = $pccObject->get_multisite_class_bays();
+
+    foreach my $replicalist ( keys %specialtransport ) {
+
+        # TODO What if this replica, has multiple special transports ?
+        my ( $sclass, $server, $path ) = split( /,/, $specialtransport{$replicalist} );
+        $log->assertion_failed("Cant find Storage bay for class $sclass") unless exists $storageclasses{$sclass};
+
+        # connect to ftp
+
+        my $ftp = Net::FTP->new( $server, Debug => 0 ) or $log->assertion_failed("Cannot connect to $server: $@");
+        $ftp->login( $puser, $pass ) or $log->assertion_failed("Cannot login  $ftp->message");
+        $ftp->cwd("$path/outgoing") or $log->assertion_failed("Cannot change directory $path/outgoing $ftp->message");
+        $ftp->binary();
+
+        chdir "$storageclasses{$sclass}/outgoing";
+        opendir( DIR, "$storageclasses{$sclass}/outgoing" );
+
+      FILE: while ( my $file = readdir(DIR) ) {
+            next FILE if ( -z $file );
+            print "File is [$file]\n";
+
+            if ( $ftp->put($file) ) {
+                $log->information("Succesfully copied $file to $server $storageclasses{$sclass}/outgoing") if $sw_debug;
+                unlink $file or $log->warning("Failed to delete $storageclasses{$sclass}/outgoing/$file");
+            }
+            else {
+                $log->warning("Failed to copy file $file $ftp->message");
+            }
+        }
+
+        chdir $cwd;
+        closedir(DIR);
+        $ftp->quit;
+
+        #$log->information( join @retval) if $sw_debug;
+
+    }
+
+}
+
+sub create_special {
+    print "For special sync:\n";
+    my %result = ();
+
+    foreach my $replicalist ( keys %specialtransport ) {
+
+        # TODO What if this replica, has multiple special transports ?
+        my ( $sclass, $server, $path ) = split( /,/, $specialtransport{$replicalist} );
+        $log->information("Replica $replicalist should use storage class $sclass, to server $server in directory at $path\n") if $sw_debug;
+        my @retval = qx(\"$synclistpgm\" -ship -sclass $sclass -replicas $replicalist 2>&1);
+        $log->information( join @retval ) if $sw_debug;
+
+    }
+}
+
+sub create_default {
+
+    # Process normal syncs
+    my %result = ();
+    print "\nProcess normal syncs:\n";
+    foreach (@normaltransport) {
+        /(.*)(@.*)/;
+        push @{ $result{$2} }, $1;
+
+    }
+
+    foreach my $vob ( keys %result ) {
+        my $first = pop @{ $result{$vob} };
+        $first = $first . $vob;
+        my $replicalist = join( ',', $first, @{ $result{$vob} } ) . "\n";
+        $log->information("Calling for standard processing: [$replicalist]") if $sw_debug;
+        my @retval = qx(\"$synclistpgm\" -replicas $replicalist 2>&1);
+        $log->information( join @retval ) if $sw_debug;
+    }
+
+}
 
 sub add_normal {
     my %parms = @_;
