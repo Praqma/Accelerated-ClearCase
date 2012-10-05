@@ -149,7 +149,6 @@ sub send_ftp {
 
       FILE: while ( my $file = readdir(DIR) ) {
             next FILE if ( -z $file );
-            print "File is [$file]\n";
 
             if ( $ftp->put($file) ) {
                 $log->information("Succesfully copied $file to $server $storageclasses{$sclass}/outgoing") if $sw_debug;

@@ -118,7 +118,7 @@ sub get_multisite_class_bays {
         $sbays{$_} = $var;
 
     }
-    return %sbays
+    return %sbays;
 }
 
 =head2 pccObject->get_replicahost (vobtag => "vobtag")
