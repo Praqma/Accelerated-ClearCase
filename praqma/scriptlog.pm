@@ -7,13 +7,13 @@ use strict;
 our ( $scriptdir, $scriptfile );
 
 BEGIN {
-	$scriptdir  = ".\\";
-	$scriptfile = $0;      # Assume the module is called from 'current directory' (no leading path - $0 is the file)
-	$scriptfile =~ /(.*\\)(.*)$/
-	  && do {
-		$scriptdir  = $1;
-		$scriptfile = $2;
-	  }                    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
+    $scriptdir  = ".\\";
+    $scriptfile = $0;      # Assume the module is called from 'current directory' (no leading path - $0 is the file)
+    $scriptfile =~ /(.*\\)(.*)$/
+      && do {
+        $scriptdir  = $1;
+        $scriptfile = $2;
+      }                    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
 use lib "$scriptdir..";
 
@@ -62,11 +62,11 @@ DATE        EDITOR  NOTE
 ENDREVISION
 
 sub new {
-	my $class = shift;    #Cache the package name
-	$Enabled && openlog();
-	my $self = {};
-	bless( $self, $class );
-	return $self;
+    my $class = shift;    #Cache the package name
+    $Enabled && openlog();
+    my $self = {};
+    bless( $self, $class );
+    return $self;
 }
 
 sub get_information_count { return $Info_count; }
@@ -75,197 +75,197 @@ sub get_error_count       { return $Err_count; }
 sub get_logfile           { return $Logfile; }
 
 sub get_accumulated_errorlevel {
-	return ($Err_count) ? 2 : ($Warn_count) ? 1 : 0;
+    return ($Err_count) ? 2 : ($Warn_count) ? 1 : 0;
 }
 
 ######## Setters #############
 
 sub set_verbose() {
-	my $self = shift;
-	$Verbose = shift;    # boolean
-	$Verbose && return;
-	if (
-		defined( $ENV{SCRIPTLOG_VERBOSE} )
-		|| defined( $ENV{CLEARCASE_TRIGGER_VERBOSE} )
-	  )
-	{
-		$Verbose = 1;
-	}
+    my $self = shift;
+    $Verbose = shift;    # boolean
+    $Verbose && return;
+    if (   defined( $ENV{SCRIPTLOG_VERBOSE} )
+        || defined( $ENV{CLEARCASE_TRIGGER_VERBOSE} ) )
+    {
+        $Verbose = 1;
+    }
 }
 
 sub set_logfile() {
-	my $self = shift;
-	$Logfile = shift;                         # valid path+file
+    my $self = shift;
+    $Logfile = shift;    # valid path+file
 }
 
 ####### Methods #############
 
 sub enable {
-	$Enabled = 1;
-	openlog() unless $LogIsOpen;
+    $Enabled = 1;
+    openlog() unless $LogIsOpen;
 }
 
 sub conditional_enable {
-	my $self   = shift;
-	my $switch = shift;
-	my $flag   = 0;
-	if ($switch) { $flag = 1; }
-	if ( lc( $ENV{trace_subsys} ) =~ /$scriptfile/ ) { $flag = 1; }
-	if (   defined( $ENV{SCRIPTLOG_ENABLED} )
-		|| defined( $ENV{CLEARCASE_TRIGGER_DEBUG} ) )
-	{
-		$flag = 1;
-	}
-	if ($flag) { $self->enable; }
+    my $self   = shift;
+    my $switch = shift;
+    my $flag   = 0;
+    if ($switch) { $flag = 1; }
+    if ( exists $ENV{trace_subsys} && lc( $ENV{trace_subsys} ) =~ /$scriptfile/i ) {
+        $flag = 1;
+    }
+    if (   defined( $ENV{SCRIPTLOG_ENABLED} )
+        || defined( $ENV{CLEARCASE_TRIGGER_DEBUG} ) )
+    {
+        $flag = 1;
+    }
+    if ($flag) { $self->enable; }
 }
 
 sub disable {
-	$Enabled = 0;
+    $Enabled = 0;
 }
 
 sub information() {
-	( $Enabled || $Verbose ) && do {
-		my $self   = shift;
-		my $msg    = shift;
-		my $prefix = $self->timestamp . " [I]:\t";
-		$Enabled && print LOGFILE $prefix . indent_msg($msg);
-		$Verbose && print STDOUT "$msg\n";
-		if ( defined $::HeCantMerge ) {
-			print STDERR "$msg\n";
-		}
+    ( $Enabled || $Verbose ) && do {
+        my $self   = shift;
+        my $msg    = shift;
+        my $prefix = $self->timestamp . " [I]:\t";
+        $Enabled && print LOGFILE $prefix . indent_msg($msg);
+        $Verbose && print STDOUT "$msg\n";
+        if ( defined $::HeCantMerge ) {
+            print STDERR "$msg\n";
+        }
 
-		$Info_count++;
-		return $Verbose;
-	  }
+        $Info_count++;
+        return $Verbose;
+      }
 }
 
 sub information_always() {
-	my $self   = shift;
-	my $msg    = shift;
-	my $prefix = $self->timestamp . " [I]:\t";
-	$Enabled && print LOGFILE $prefix . indent_msg($msg);
-	print STDERR "$msg\n";    #unconditional print
-	if ( defined $::HeCantMerge ) {
-		print STDERR "$msg\n";
-	}
+    my $self   = shift;
+    my $msg    = shift;
+    my $prefix = $self->timestamp . " [I]:\t";
+    $Enabled && print LOGFILE $prefix . indent_msg($msg);
+    print STDERR "$msg\n";    #unconditional print
+    if ( defined $::HeCantMerge ) {
+        print STDERR "$msg\n";
+    }
 
-	$Info_count++;
-	return $Verbose;
+    $Info_count++;
+    return $Verbose;
 }
 
 sub warning($) {
-	( $Enabled || $Verbose ) && do {
-		my $self   = shift;
-		my $msg    = shift;
-		my $prefix = $self->timestamp . " [W]:\t";
-		$Enabled && print LOGFILE $prefix . indent_msg($msg);
-		print STDERR $msg;
-		if ( defined $::HeCantMerge ) {
-			print "$msg\n";
-		}
+    ( $Enabled || $Verbose ) && do {
+        my $self   = shift;
+        my $msg    = shift;
+        my $prefix = $self->timestamp . " [W]:\t";
+        $Enabled && print LOGFILE $prefix . indent_msg($msg);
+        print STDERR $msg;
+        if ( defined $::HeCantMerge ) {
+            print "$msg\n";
+        }
 
-		$Warn_count++;
-		return $Verbose;
-	  }
+        $Warn_count++;
+        return $Verbose;
+      }
 }
 
 sub error($) {
-	my $self   = shift;
-	my $msg    = shift;
-	my $prefix = $self->timestamp . " [E]:\t";
-	$Enabled && print LOGFILE $prefix . indent_msg($msg);
-	print STDERR "$msg\n";
-	if ( defined $::HeCantMerge ) {
-		print "$msg\n";
-	}
-	$Err_count++;
-	return $Verbose;
+    my $self   = shift;
+    my $msg    = shift;
+    my $prefix = $self->timestamp . " [E]:\t";
+    $Enabled && print LOGFILE $prefix . indent_msg($msg);
+    print STDERR "$msg\n";
+    if ( defined $::HeCantMerge ) {
+        print "$msg\n";
+    }
+    $Err_count++;
+    return $Verbose;
 
 }
 
 sub indent_msg() {
-	my $msg = shift;
-	chomp($msg);
-	$msg =~ s/\n/\n\t\t/g;
-	return $msg . "\n";
+    my $msg = shift;
+    chomp($msg);
+    $msg =~ s/\n/\n\t\t/g;
+    return $msg . "\n";
 }
 
 sub assertion_failed($) {
-	my $self = shift;
-	my $msg  = shift;
+    my $self = shift;
+    my $msg  = shift;
 
-	my $prefix = $self->timestamp . " [ASSERTION FAILED]:\n";
-	$self->enable() unless ($LogIsOpen);
-	if ($LogIsOpen) {
-		if ( defined $::HeCantMerge ) {
-			print STDERR "$prefix$msg";
-		}
-		print LOGFILE "$prefix$msg";
-	}
-	else {
-		print "$prefix$msg";
-	}
-	die $msg;
+    my $prefix = $self->timestamp . " [ASSERTION FAILED]:\n";
+    $self->enable() unless ($LogIsOpen);
+    if ($LogIsOpen) {
+        if ( defined $::HeCantMerge ) {
+            print STDERR "$prefix$msg";
+        }
+        print LOGFILE "$prefix$msg";
+    }
+    else {
+        print "$prefix$msg";
+    }
+    die $msg;
 }
 
 sub dump_array() {
-	( $Enabled || $Verbose ) && do {
-		my $self = shift;
-		my $arr  = shift;
-		foreach (@$arr) {
-			chomp($_);
-			my $msg = "\t\t" . $_ . "\n";
-			$Enabled && print LOGFILE $msg;
-			$Verbose && print $msg;
-		}
-	  }
+    ( $Enabled || $Verbose ) && do {
+        my $self = shift;
+        my $arr  = shift;
+        foreach (@$arr) {
+            chomp($_);
+            my $msg = "\t\t" . $_ . "\n";
+            $Enabled && print LOGFILE $msg;
+            $Verbose && print $msg;
+        }
+      }
 }
 
 sub dump_ccvars {
-	( $Enabled || $Verbose ) && do {
-		my $self = shift;
-		@_ = `set CLEARCASE`;
-		$self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
-		$self->dump_array( \@_ );
-	  }
+    ( $Enabled || $Verbose ) && do {
+        my $self = shift;
+        @_ = `set CLEARCASE`;
+        $self->information( "Dumping " . scalar(@_) . " CLEARCASE environments variables:\n" );
+        $self->dump_array( \@_ );
+      }
 }
 
 ######## (...designed to be) Private ###########
 
 sub timestamp {
 
-	return sprintf( "%02d.%02d:%02d", (localtime)[ 2, 1, 0 ] );
+    return sprintf( "%02d.%02d:%02d", (localtime)[ 2, 1, 0 ] );
 }
 
 sub datestamp {
-	my ( $year, $mon, $mday ) = (localtime)[ 5, 4, 3 ];
-	return sprintf( "%04d-%02d-%02d", $year + 1900, $mon + 1, $mday );
+    my ( $year, $mon, $mday ) = (localtime)[ 5, 4, 3 ];
+    return sprintf( "%04d-%02d-%02d", $year + 1900, $mon + 1, $mday );
 }
 
 sub openlog() {
-	my $self = shift;
-	if ( $Logfile eq "" ) {
-		$Logfile = "$ENV{TEMP}\\$main::Scriptfile" . "PID$$" . ".log";    # Create a log file
-	}
+    my $self = shift;
+    if ( $Logfile eq "" ) {
+        $Logfile = "$ENV{TEMP}\\$main::Scriptfile" . "PID$$" . ".log";    # Create a log file
+    }
 
-	open LOGFILE, ">>$Logfile" or assertion_failed("Couldn't open \"$Logfile\"\n");
+    open LOGFILE, ">>$Logfile" or assertion_failed("Couldn't open \"$Logfile\"\n");
 
-	print LOGFILE "\n#######################################################\n"
-	  . "This log is created (or appended) on "
-	  . datestamp() . " \@ "
-	  . timestamp() . "\n"
-	  . "Executing script:\t"
-	  . $main::Scriptfile . "\n"
-	  . "Process ID (PID):\t"
-	  . $$ . "\n"
-	  . "Executing user:  \t"
-	  . $ENV{USERNAME} . "\n\n";
+    print LOGFILE "\n#######################################################\n"
+      . "This log is created (or appended) on "
+      . datestamp() . " \@ "
+      . timestamp() . "\n"
+      . "Executing script:\t"
+      . $main::Scriptfile . "\n"
+      . "Process ID (PID):\t"
+      . $$ . "\n"
+      . "Executing user:  \t"
+      . $ENV{USERNAME} . "\n\n";
 
-	$LogIsOpen = 1;
+    $LogIsOpen = 1;
 }
 
 sub DESTROY {
-	close LOGFILE;
+    close LOGFILE;
 }
 
 __END__

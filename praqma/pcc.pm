@@ -477,6 +477,47 @@ sub format_version_number ($$$) {
     return sprintf( "%.4f", $l_major + ( $l_minor / 10 ) + ( $l_build / 10000 ) );
 }
 
+sub read_ini {
+
+    #read an ini file in the usual ini file format and build
+    #a hash of hash'es over the data
+    #The key of the hash is the ini file section, and the value to that key
+    #is an anonymous hash of key - value pairs
+
+    my %hash;
+    my $path = 'users.ini';
+    open( INI, "< $path" ) or die "Couldn't open $path for reading: $!\n";
+  FILE: while (<INI>) {
+        next FILE if (/\s*#/);
+        next FILE if (/^\s+$/);
+        chomp;
+        my ( $section, $keyword, $value );
+        if (/^\s*\[(.*)\].*/) {
+            $section = $1;
+        }
+
+        if (/=/) {
+
+            ( $keyword, $value ) = split( /=/, $_, 2 );
+
+            # put them into hash in hash
+            ${ $hash{$section} }{$keyword} = $value;
+        }
+    }
+
+    close(INI);
+
+    foreach my $section ( sort keys %hash ) {
+        my %vals = %{ $hash{$section} };
+        print "[$section]\n";
+        foreach my $set ( sort keys %vals ) {
+            print "\t $set = $vals{$set}\n";
+        }
+
+    }
+
+}
+
 =head2 pcc->DESTROY( )
 Destroys the pcc object
 =cut
