@@ -182,7 +182,8 @@ sub get_from_ftp {
         closedir(DIR);
         stop_ftp();
         chdir $cwd;
-
+        my @importmsg = qx(multitool syncreplica -import -receive -sclass $sclass 2>&1);
+        $log->information(join @importmsg);
     }    # end foreach my $replicalist
 }
 
