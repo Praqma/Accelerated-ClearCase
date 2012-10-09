@@ -2,7 +2,7 @@ require 5.000;
 use strict;
 
 $| = 1;
-our ( $Scriptdir, $Scriptfile, $parentdir );
+our ( $Scriptdir, $Scriptfile );
 
 BEGIN {
     use File::Basename;
@@ -16,30 +16,28 @@ use Getopt::Long;
 use Net::Ftp;
 use Cwd;
 
-use lib "$Scriptdir..//..";
+use lib "$Scriptdir../../praqma";
 use scriptlog;
 use pcc 0.1007;
 
-# use acc;
-use constant TRANSPORT_HLTYPE => 'SpecialTransport';    # name of hyperlink type we recognize
+use constant TRANSPORT_HLTYPE   => 'SpecialTransport';    # name of hyperlink type we recognize
+use constant TRANSPORT_INCOMING => '/incoming';           # maps to values used by multisite defaults
+use constant TRANSPORT_OUTGOING => '/outgoing';           # maps to values used by multisite defaults
 
 ### Global variables ###
 my (
-    $sw_run,                                            # required to run
-    $sw_dryrun,                                         # only list selections
-    $sw_help,                                           # display help
+    $sw_run,                                              # required to run
+    $sw_dryrun,                                           # only list selections
+    $sw_help,                                             # display help
     $sw_verbose,
     $sw_debug,
-    %options,                                           # list of command line options
-    $synclistpgm,                                       # synclist pgram
-    @normaltransport,                                   # list of replica that use default shipping
-    %specialtransport,                                  # list of replica's that use non default
+    %options,                                             # list of command line options
+    $synclistpgm,                                         # synclist pgram
+    @normaltransport,                                     # list of replica that use default shipping
+    %specialoutgoing,                                     # list of replica's that this replica should send to
+    %specialincoming,                                     # list of replica's that this replica should receive from
+    $ftpObject,                                           # ftp object
 );
-
-my $puser = 'jbr';
-my $pass  = 'Praqma2';
-
-warn "Whoah hardcoded user !\n";
 
 my $log       = scriptlog->new;
 my $pccObject = pcc->new;
@@ -47,7 +45,7 @@ my $pccObject = pcc->new;
 # File version
 my $major   = 0;
 my $minor   = 1;
-my $build   = 1;
+my $build   = 3;
 my $VERSION = $pccObject->format_version_number( $major, $minor, $build );
 
 # Header history
@@ -68,7 +66,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
-2012-09-30  Jens Brejner   Initial Version (v 0.1001)
+2012-09-30  Jens Brejner   Initial Version (v 0.1003)
 -------------------------------------------------------------------------
  
 ENDREVISION
@@ -100,15 +98,26 @@ my $doc = <<ENDDOC;
  
 ENDDOC
 
+warn "Whoah hardcoded user !\n";
+my $puser       = 'jbr';
+my $pass        = 'Praqma2';
 my @burnlicense = qx(cleartool lsvob 2>&1);
-my $cwd         = getcwd();
 
-# Validate options
 # TODO finish the validate_options function, currently we only get the options
-#validate_options();
+
+validate_options();
+
+# Initialize the rest
+
+my $cwd = getcwd();
+$log->set_verbose($sw_verbose);
+$log->enable(1);
+$log->conditional_enable( ( $sw_verbose || $sw_debug ) );
 
 # define the path to sync_export_list.bat
 $synclistpgm = GetListExportScript();
+
+my %storageclasses = $pccObject->get_multisite_class_bays();
 
 # get all the vobtags
 my @vobtags = @{ $pccObject->get_vobtags() };
@@ -116,56 +125,119 @@ my @vobtags = @{ $pccObject->get_vobtags() };
 # sort replica's by transport type
 get_candidates();
 
-if ( scalar( keys %specialtransport ) ) {
-    print "Something is special\nWe should try to import\n";
-}
+get_from_ftp() if ( scalar( keys %specialoutgoing ) );
 
+# Syncronize all the normally processed replica's by calling sync_list_export each relevant replica
 create_default();
 
+# Syncronize all the specially processed replica's by calling sync_list_export each relevant replica
 create_special();
 
-send_ftp();
+# Move created packages to ftp
+send_to_ftp();
+
+# get exit code and exit
+exit $log->get_accumulated_errorlevel();
 
 ################################ SUBS ################################
 
-sub send_ftp {
-    my %storageclasses = $pccObject->get_multisite_class_bays();
+sub get_name_only {
+    my $full_replica = shift;
+    my ($name, $junk) = split( '@', $full_replica, 2 );
+    return $name;
+} 
 
-    foreach my $replicalist ( keys %specialtransport ) {
+sub get_from_ftp {
 
-        # TODO What if this replica, has multiple special transports ?
-        my ( $sclass, $server, $path ) = split( /,/, $specialtransport{$replicalist} );
+    foreach my $replicalist ( keys %specialincoming ) {
+
+        my ( $sclass, $server, $path ) = split( /,/, $specialincoming{$replicalist} );
         $log->assertion_failed("Cant find Storage bay for class $sclass") unless exists $storageclasses{$sclass};
 
-        # connect to ftp
+        my $filesystempath = $storageclasses{$sclass} . TRANSPORT_INCOMING;
+        chdir $filesystempath;
 
-        my $ftp = Net::FTP->new( $server, Debug => 0 ) or $log->assertion_failed("Cannot connect to $server: $@");
-        $ftp->login( $puser, $pass ) or $log->assertion_failed("Cannot login  $ftp->message");
-        $ftp->cwd("$path/outgoing") or $log->assertion_failed("Cannot change directory $path/outgoing $ftp->message");
-        $ftp->binary();
+        my $dropname = get_name_only($replicalist);
+        my $serverpath = "$path/to_$dropname";
 
-        chdir "$storageclasses{$sclass}/outgoing";
-        opendir( DIR, "$storageclasses{$sclass}/outgoing" );
+        start_ftp( server => $server, user => $puser, password => $pass );
+        $ftpObject->cwd("$serverpath") or $log->assertion_failed( "Cannot change directory $serverpath " . $ftpObject->message );
+
+
+
+        opendir( DIR, "$filesystempath" );
+        my @remotefiles = $ftpObject->ls();
+        foreach (@remotefiles) {
+            next unless ( $ftpObject->size($_) );
+
+            if ( $ftpObject->get($_) ) {
+                $log->information("Retrieved $_") if $sw_debug;
+                $ftpObject->delete($_) or $log->warning("Couldn't delete $_");
+            }
+            else {
+                $log->warning("Failed to retrieve $_: $ftpObject->message()  ");
+            }    # end if
+
+        }    # end foreach (@remotefiles)
+        closedir(DIR);
+        stop_ftp();
+        chdir $cwd;
+
+    }    # end foreach my $replicalist
+}
+
+sub send_to_ftp {
+    foreach my $replicalist ( keys %specialoutgoing ) {
+
+        my ( $sclass, $server, $path ) = split( /,/, $specialoutgoing{$replicalist} );
+        $log->assertion_failed("Cant find Storage bay for class $sclass") unless exists $storageclasses{$sclass};
+
+        my $filesystempath = $storageclasses{$sclass} . TRANSPORT_OUTGOING;
+        chdir $filesystempath;
+
+        my $dropname = get_name_only($replicalist);
+        my $serverpath = "$path/to_$dropname";
+
+        start_ftp( server => $server, user => $puser, password => $pass );
+        $ftpObject->cwd("$serverpath") or $log->assertion_failed( "Cannot change directory $serverpath:" . $ftpObject->message );
+
+        opendir( DIR, "$filesystempath" ) or die;
 
       FILE: while ( my $file = readdir(DIR) ) {
             next FILE if ( -z $file );
 
-            if ( $ftp->put($file) ) {
-                $log->information("Succesfully copied $file to $server $storageclasses{$sclass}/outgoing") if $sw_debug;
-                unlink $file or $log->warning("Failed to delete $storageclasses{$sclass}/outgoing/$file");
+            if ( $ftpObject->put($file) ) {
+                $log->information_always("Succesfully copied $file to $server in  $serverpath");
+                unlink $file or $log->warning("Failed to delete $file from $filesystempath");
             }
             else {
-                $log->warning("Failed to copy file $file $ftp->message");
+                $log->warning( "Failed to copy file $file " . $ftpObject->message );
             }
         }
 
-        chdir $cwd;
         closedir(DIR);
-        $ftp->quit;
-
-        #$log->information( join @retval) if $sw_debug;
+        stop_ftp();
+        chdir $cwd;
 
     }
+
+}
+
+sub stop_ftp {
+
+    $ftpObject->quit;
+    $ftpObject->DESTROY;
+
+}
+
+sub start_ftp {
+
+    my %parms = @_;
+
+    # connect to ftp
+    $ftpObject = Net::FTP->new( $parms{server}, Debug => 0 ) or $log->assertion_failed("Cannot connect to $parms{server}: $@");
+    $ftpObject->login( $parms{user}, $parms{password} ) or $log->assertion_failed( "Cannot log in: " . $ftpObject->message );
+    $ftpObject->binary();
 
 }
 
@@ -173,11 +245,11 @@ sub create_special {
     print "For special sync:\n";
     my %result = ();
 
-    foreach my $replicalist ( keys %specialtransport ) {
+    foreach my $replicalist ( keys %specialoutgoing ) {
 
         # TODO What if this replica, has multiple special transports ?
-        my ( $sclass, $server, $path ) = split( /,/, $specialtransport{$replicalist} );
-        $log->information("Replica $replicalist should use storage class $sclass, to server $server in directory at $path\n") if $sw_debug;
+        my ( $sclass, $server, $path ) = split( /,/, $specialoutgoing{$replicalist} );
+        $log->information("Replica $replicalist uses storage class $sclass, to server $server in directory at $path\n") if $sw_debug;
         my @retval = qx(\"$synclistpgm\" -ship -sclass $sclass -replicas $replicalist 2>&1);
         $log->information( join @retval ) if $sw_debug;
 
@@ -198,7 +270,7 @@ sub create_default {
     foreach my $vob ( keys %result ) {
         my $first = pop @{ $result{$vob} };
         $first = $first . $vob;
-        my $replicalist = join( ',', $first, @{ $result{$vob} } ) . "\n";
+        my $replicalist = join( ',', $first, @{ $result{$vob} } );
         $log->information("Calling for standard processing: [$replicalist]") if $sw_debug;
         my @retval = qx(\"$synclistpgm\" -replicas $replicalist 2>&1);
         $log->information( join @retval ) if $sw_debug;
@@ -212,7 +284,7 @@ sub add_normal {
     if ($siblings) {
         foreach my $target ( split( /,/, $siblings ) ) {
             $target =~ s/(replica:)(.*)/$2/;
-            push @normaltransport, $target unless exists $specialtransport{$target};
+            push @normaltransport, $target unless exists $specialoutgoing{$target};
 
         }
     }
@@ -220,17 +292,45 @@ sub add_normal {
 
 sub add_special {
 
-    # Add record in %specialtransport if hyperlink is found
+    # Add records in %specialoutgoing and $specialincoming if hyperlink is found
     my %parms = @_;
-    my @specials = ( grep { /^->/ } $pccObject->ct( command => 'describe -short -ahlink ' . TRANSPORT_HLTYPE . " $parms{replica}" ) );
-    foreach (@specials) {
+    my ( @outgoing, @incoming );
 
-        # each has the format: '-> replica:nightwalker@\enbase "ftp to here"'
+    my $cmd     = "cleartool describe -ahlink " . TRANSPORT_HLTYPE . " $parms{replica}";
+    my $pattern = '^\s+' . TRANSPORT_HLTYPE;
 
-        my ( $target, $instruction ) = $_ =~ /^->\s+(\S+)\s+"(.*)"$/;
+    my @retval = grep { /$pattern/ } $pccObject->ct( command => 'describe -ahlink ' . TRANSPORT_HLTYPE . " $parms{replica}" );
+
+    foreach (@retval) {
+        chomp;
+        push @outgoing, $_ if (/->/);
+        push @incoming, $_ if (/<-/);
+    }
+
+    foreach (@outgoing) {
+
+        # @outgoing is empty if the replica does not have a  TRANSPORT_HLTYPE hyperlink
+        # each has the format: '    SpecialTransport -> replica:nightwalker@\enbase "ftp,ftp.praqma.net,/array1/ccmsftp/drop1"'
+
+        my ( $target, $instruction ) = $_ =~ /^.*->\s+(\S+)\s+"(.*)"$/;
         $target =~ s/(replica:)(.*)/$2/;
-        $specialtransport{$target} = $instruction;
-        $log->information("Added key $target with value $instruction in \%specialtransport") if $sw_debug;
+        $specialoutgoing{$target} = $instruction;
+
+        $log->information("Added key $target with value $instruction in \%specialoutgoing") if $sw_debug;
+    }
+
+    foreach (@incoming) {
+
+        # @incoming is empty if the replica does not have a  TRANSPORT_HLTYPE hyperlink
+        # each has the format: '    SpecialTransport "ftp,ftp.praqma.net,/array1/ccmsftp/drop1" <- replica:nightwalker@\enbase'
+
+        /^\s+\S+\s+"([^"]*)"\s+.*$/;
+        my $instruction = $1;
+        my $target      = $parms{replica};
+        $target =~ s/(replica:)(.*)/$2/;
+        $specialincoming{$target} = $instruction;
+
+        $log->information("Added key $target with value $instruction in \%specialoutgoing") if $sw_debug;
     }
 }
 
@@ -243,7 +343,7 @@ sub get_candidates {
         my $replicaname = $pccObject->get_localreplica( tag => $tag );
         $log->information("Found a local replica name : [$replicaname] for vob $tag") if $sw_debug;
 
-        # if hyperlink type exist from this replica to another, add the target to specialtransport
+        # if hyperlink type exist from this replica to another, add the target to %specialoutgoing
         add_special( replica => $replicaname );
         add_normal( vobtag => $tag );
 
@@ -254,7 +354,7 @@ sub GetListExportScript {
 
     # We need "sync_export_list.bat" - check it exists
     my $pathstring = $pccObject->get_cchome();
-    $log->information("Got [$pathstring] string back from  \$pccObject->get_cchome()") if $sw_debug;
+    $log->information("Got [$pathstring] string back from  \$pccObject->get_cchome()");    # if $sw_debug;
     $pathstring = $pathstring . '\config\scheduler\tasks\sync_export_list.bat';
     $log->information("Changed it to [$pathstring]") if $sw_debug;
     if ( -f $pathstring ) {
@@ -279,5 +379,6 @@ sub validate_options {
     );
 
     die "$usage" unless GetOptions(%options);
+    $sw_verbose = $sw_debug ? $sw_debug : $sw_verbose;
 
 }
