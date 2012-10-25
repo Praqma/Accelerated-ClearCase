@@ -28,7 +28,7 @@ our %install_params = (
 
 # File version
 our $VERSION = "1.0";
-our $BUILD   = "4";
+our $BUILD   = "5";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -63,6 +63,9 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
+2012-05-30  Jens Brejner   Ignore latest baselines for returning 
+                           mastership, they will be changed on next 
+                           execution (v1.0.5)
 2012-04-26  Jens Brejner   Add return of mastership (v1.0.4)
 2012-04-24  Jens Brejner   Handle deliver in progress (v1.0.3)
 2012-04-10  Jens Brejner   Optional change baseline mastership, default is
@@ -133,6 +136,30 @@ sub master_site_actions {
 		exit 0;
 	}
 
+	my (%ignore_these,@members);
+	# Get the direct baselines involved
+	@bl_list = listbaselines();
+	
+	# 
+	foreach (@bl_list) {
+		$log->information( "Retrieving dependencies for baseline $_");
+		$ignore_these{$_}++;
+		# Only need the lines that looks like baseline names from the output, a baseline name contains the @ sign
+		my @output = $clearcase->ct( command => 'lsbl -fmt %[member_of_closure]p ' . $_);
+		$log->information( "Got output:\n" . join( "\t", @output ) );
+		chomp @output;
+		
+		my @members = grep {/\S+@\\\S+/} @output ;
+		$log->information( "Isolated strings output:\n" . join( "\t", @members ) );		
+		foreach my $string (split (/\s+/, join (' ', @members) ) ){
+			chomp($string);
+			$log->information( "Ignoring $string");		
+			$ignore_these{"baseline:$string"}++
+		}
+ 
+	} 
+	$log->information( "Prepared to ignore these baselines:\n" . join( "\t", keys %ignore_these ) );
+	
 	# Search baselines on stream and get their baseline mastership too
 	my @baseline_mastership = $clearcase->ct( command => 'lsbl -fmt %[master]p\t%Xn\n -stream ' . $src_stream );
 	$log->information( "Found the following baselines on stream:\n" . join( "\t", @baseline_mastership ) );
@@ -140,12 +167,14 @@ sub master_site_actions {
 	# Filter the baselines based on mastership and eventually change their mastership
 	foreach my $victim ( grep { /^\Q$int_master/ } @baseline_mastership ) {
 		my ( $master, $foreign_bl ) = split( /\s+/, $victim );
+		next if exists $ignore_these{$foreign_bl};
 		$log->information("Returning [$foreign_bl] mastership to [$src_master]");
 		my $chmaster_cmd = "chmaster -c \"Trigger $TRIGGER_NAME returned mastership\" $src_master $foreign_bl";
 		$clearcase->ct( command => $chmaster_cmd );
 	}
 
 }
+
 
 sub remote_site_actions {
 	$log->information("Running remote site actions");
