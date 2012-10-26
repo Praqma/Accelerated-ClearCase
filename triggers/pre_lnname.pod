@@ -50,6 +50,12 @@ Filename cannot start with whitespace (" element" is prohibited)
 Filename cannot end with whitespace ("element " is prohibited)
 There cannot be a whitespace just before an extension seperator ("element .ext" is prohibited)
 
+require_extension
+
+Require file elements to have an extension
+This is default behaviour, can be disabled in the configuration file by assigning the value 0 to
+"require_extension" 
+
 
 =head1 Features of C<ACC_PRE_LNNAME> trigger
 
@@ -79,20 +85,20 @@ F<pre_lnname.pl> and copy it unmodified to the subfolder ..\CustomCfg.
 
 Then open the file which looks like this:
 
-# Configuration file for re_lnname.pl
 
-# change the pathlength to control how long paths you want on the system
-
-our %trigger_parms = (
-# lenght of path, 0 means off, a number means max pathlength
-"pathlength" => 180,
-# check for whitespaces
-# 0 means off, 1 means on
-"whitespacecheck" => 1
-
-);
-
-__END__
+ # Configuration file for pre_lnname.pl
+ # change the pathlength to control how long paths you want on the system
+ our %trigger_parms = (
+	# lenght of path, 0 means off, a number means max pathlength
+	"pathlength" => 180,
+	# check for whitespaces
+	# 0 means off, 1 means on
+	"whitespacecheck" => 1,
+	# Extension on file elemenets is required
+	# 0 means off, 1 means on (1 is default)
+	"require_extension" => 1
+ );
+ __END__
 
 
 
