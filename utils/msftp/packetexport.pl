@@ -227,6 +227,13 @@ sub send_to_ftp {
       FILE: while ( my $file = readdir(DIR) ) {
             next FILE if ( -z $file );
 
+            # Delete the shipping order files
+            if ( $file =~ /^sh_o_sync_/ ) {
+                $log->information_always("Removed annoying shipping order file");
+                unlink $file or $log->warning("Trouble removing $file: $!");
+                next;
+            }
+
             if ( $ftpObject->put($file) ) {
                 $log->information_always("Succesfully copied $file to $server in  $serverpath");
                 unlink $file or $log->warning("Failed to delete $file from $filesystempath");
