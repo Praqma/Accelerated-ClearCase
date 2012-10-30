@@ -23,6 +23,7 @@ use pcc 0.1007;
 use constant TRANSPORT_HLTYPE   => 'SpecialTransport';    # name of hyperlink type we recognize
 use constant TRANSPORT_INCOMING => '/incoming';           # maps to values used by multisite defaults
 use constant TRANSPORT_OUTGOING => '/outgoing';           # maps to values used by multisite defaults
+use constant INI_NAME           => '/users.ini';          # maps to values used by multisite defaults
 
 ### Global variables ###
 my (
@@ -37,6 +38,7 @@ my (
     %specialoutgoing,                                     # list of replica's that this replica should send to
     %specialincoming,                                     # list of replica's that this replica should receive from
     $ftpObject,                                           # ftp object
+    %inicontents                                          # hash of contents from the ini file, filename is specified by constant INI_NAME
 );
 
 my $log       = scriptlog->new;
@@ -99,13 +101,13 @@ my $doc = <<ENDDOC;
 ENDDOC
 
 warn "Whoah hardcoded user !\n";
-my $puser       = 'jbr';
-my $pass        = 'Praqma2';
 my @burnlicense = qx(cleartool lsvob 2>&1);
 
 # TODO finish the validate_options function, currently we only get the options
 
 validate_options();
+
+load_user_credentials();
 
 # Initialize the rest
 
@@ -143,9 +145,9 @@ exit $log->get_accumulated_errorlevel();
 
 sub get_name_only {
     my $full_replica = shift;
-    my ($name, $junk) = split( '@', $full_replica, 2 );
+    my ( $name, $junk ) = split( '@', $full_replica, 2 );
     return $name;
-} 
+}
 
 sub get_from_ftp {
 
@@ -157,13 +159,13 @@ sub get_from_ftp {
         my $filesystempath = $storageclasses{$sclass} . TRANSPORT_INCOMING;
         chdir $filesystempath;
 
-        my $dropname = get_name_only($replicalist);
+        my $inisection = "replica:$replicalist";
+
+        my $dropname   = get_name_only($replicalist);
         my $serverpath = "$path/to_$dropname";
 
-        start_ftp( server => $server, user => $puser, password => $pass );
+        start_ftp( server => $server, user => ${ $inicontents{$inisection} }{user}, password => ${ $inicontents{$inisection} }{password} );
         $ftpObject->cwd("$serverpath") or $log->assertion_failed( "Cannot change directory $serverpath " . $ftpObject->message );
-
-
 
         opendir( DIR, "$filesystempath" );
         my @remotefiles = $ftpObject->ls();
@@ -183,8 +185,25 @@ sub get_from_ftp {
         stop_ftp();
         chdir $cwd;
         my @importmsg = qx(multitool syncreplica -import -receive -sclass $sclass 2>&1);
-        $log->information(join @importmsg);
+        $log->information( join @importmsg );
     }    # end foreach my $replicalist
+}
+
+sub load_user_credentials {
+
+    # Read user credentials from ini file
+    my $inifile = dirname($0) . INI_NAME;
+    %inicontents = $pccObject->read_ini( file => $inifile );
+
+    # Change the keys of the anonymous hashes to lower case, need that for proper lookup later
+    foreach my $k ( keys %inicontents ) {
+
+        foreach ( keys %{ $inicontents{$k} } ) {
+            ${ $inicontents{$k} }{ lc($_) } = delete ${ $inicontents{$k} }{$_};
+        }
+
+    }
+
 }
 
 sub send_to_ftp {
@@ -195,11 +214,12 @@ sub send_to_ftp {
 
         my $filesystempath = $storageclasses{$sclass} . TRANSPORT_OUTGOING;
         chdir $filesystempath;
+        my $inisection = "replica:$replicalist";
 
-        my $dropname = get_name_only($replicalist);
+        my $dropname   = get_name_only($replicalist);
         my $serverpath = "$path/to_$dropname";
 
-        start_ftp( server => $server, user => $puser, password => $pass );
+        start_ftp( server => $server, user => ${ $inicontents{$inisection} }{user}, password => ${ $inicontents{$inisection} }{password} );
         $ftpObject->cwd("$serverpath") or $log->assertion_failed( "Cannot change directory $serverpath:" . $ftpObject->message );
 
         opendir( DIR, "$filesystempath" ) or die;

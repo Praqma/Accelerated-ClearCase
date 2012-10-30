@@ -479,21 +479,26 @@ sub format_version_number ($$$) {
 
 sub read_ini {
 
-    #read an ini file in the usual ini file format and build
-    #a hash of hash'es over the data
-    #The key of the hash is the ini file section, and the value to that key
-    #is an anonymous hash of key - value pairs
+    #    read an ini file in the usual ini file format and build
+    #    a hash of hash'es over the data
+    #    The key of the hash is the ini file section, and the value to that key
+    #    is an anonymous hash of key - value pairs
+
+    my $self  = shift;
+    my %parms = @_;
 
     my %hash;
-    my $path = 'users.ini';
+    my $path = $parms{file};
+    my ( $section, $keyword, $value );
     open( INI, "< $path" ) or die "Couldn't open $path for reading: $!\n";
   FILE: while (<INI>) {
         next FILE if (/\s*#/);
         next FILE if (/^\s+$/);
         chomp;
-        my ( $section, $keyword, $value );
+
         if (/^\s*\[(.*)\].*/) {
             $section = $1;
+            next
         }
 
         if (/=/) {
@@ -506,15 +511,17 @@ sub read_ini {
     }
 
     close(INI);
+    return %hash
 
-    foreach my $section ( sort keys %hash ) {
-        my %vals = %{ $hash{$section} };
-        print "[$section]\n";
-        foreach my $set ( sort keys %vals ) {
-            print "\t $set = $vals{$set}\n";
-        }
-
-    }
+      # to read from the hash you could do something like this:
+      #    foreach my $section ( sort keys %hash ) {
+      #        my %vals = %{ $hash{$section} };
+      #        print "[$section]\n";
+      #        foreach my $set ( sort keys %vals ) {
+      #            print "\t $set = $vals{$set}\n";
+      #        }
+      #
+      #    }
 
 }
 
