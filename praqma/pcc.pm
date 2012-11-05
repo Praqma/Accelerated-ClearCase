@@ -51,9 +51,9 @@ $stuff = '';
 # the functions below that use them.
 # file-private lexicals go here
 
-my $priv_var        = '';
-my %secret_hash     = ();
-my $get_ct_exit_val = sub {
+my $priv_var         = '';
+my %secret_hash      = ();
+my $get_sys_exit_val = sub {
     return ( scalar($?) / 256 );
 };
 
@@ -80,6 +80,66 @@ sub new {
         $use_scriptlog = 1;
     }
     return $self;
+}
+
+=head2 pccObject->_cmd(command=> "string", [err_ok => 1] )
+
+Runs system commands, call with required command including arguments
+Required parameters:
+  command = the system command and arguments
+Optional parameters
+  err_ok = if this parameter is passed, we are forgiving if the are errors, meaning $? has non-zero value
+           if err_ok is not set it defaults to 0
+Depending on the caller context, either list or scalar is returned, it looks for value of wantarray to decide.
+
+=cut
+
+sub _cmd ($) {
+    my $self  = shift;
+    my %parms = @_;
+    die "input parameter for key 'command' required" unless ( $parms{command} );
+
+    # unless $parms{err_ok} is set, force it to be zero
+    $parms{err_ok} = defined( $parms{err_ok} ) ? $parms{err_ok} : 0;
+
+    my $cmd = $parms{command} . ' 2>&1';
+    my @res = qx($cmd);
+
+    # Report errors unless we expect the call to generate non-zero exit value
+    unless ( $parms{err_ok} ) {
+        if ($?) {
+            my $msg = "The command [$cmd]\ndidn't return as expected.\nExit value was " . &$() . "\nThe system reply was\n" . join( '', @res );
+            die "$msg";
+        }
+    }
+    return ( wantarray ? @res : ( join( '', @res ) ) );
+}
+
+=head2 pccObject->mt(command=> "string", [err_ok => 1] )
+
+Runs multitool commands, call with named parameters
+Required parameters:
+  command = the cleartool command and arguments
+Optional parameters
+  err_ok = if this parameter is passed, we are forgiving if the are errors, meaning $? has non-zero value
+           if err_ok is not set it defaults to 0
+Depending on the caller context, either list or scalar is returned, it looks for value of wantarray to decide.
+
+=cut
+
+sub mt ($) {
+    my $self  = shift;
+    my %parms = @_;
+    die "input parameter for key 'command' required" unless ( $parms{command} );
+
+    # unless $parms{err_ok} is set, force it to be zero
+    $parms{err_ok} = defined( $parms{err_ok} ) ? $parms{err_ok} : 0;
+
+    my $cmd = 'multitool ' . $parms{command};
+
+    my @res = $self->_cmd( command => $cmd, err_ok => $parms{err_ok} );
+
+    return ( wantarray ? @res : ( join( '', @res ) ) );
 }
 
 =head2 pccObject->get_cchome ()
@@ -119,6 +179,27 @@ sub get_multisite_class_bays {
 
     }
     return %sbays;
+}
+
+=head2 pccObject->get_psftp_known_hosts ()
+
+Return an array of known host names 
+
+=cut 
+
+sub get_psftp_known_hosts {
+
+    my $homekey = 'CUser/Software/SimonTatham/PuTTY/SshHostKeys/';
+    my $home = $Registry->{"$homekey"} or die "Can't read $homekey key: $^E\n";
+
+    my %hosts = ();
+
+    foreach ( keys %{$home} ) {
+        my ( $junk, $server ) = split( ':', $_ );
+        $hosts{$server}++;
+
+    }
+    return %hosts;
 }
 
 =head2 pccObject->get_replicahost (vobtag => "vobtag")
@@ -344,18 +425,11 @@ sub ct ($) {
     # unless $parms{err_ok} is set, force it to be zero
     $parms{err_ok} = defined( $parms{err_ok} ) ? $parms{err_ok} : 0;
 
-    my $cmd = 'cleartool ' . $parms{command} . ' 2>&1';
-    my @res = qx($cmd);
+    my $cmd = 'cleartool ' . $parms{command};
+    my @res = $self->_cmd( command => $cmd, err_ok => $parms{err_ok} );
 
-    # Report errors unless we expect the call to generate non-zero exit value
-    unless ( $parms{err_ok} ) {
-        if ($?) {
-            my $msg =
-              "The command [$cmd]\ndidn't return as expected.\nExit value was " . &$get_ct_exit_val() . "\nThe system reply was\n" . join( '', @res );
-            die "$msg";
-        }
-    }
     return ( wantarray ? @res : ( join( '', @res ) ) );
+
 }
 
 =head2 pccObject->get_components_invob(pvob => pvob_tag )
@@ -498,7 +572,7 @@ sub read_ini {
 
         if (/^\s*\[(.*)\].*/) {
             $section = $1;
-            next
+            next;
         }
 
         if (/=/) {
