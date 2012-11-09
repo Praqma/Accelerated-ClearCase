@@ -22,6 +22,7 @@ use constant TRANSPORT_HLTYPE   => 'SpecialTransport';    # name of hyperlink ty
 use constant TRANSPORT_INCOMING => '/incoming';           # maps to values used by multisite defaults
 use constant TRANSPORT_OUTGOING => '/outgoing';           # maps to values used by multisite defaults
 use constant INI_NAME           => '/users.ini';          # maps to values used by multisite defaults
+
 ### Global variables ###
 my (
     $sw_run,                                              # required to run
@@ -43,7 +44,7 @@ my $pccObject = pcc->new;
 # File version
 my $major   = 0;
 my $minor   = 1;
-my $build   = 3;
+my $build   = 4;
 my $VERSION = $pccObject->format_version_number( $major, $minor, $build );
 
 # Header history
@@ -92,13 +93,7 @@ my $doc = <<ENDDOC;
                         Default is off
  
 ENDDOC
-if ( $ENV{COMPUTERNAME} eq "CCMSFTP" || $ENV{COMPUTERNAME} eq "NIGHTCRAWLER" ) {
 
-    # ToDo - remove the test code
-    # Test bench license checkout is extremely slow, try to grap a license up front
-    warn "Still test code in here!\n";
-    my @burnlicense = qx(cleartool lsvob 2>&1);
-}
 validate_options();
 
 # Initialize the rest
@@ -131,22 +126,40 @@ create_special();
 # Move created packages to ftp
 send_outgoing();
 
+process_clearquest();
+
 # get exit code and exit
+
+$log->information( "All processing finished, exiting with code: " . $log->get_accumulated_errorlevel() );
 exit $log->get_accumulated_errorlevel();
 ################################ SUBS ################################
+
+sub process_clearquest {
+    $log->information("Looking for scripts to process ClearQuest Multisite packages") if $sw_debug;
+
+    opendir( DIR, "$cwd" ) or die;
+  FILE: while ( my $file = readdir(DIR) ) {
+        next FILE unless ( $file =~ /^sync_cq/ );
+        $log->information("Found $file") if $sw_debug;
+        my @reply = $pccObject->_cmd( command => $file );
+        $log->information( join( '', @reply ) ) if $sw_debug;
+    }
+    closedir(DIR);
+}
+
 sub send_outgoing {
     foreach my $replica ( keys %specialoutgoing ) {
 
         # each replica that could have incoming packages to local replica
         my $server = ( split( /,/, $specialoutgoing{$replica} ) )[1];
         if ( $server =~ /^ftp:\/\//i ) {
+            $log->information("Moving packages for $replica to $server");
             send_to_ftp($replica);
-            $log->information("Moving packages for $replica at $server");
             next;
         }
         if ( $server =~ /^sftp:\/\//i ) {
+            $log->information("Moving packages for $replica $server");
             put_sftp_files($replica);
-            $log->information("Moving packages for $replica at $server");
             next;
         }
         if ( $server !~ /^ftp:\/\//i || $server !~ /^sftp:\/\//i ) {
@@ -280,14 +293,15 @@ sub fetch_incoming {
 
         # each replica that could have incoming packages to local replica
         my $server = ( split( /,/, $specialincoming{$replica} ) )[1];
+        chomp $server;
         if ( $server =~ /^ftp:\/\//i ) {
+            $log->information("Checking for incoming packages for $replica at $server");
             get_from_ftp($replica);
-            $log->information("Checking for incoming packages from $replica at $server");
             next;
         }
         if ( $server =~ /^sftp:\/\//i ) {
+            $log->information("Checking for incoming packages for $replica at $server");
             get_from_sftp($replica);
-            $log->information("Checking for incoming packages from $replica  at $server");
             next;
         }
         if ( $server !~ /^ftp:\/\//i || $server !~ /^sftp:\/\//i ) {
@@ -311,29 +325,41 @@ sub get_from_ftp {
     my $inisection = "replica:$replica";
     my $dropname   = get_name_only($replica);
     my $serverpath = "$path/to_$dropname";
+    $log->information("Connecting to $server as ${ $inicontents{$inisection} }{user}");
     start_ftp( server => $server, user => ${ $inicontents{$inisection} }{user}, password => ${ $inicontents{$inisection} }{password} );
     $ftpObject->cwd("$serverpath") or $log->assertion_failed( "Cannot change directory $serverpath " . $ftpObject->message );
     opendir( DIR, "$filesystempath" );
     my @remotefiles = $ftpObject->ls();
 
-    foreach (@remotefiles) {
-        next unless ( $ftpObject->size($_) );
-        if ( $ftpObject->get($_) ) {
-            $log->information("Retrieved $_") if $sw_debug;
-            $ftpObject->delete($_) or $log->warning("Couldn't delete $_");
+    if ( scalar(@remotefiles) ) {
+        $log->information( "Found files on $server:\n" . join( '\n', @remotefiles ) ) if $sw_debug;
+        foreach (@remotefiles) {
+            next unless ( $ftpObject->size($_) );
+            if ( $ftpObject->get($_) ) {
+                $log->information("Retrieved $_") if $sw_debug;
+                $ftpObject->delete($_) or $log->warning("Couldn't delete $_");
+            }
+            else {
+                $log->warning("Failed to retrieve $_: $ftpObject->message()  ");
+            }
         }
-        else {
-            $log->warning("Failed to retrieve $_: $ftpObject->message()  ");
-        }    # end if
-    }    # end foreach (@remotefiles)
+
+        my @importmsg = qx(multitool syncreplica -import -receive -sclass $sclass 2>&1);
+        $log->information( join @importmsg );
+
+    }
+    else {
+        $log->information("Did not find files on $server in folder $serverpath") if $sw_debug;
+    }
+
     closedir(DIR);
     stop_ftp();
     chdir $cwd;
-    my @importmsg = qx(multitool syncreplica -import -receive -sclass $sclass 2>&1);
-    $log->information( join @importmsg );
 }
 
 sub load_user_credentials {
+
+    $log->information("Reading Credentials from users.ini") if $sw_debug;
 
     # Read user credentials from ini file
     my $inifile = dirname($0) . INI_NAME;
@@ -341,8 +367,10 @@ sub load_user_credentials {
 
     # Change the keys of the anonymous hashes to lower case, need that for proper lookup later
     foreach my $k ( keys %inicontents ) {
+        $log->information("Users.ini had section [$k]") if $sw_debug;
         foreach ( keys %{ $inicontents{$k} } ) {
             ${ $inicontents{$k} }{ lc($_) } = delete ${ $inicontents{$k} }{$_};
+            $log->information( "Key [" . lc($_) . "] has value [" . ${ $inicontents{$k} }{ lc($_) } . "]" ) if $sw_debug;
         }
     }
 }
@@ -356,6 +384,7 @@ sub send_to_ftp {
         my $inisection = "replica:$replicalist";
         my $dropname   = get_name_only($replicalist);
         my $serverpath = "$path/to_$dropname";
+        $log->information("Opening connection to $server as ${ $inicontents{$inisection} }{user} ");
         start_ftp( server => $server, user => ${ $inicontents{$inisection} }{user}, password => ${ $inicontents{$inisection} }{password} );
         $ftpObject->cwd("$serverpath") or $log->assertion_failed( "Cannot change directory $serverpath:" . $ftpObject->message );
         opendir( DIR, "$filesystempath" ) or die;
@@ -364,10 +393,11 @@ sub send_to_ftp {
 
             # Delete the shipping order files
             if ( $file =~ /^sh_o_sync_/ ) {
-                $log->information_always("Removed annoying shipping order file: $file") if $sw_debug;
+                $log->information_always("Deleting unnessecary shipping order file: $file") if $sw_debug;
                 unlink $file or $log->warning("Trouble removing $file: $!");
                 next;
             }
+            $log->information("Found file to be uploaded: $file") if $sw_debug;
             if ( $ftpObject->put($file) ) {
                 $log->information_always("Succesfully copied $file to $server in  $serverpath");
                 unlink $file or $log->warning("Failed to delete $file from $filesystempath");
@@ -377,6 +407,7 @@ sub send_to_ftp {
             }
         }
         closedir(DIR);
+        $log->information("Done looking for uploadable files") if $sw_debug;
         stop_ftp();
         chdir $cwd;
     }
@@ -397,15 +428,16 @@ sub start_ftp {
 }
 
 sub create_special {
-    print "For special sync:\n";
     my %result = ();
+
     foreach my $replicalist ( keys %specialoutgoing ) {
 
         # TODO What if this replica, has multiple special transports ?
         my ( $sclass, $server, $path ) = split( /,/, $specialoutgoing{$replicalist} );
         $log->information("Replica $replicalist uses storage class $sclass, to server $server in directory at $path\n") if $sw_debug;
-        my @retval = qx(\"$synclistpgm\" -ship -sclass $sclass -replicas $replicalist 2>&1);
-        $log->information( join @retval ) if $sw_debug;
+        my @retval = grep { !/^$/ } qx(\"$synclistpgm\" -ship -sclass $sclass -replicas $replicalist 2>&1);
+        chomp @retval;
+        $log->information( join( '', @retval ) ) if ( $sw_debug && ( scalar(@retval) ) );
     }
 }
 
@@ -413,7 +445,7 @@ sub create_default {
 
     # Process normal syncs
     my %result = ();
-    print "\nProcess normal syncs:\n";
+    $log->information("Processing replica's for normal syncronization");
     foreach (@normaltransport) {
         /(.*)(@.*)/;
         push @{ $result{$2} }, $1;
@@ -423,8 +455,9 @@ sub create_default {
         $first = $first . $vob;
         my $replicalist = join( ',', $first, @{ $result{$vob} } );
         $log->information("Calling for standard processing: [$replicalist]") if $sw_debug;
-        my @retval = qx(\"$synclistpgm\" -replicas $replicalist 2>&1);
-        $log->information( join @retval ) if $sw_debug;
+        my @retval = grep { !/^$/ } qx(\"$synclistpgm\" -replicas $replicalist 2>&1);
+        chomp @retval;
+        $log->information( join( '', @retval ) ) if ( $sw_debug && ( scalar(@retval) ) );
     }
 }
 
@@ -475,6 +508,9 @@ sub add_special {
 }
 
 sub get_candidates {
+
+    # Find replicated vobs.
+    #
     foreach my $tag (@vobtags) {
 
         # process vob only if it is replicated
@@ -482,7 +518,7 @@ sub get_candidates {
         my $replicaname = $pccObject->get_localreplica( tag => $tag );
         $log->information("Found a local replica name : [$replicaname] for vob $tag") if $sw_debug;
 
-        # if hyperlink type exist from this replica to another, add the target to %specialoutgoing
+        # if hyperlink type SpecialTransport exist from this replica to another, add the target to %specialoutgoing
         add_special( replica => $replicaname );
         add_normal( vobtag => $tag );
     }
@@ -491,8 +527,9 @@ sub get_candidates {
 sub GetListExportScript {
 
     # We need "sync_export_list.bat" - check it exists
+    $log->information("Looking for sync_export_list.bat") if $sw_debug;
     my $pathstring = $pccObject->get_cchome();
-    $log->information("Got [$pathstring] string back from  \$pccObject->get_cchome()");    # if $sw_debug;
+    $log->information("Got [$pathstring] string back from  \$pccObject->get_cchome()") if $sw_debug;
     $pathstring = $pathstring . '\config\scheduler\tasks\sync_export_list.bat';
     $log->information("Changed it to [$pathstring]") if $sw_debug;
     if ( -f $pathstring ) {
@@ -513,6 +550,17 @@ sub validate_options {
         "debug!"   => \$sw_debug,      # all output
     );
     die "$usage" unless GetOptions(%options);
+
+    if ( $ENV{COMPUTERNAME} eq "CCMSFTP" || $ENV{COMPUTERNAME} eq "NIGHTCRAWLER" ) {
+
+        # ToDo - remove the test code
+        # Test bench license checkout is extremely slow, try to grap a license up front
+        warn "Still test code in here!\n";
+        my @burnlicense = qx(cleartool lsvob 2>&1);
+        $sw_debug = 1;
+    }
+
     $sw_verbose = $sw_debug ? $sw_debug : $sw_verbose;
     die "$0 is only tested on Windows" unless $^O =~ /^MSWin/;
+
 }
