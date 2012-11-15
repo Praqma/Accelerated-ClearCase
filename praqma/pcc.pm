@@ -437,7 +437,6 @@ sub ct ($) {
 Returns an array reference fully qualified streamsof the visible (current region) vobs
 
 =cut
-
 sub get_components_invob( ) {
     my $self  = shift;
     my %parms = @_;
