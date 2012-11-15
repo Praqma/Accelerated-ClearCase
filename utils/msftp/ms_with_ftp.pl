@@ -193,7 +193,7 @@ sub get_from_sftp {
     my $listcommands = File::Temp->new( TEMPLATE => 'temp_XXXXX', DIR => $ENV{TEMP}, SUFFIX => '.dat' );
     print $listcommands "dir $srvpath\n";
     print $listcommands "lcd $target\n";
-    print $listcommands "mget $srvpath/*.*\n";
+    print $listcommands "mget $srvpath/*\n";
     print $listcommands "exit\n";
     my $cmd = "psftp.exe -pw $s_pass -b $listcommands $s_user\@$host";
     my @remotefiles = $pccObject->_cmd( command => $cmd );
@@ -295,11 +295,13 @@ sub put_sftp_files {
 }
 
 sub fetch_incoming {
+    my %seen_classes;
     foreach my $replica ( keys %specialincoming ) {
 
         # each replica that could have incoming packages to local replica
-        my $server = ( split( /,/, $specialincoming{$replica} ) )[1];
+        my ( $class, $server ) = ( split( /,/, $specialincoming{$replica} ) )[ 0, 1 ];
         chomp $server;
+        $seen_classes{$class}++;
         if ( $server =~ /^ftp:\/\//i ) {
             $log->information("Checking for incoming packages for $replica at $server");
             get_from_ftp($replica);
@@ -313,6 +315,12 @@ sub fetch_incoming {
         if ( $server !~ /^ftp:\/\//i || $server !~ /^sftp:\/\//i ) {
             $log->warning("Server type $server is not supported, the information was found on replica:$replica ");
         }
+    }
+    foreach ( keys %seen_classes ) {
+        $log->information("Importing for storageclass $_ ") if $sw_debug;
+        my $cmd = " syncreplica -import -receive -sclass $_";
+        my @importmsg = $pccObject->mt( command => $cmd );
+        $log->information( join( '', @importmsg ) );
     }
 }
 
@@ -349,9 +357,6 @@ sub get_from_ftp {
                 $log->warning("Failed to retrieve $_: $ftpObject->message()  ");
             }
         }
-
-        my @importmsg = qx(multitool syncreplica -import -receive -sclass $sclass 2>&1);
-        $log->information( join @importmsg );
 
     }
     else {
@@ -494,7 +499,7 @@ sub add_special {
     foreach (@outgoing) {
 
         # @outgoing is empty if the replica does not have a  TRANSPORT_HLTYPE hyperlink
-        # each has the format: '    SpecialTransport -> replica:nightwalker@\enbase "ftp,ftp.praqma.net,/array1/ccmsftp/drop1"'
+        # each has the format: '    SpecialTransport -> replica:nightwalker@\enbase "ftp,sftp://ftp.praqma.net,/array1/ccmsftp/drop1"'
         my ( $target, $instruction ) = $_ =~ /^.*->\s+(\S+)\s+"(.*)"$/;
         $target =~ s/(replica:)(.*)/$2/;
         $specialoutgoing{$target} = $instruction;
@@ -518,6 +523,7 @@ sub get_candidates {
     # Find replicated vobs.
     #
     foreach my $tag (@vobtags) {
+        $log->information("Checking vobtag $tag") if $sw_debug;
 
         # process vob only if it is replicated
         next unless ( $pccObject->IsReplicated( vobtag => $tag ) );
