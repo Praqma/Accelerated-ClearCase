@@ -31,8 +31,12 @@ my (
     $sw_verbose,
     $sw_debug,
     %options,                                             # list of command line options
+    $cwd,                                                 # Current working directory
+    @vobtags,                                             # Array of known vobtags
     $synclistpgm,                                         # synclist pgram
     @normaltransport,                                     # list of replica that use default shipping
+    %storageclasses,                                      # list of storage classes and their storagebays
+    %psftp_known_hosts,                                   # list of known sftp hosts (psftp saves their certificate in registry)
     %specialoutgoing,                                     # list of replica's that this replica should send to
     %specialincoming,                                     # list of replica's that this replica should receive from
     $ftpObject,                                           # ftp object
@@ -44,7 +48,7 @@ my $pccObject = pcc->new;
 # File version
 my $major   = 0;
 my $minor   = 1;
-my $build   = 4;
+my $build   = 5;
 my $VERSION = $pccObject->format_version_number( $major, $minor, $build );
 
 # Header history
@@ -64,52 +68,40 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
+2012-11-15  Jens Brejner   Fix bug with with contact to sftp server (v 0.1005)
 2012-09-30  Jens Brejner   Initial Version (v 0.1003)
+
 -------------------------------------------------------------------------
  
 ENDREVISION
 my $usage = <<ENDUSAGE;
-$Scriptfile -lsquarantine [-autopurge [-sendmail] [-days DD] | -autorecover [-days DD] ] 
+$Scriptfile -run [-debug] [-verbose] [-logfile path_to_log_file]
 $Scriptfile -help
 Auxiliary switches [-[no]debug | -[no]verbose | -[no]logfile [location]
  
 ENDUSAGE
 my $doc = <<ENDDOC;
 -run                    Required. Process all vobs                 
--dryrun                Optional. List only the replicas that are found in each group
 -help                   Only display the help you are now watching   
  
 --- Auxiliary switches (can be omitted or used on all functions)---
  
--[no]logfile [location] Sets whether or not to create a logfile.
-                        May define the name [and location] of the logfile.
-                        Default value is the temp dir (usually under
-                        users " doc &set ") and " view_q . pl [PID] . log "
- 
--[no]verbose            Toggles verbose mode (log to STDOUT)
+-logfile <location>     Sets whether or not to create specific logfile.
+                        Default value is the users temp dir 
+-verbose                Toggles verbose mode (log to STDOUT)
                         Default is on (for manual execution, verbose is recommended)
- 
--[no]debug              Toggles debug mode (additional information + force logfile + verbose)
+-debug                  Toggles debug mode (additional information + force logfile + verbose)
                         Default is off
  
 ENDDOC
 
+### Main starts here, continues till ### SUBS ###
+
+# Check input parameters
 validate_options();
 
 # Initialize the rest
-my $cwd = getcwd();
-$log->set_verbose($sw_verbose);
-$log->enable(1);
-$log->conditional_enable( ( $sw_verbose || $sw_debug ) );
-load_user_credentials();
-
-# define the path to sync_export_list.bat
-$synclistpgm = GetListExportScript();
-my %storageclasses    = $pccObject->get_multisite_class_bays();
-my %psftp_known_hosts = $pccObject->get_psftp_known_hosts();
-
-# get all the vobtags
-my @vobtags = @{ $pccObject->get_vobtags() };
+initialize();
 
 # sort replica's by transport type
 get_candidates();
@@ -129,10 +121,12 @@ send_outgoing();
 process_clearquest();
 
 # get exit code and exit
-
-$log->information( "All processing finished, exiting with code: " . $log->get_accumulated_errorlevel() );
+my $exitval = $log->get_accumulated_errorlevel();
+$log->information("All processing finished, exiting with code: $exitval") if ( $exitval eq 0 );
+$log->warning("All processing finished, exiting with code: $exitval") if ( $exitval gt 0 );
 exit $log->get_accumulated_errorlevel();
-################################ SUBS ################################
+
+### SUBS ###
 
 sub process_clearquest {
     $log->information("Looking for scripts to process ClearQuest Multisite packages") if $sw_debug;
@@ -175,8 +169,8 @@ sub init_psftp_host {
     # If the host is new, accept to save the certificate
     my %parms = @_;
     unless ( exists $psftp_known_hosts{ $parms{server} } ) {
-        my $cmd = "psftp.exe -pw $parms{password} $parms{user}\@$parms{server}";
-        open( PS, "| $cmd" ) || die "Failed: $!\n";
+        my $cmd = "psftp.exe -pw $parms{password} $parms{user}\@$parms{server} 2>&1";
+        open( PS, "| $cmd" ) || $log->assertion_failed("Command $cmd Failed: $!\n");
         print PS "y\n";
         print PS "exit\n";
         close(PS);
@@ -190,9 +184,10 @@ sub get_from_sftp {
     my $s_user     = ${ $inicontents{$inisection} }{user};
     my $s_pass     = ${ $inicontents{$inisection} }{password};
     my ( $sclass, $server, $srvpath ) = split( /,/, $specialincoming{$replica} );
+    my $host            = ( split( '//', $server ) )[1];
     my $target          = $storageclasses{$sclass} . TRANSPORT_INCOMING;
     my %files_on_server = ();
-    init_psftp_host( server => $server, user => $s_user, password => $s_user );
+    init_psftp_host( server => $host, user => $s_user, password => $s_pass );
 
     # psftp is not scriptable, but can process commands from a file. Build the command in a temp file
     my $listcommands = File::Temp->new( TEMPLATE => 'temp_XXXXX', DIR => $ENV{TEMP}, SUFFIX => '.dat' );
@@ -200,11 +195,15 @@ sub get_from_sftp {
     print $listcommands "lcd $target\n";
     print $listcommands "mget $srvpath/*.*\n";
     print $listcommands "exit\n";
-    my $cmd = "psftp.exe -pw $s_pass -b $listcommands $s_user\@$server";
+    my $cmd = "psftp.exe -pw $s_pass -b $listcommands $s_user\@$host";
     my @remotefiles = $pccObject->_cmd( command => $cmd );
+    chomp @remotefiles;
 
     # in the command output (stored in @remotefiles, we have the filenames and their size, put the info into %files_on_server
     foreach (@remotefiles) {
+        if (/^Unable to/i) {
+            $log->assertion_failed( "Unexpected psftp reply:\n" . join( '', @remotefiles ) );
+        }
         $log->information("$_");
         next unless /^-/;
         my ( $size, $name ) = ( split( /\s+/, $_, 9 ) )[ 4, 8 ];
@@ -221,7 +220,7 @@ sub get_from_sftp {
         }
     }
     print $deletecommands "exit\n";
-    $cmd = "psftp.exe -pw $s_pass -b $deletecommands $s_user\@$server";
+    $cmd = "psftp.exe -pw $s_pass -b $deletecommands $s_user\@$host";
     @remotefiles = $pccObject->_cmd( command => $cmd );
     $log->information( join( '', @remotefiles ) );
 }
@@ -232,36 +231,43 @@ sub put_sftp_files {
     my $s_user     = ${ $inicontents{$inisection} }{user};
     my $s_pass     = ${ $inicontents{$inisection} }{password};
     my ( $sclass, $server, $srvpath ) = split( /,/, $specialoutgoing{$replica} );
+    my $host            = ( split( '//', $server ) )[1];
     my $source          = $storageclasses{$sclass} . TRANSPORT_OUTGOING;
     my %files_on_server = ();
 
     # Accept sftp server's certificate
-    init_psftp_host( server => $server, user => $s_user, password => $s_user );
+    init_psftp_host( server => $host, user => $s_user, password => $s_pass );
 
     # psftp is not scriptable, but can process commands from a file. Build the command in a temp file
     my $putcommands = File::Temp->new( TEMPLATE => 'temp_XXXXX', DIR => $ENV{TEMP}, SUFFIX => '.dat' );
     print $putcommands "lcd $source\n";    # During sftp session, change to local directory of the outgoing files
     print $putcommands "cd $srvpath\n";    # During sftp session, change to server folder
+    chdir "$source";
     opendir( DIR, "$source" ) or die;
   FILE: while ( my $file = readdir(DIR) ) {
         next FILE if ( -z $file );
 
         # Delete the shipping order files, we don't need them
         if ( $file =~ /^sh_o_sync_/ ) {
-            $log->information_always("Removed annoying shipping order file: $file") if $sw_debug;
-            unlink $file or $log->warning("Trouble removing $file: $!");
+            $log->information("Removed unnessecary shipping order file: $file") if $sw_debug;
+            unlink $file or $log->warning("Trouble removing $file: $!\n");
             next;
         }
         print $putcommands "put $file\n";    # put each file found
     }
+    chdir $cwd;
     closedir(DIR);
     print $putcommands "dir $srvpath\n";
     print $putcommands "exit\n";
-    my $cmd = "psftp.exe -pw $s_pass -b $putcommands $s_user\@$server";
+    my $cmd = "psftp.exe -pw $s_pass -b $putcommands $s_user\@$host";
     my @reply = $pccObject->_cmd( command => $cmd );
+    chomp @reply;
 
     # in the command output (stored in @reply, we have the filenames and their size, put the info into %files_on_server
     foreach (@reply) {
+        if (/^Unable to/i) {
+            $log->assertion_failed( "Unexpected psftp reply:\n" . join( '', @reply ) );
+        }
         $log->information("$_");
         next unless /^-/;
         my ( $size, $name ) = ( split( /\s+/, $_, 9 ) )[ 4, 8 ];
@@ -541,6 +547,24 @@ sub GetListExportScript {
     }
 }
 
+sub initialize {
+    die "$0 is only tested on Windows" unless $^O =~ /^MSWin/;
+
+    $cwd = getcwd();
+    $log->set_verbose($sw_verbose);
+    $log->enable(1);
+    $log->conditional_enable( ( $sw_verbose || $sw_debug ) );
+    load_user_credentials();
+
+    # define the path to sync_export_list.bat
+    $synclistpgm       = GetListExportScript();
+    %storageclasses    = $pccObject->get_multisite_class_bays();
+    %psftp_known_hosts = $pccObject->get_psftp_known_hosts();
+
+    # get all the vobtags
+    @vobtags = @{ $pccObject->get_vobtags() };
+}
+
 sub validate_options {
     %options = (
         "run!"     => \$sw_run,        # run - wont process without
@@ -561,6 +585,6 @@ sub validate_options {
     }
 
     $sw_verbose = $sw_debug ? $sw_debug : $sw_verbose;
-    die "$0 is only tested on Windows" unless $^O =~ /^MSWin/;
+    ( print "$usage\n$doc" && exit 0 ) if ($sw_help)
 
 }
