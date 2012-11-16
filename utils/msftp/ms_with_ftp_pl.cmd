@@ -1,3 +1,8 @@
+@rem = ' This is a perl script for NT and UNIX.
+@echo off
+goto endofperl
+@rem ';
+
 require 5.000;
 use strict;
 $| = 1;
@@ -580,17 +585,13 @@ sub validate_options {
         "debug!"   => \$sw_debug,      # all output
     );
     die "$usage" unless GetOptions(%options);
-
-    if ( $ENV{COMPUTERNAME} eq "CCMSFTP" || $ENV{COMPUTERNAME} eq "NIGHTCRAWLER" ) {
-
-        # ToDo - remove the test code
-        # Test bench license checkout is extremely slow, try to grap a license up front
-        warn "Still test code in here!\n";
-        my @burnlicense = qx(cleartool lsvob 2>&1);
-        $sw_debug = 1;
-    }
-
     $sw_verbose = $sw_debug ? $sw_debug : $sw_verbose;
     ( print "$usage\n$doc" && exit 0 ) if ($sw_help)
 
 }
+
+__END__
+:endofperl
+pushd "%~dp0"
+ratlperl %0 %*
+popd
