@@ -1,5 +1,6 @@
-@echo off
+REM @echo off
+echo %0
 pushd "%~dp0"
 echo %cd%
-ratlperl ms_with_ftp.pl -debug -run
+REM ratlperl ms_with_ftp.pl -run -debug
 popd
