@@ -190,14 +190,14 @@ Return an array of known host names
 sub get_psftp_known_hosts {
 
     my $homekey = 'CUser/Software/SimonTatham/PuTTY/SshHostKeys/';
-    my $home = $Registry->{"$homekey"} or die "Can't read $homekey key: $^E\n";
-
+    my $home    = $Registry->{"$homekey"};
     my %hosts = ();
+    if ( defined $home ) {
+        foreach ( keys %{$home} ) {
+            my ( $junk, $server ) = split( ':', $_ );
+            $hosts{$server}++;
 
-    foreach ( keys %{$home} ) {
-        my ( $junk, $server ) = split( ':', $_ );
-        $hosts{$server}++;
-
+        }
     }
     return %hosts;
 }
@@ -437,6 +437,7 @@ sub ct ($) {
 Returns an array reference fully qualified streamsof the visible (current region) vobs
 
 =cut
+
 sub get_components_invob( ) {
     my $self  = shift;
     my %parms = @_;
