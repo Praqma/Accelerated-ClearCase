@@ -53,7 +53,7 @@ my $pccObject = pcc->new;
 # File version
 my $major   = 0;
 my $minor   = 1;
-my $build   = 5;
+my $build   = 6;
 my $VERSION = $pccObject->format_version_number( $major, $minor, $build );
 
 # Header history
@@ -73,6 +73,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
+2012-11-18  Jens Brejner   Always use local storage class name (v 0.1006)
 2012-11-15  Jens Brejner   Fix bug with with contact to sftp server (v 0.1005)
 2012-09-30  Jens Brejner   Initial Version (v 0.1003)
 

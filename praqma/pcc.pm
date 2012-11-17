@@ -20,7 +20,7 @@ use lib "$_packagedir/..";
 
 my $major = 0;
 my $minor = 1;
-my $build = 8;
+my $build = 9;
 our $VERSION = &format_version_number( $major, $minor, $build );
 
 use vars qw($VERSION);
