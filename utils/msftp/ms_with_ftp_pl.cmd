@@ -146,6 +146,32 @@ sub process_clearquest {
     closedir(DIR);
 }
 
+sub get_sclass_for_incoming {
+
+    my $replica = shift;
+    my $pattern = qr/^([^@]+)([@][\\]\S+$)/o;
+    my $tag;
+    $log->information("Finding storageclass to import to for replica $replica") if $sw_debug;
+    if ( $replica =~ $pattern ) {
+        $tag = $2;
+        $log->information("The vobtag is $tag") if $sw_debug;
+    }
+    $log->assertion_failed( "Failed to get vobtag at line " . __LINE__ ) unless ($tag);
+
+    foreach ( keys %specialoutgoing ) {
+        $_ =~ $pattern;
+        my $receiving_vob = $2;
+        if ( $tag eq $receiving_vob ) {
+            $log->information("Found $_ with value $specialoutgoing{$_}") if $sw_debug;
+            return ( split( ',', $specialoutgoing{$_} ) )[0];
+        }
+    }
+
+    # We should never get here, we were supposed to return when finding the the sclass in loop above
+    # so if we get here - something is wrong
+    $log->assertion_failed("Failed to find storageclass for import for replica $replica, can't continue");
+}
+
 sub send_outgoing {
     foreach my $replica ( keys %specialoutgoing ) {
 
@@ -188,8 +214,9 @@ sub get_from_sftp {
     my $inisection = "replica:$replica";
     my $s_user     = ${ $inicontents{$inisection} }{user};
     my $s_pass     = ${ $inicontents{$inisection} }{password};
-    my ( $sclass, $server, $srvpath ) = split( /,/, $specialincoming{$replica} );
+    my ( $server, $srvpath ) = ( split( /,/, $specialincoming{$replica} ) )[ 1, 2 ];
     my $host            = ( split( '//', $server ) )[1];
+    my $sclass          = get_sclass_for_incoming($replica);
     my $target          = $storageclasses{$sclass} . TRANSPORT_INCOMING;
     my %files_on_server = ();
     init_psftp_host( server => $host, user => $s_user, password => $s_pass );
@@ -304,9 +331,9 @@ sub fetch_incoming {
     foreach my $replica ( keys %specialincoming ) {
 
         # each replica that could have incoming packages to local replica
-        my ( $class, $server ) = ( split( /,/, $specialincoming{$replica} ) )[ 0, 1 ];
+        my ($server) = ( split( /,/, $specialincoming{$replica} ) )[1];
         chomp $server;
-        $seen_classes{$class}++;
+
         if ( $server =~ /^ftp:\/\//i ) {
             $log->information("Checking for incoming packages for $replica at $server");
             get_from_ftp($replica);
@@ -321,7 +348,15 @@ sub fetch_incoming {
             $log->warning("Server type $server is not supported, the information was found on replica:$replica ");
         }
     }
+
+    foreach ( keys %specialoutgoing ) {
+
+        # find local storage classes in use
+        my ($class) = ( split( /,/, $specialoutgoing{$_} ) )[0];
+        $seen_classes{$class}++;
+    }
     foreach ( keys %seen_classes ) {
+
         $log->information("Importing for storageclass $_ ") if $sw_debug;
         my $cmd = " syncreplica -import -receive -sclass $_";
         my @importmsg = $pccObject->mt( command => $cmd );
@@ -337,7 +372,8 @@ sub get_name_only {
 
 sub get_from_ftp {
     my $replica = shift;
-    my ( $sclass, $server, $path ) = split( /,/, $specialincoming{$replica} );
+    my $sclass  = get_sclass_for_incoming($replica);
+    my ( $server, $path ) = ( split( /,/, $specialincoming{$replica} ) )[ 1, 2 ];
     $log->assertion_failed("Cant find Storage bay for class $sclass") unless exists $storageclasses{$sclass};
     my $filesystempath = $storageclasses{$sclass} . TRANSPORT_INCOMING;
     chdir $filesystempath;
@@ -392,41 +428,40 @@ sub load_user_credentials {
 }
 
 sub send_to_ftp {
-    foreach my $replicalist ( keys %specialoutgoing ) {
-        my ( $sclass, $server, $path ) = split( /,/, $specialoutgoing{$replicalist} );
-        $log->assertion_failed("Cant find Storage bay for class $sclass") unless exists $storageclasses{$sclass};
-        my $filesystempath = $storageclasses{$sclass} . TRANSPORT_OUTGOING;
-        chdir $filesystempath;
-        my $inisection = "replica:$replicalist";
-        my $dropname   = get_name_only($replicalist);
-        my $serverpath = "$path/to_$dropname";
-        $log->information("Opening connection to $server as ${ $inicontents{$inisection} }{user} ");
-        start_ftp( server => $server, user => ${ $inicontents{$inisection} }{user}, password => ${ $inicontents{$inisection} }{password} );
-        $ftpObject->cwd("$serverpath") or $log->assertion_failed( "Cannot change directory $serverpath:" . $ftpObject->message );
-        opendir( DIR, "$filesystempath" ) or die;
-      FILE: while ( my $file = readdir(DIR) ) {
-            next FILE if ( -z $file );
+    my $replicalist = shift;
+    my ( $sclass, $server, $path ) = split( /,/, $specialoutgoing{$replicalist} );
+    $log->assertion_failed("Cant find Storage bay for class $sclass") unless exists $storageclasses{$sclass};
+    my $filesystempath = $storageclasses{$sclass} . TRANSPORT_OUTGOING;
+    chdir $filesystempath;
+    my $inisection = "replica:$replicalist";
+    my $dropname   = get_name_only($replicalist);
+    my $serverpath = "$path/to_$dropname";
+    $log->information("Opening connection to $server as ${ $inicontents{$inisection} }{user} ");
+    start_ftp( server => $server, user => ${ $inicontents{$inisection} }{user}, password => ${ $inicontents{$inisection} }{password} );
+    $ftpObject->cwd("$serverpath") or $log->assertion_failed( "Cannot change directory $serverpath:" . $ftpObject->message );
+    opendir( DIR, "$filesystempath" ) or die;
+  FILE: while ( my $file = readdir(DIR) ) {
+        next FILE if ( -z $file );
 
-            # Delete the shipping order files
-            if ( $file =~ /^sh_o_sync_/ ) {
-                $log->information_always("Deleting unnessecary shipping order file: $file") if $sw_debug;
-                unlink $file or $log->warning("Trouble removing $file: $!");
-                next;
-            }
-            $log->information("Found file to be uploaded: $file") if $sw_debug;
-            if ( $ftpObject->put($file) ) {
-                $log->information_always("Succesfully copied $file to $server in  $serverpath");
-                unlink $file or $log->warning("Failed to delete $file from $filesystempath");
-            }
-            else {
-                $log->warning( "Failed to copy file $file " . $ftpObject->message );
-            }
+        # Delete the shipping order files
+        if ( $file =~ /^sh_o_sync_/ ) {
+            $log->information_always("Deleting unnessecary shipping order file: $file") if $sw_debug;
+            unlink $file or $log->warning("Trouble removing $file: $!");
+            next;
         }
-        closedir(DIR);
-        $log->information("Done looking for uploadable files") if $sw_debug;
-        stop_ftp();
-        chdir $cwd;
+        $log->information("Found file to be uploaded: $file") if $sw_debug;
+        if ( $ftpObject->put($file) ) {
+            $log->information_always("Succesfully copied $file to $server in  $serverpath");
+            unlink $file or $log->warning("Failed to delete $file from $filesystempath");
+        }
+        else {
+            $log->warning( "Failed to copy file $file " . $ftpObject->message );
+        }
     }
+    closedir(DIR);
+    $log->information("Done looking for uploadable files") if $sw_debug;
+    stop_ftp();
+    chdir $cwd;
 }
 
 sub stop_ftp {
