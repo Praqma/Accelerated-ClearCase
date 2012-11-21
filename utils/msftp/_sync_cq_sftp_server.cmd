@@ -32,8 +32,8 @@ SET _OUTGOING_DROP_PATH_=
 REM DO NOT MODIFY BELOW HERE, 
 
 SET _WORKDIR_=%SYSTEMDRIVE%\cq_ms_work
-SET _GETCMDS_=./getcmds.txt
-SET _PUTCMDS_=./putcmds.txt
+SET _GETCMDS_=getcmds.txt
+SET _PUTCMDS_=putcmds.txt
 
 GOTO proc_in
 
@@ -68,22 +68,23 @@ FOR %%a in (%_SCLASSPATH_%\incoming\*) do FOR /F "tokens=1-8,*" %%d IN ('findstr
 	IF "%%~nxa" EQU "%%l" (
 		IF %%~za EQU %%h (
 			@echo  Will remove: "%_INGOING_DROP_PATH_%/%%a"
-			@ECHO rm "%_INGOING_DROP_PATH_%/%%a" >> %_GETCMDS_% 
+			@ECHO rm "%_INGOING_DROP_PATH_%/%%~nxa" >> %_GETCMDS_% 
 		) ELSE (
 			@echo.
-			@echo  NOT removable: "%_INGOING_DROP_PATH_%/%%a"
+			@echo  NOT removable: "%_INGOING_DROP_PATH_%/%%~nxa"
 			@echo.			
 		)
 	)
 )
 @ECHO exit >> %_GETCMDS_%
 
+FOR %%a in (%_SCLASSPATH_%\incoming\sh_o_sync*.xml) do del "%%a"
 :: Talk to server again, delete the files we have downloaded succesfull (well, they match on name and size)
 psftp.exe -pw %_DROPSITEPASS_% -b %_GETCMDS_% %_DROPSITEUSER_%@%_DROPSITE_% 2>&1
 
 for %%a in (%_FAMILIES_%) do call :import %%a  
 
-GOTO :proc_out
+GOTO proc_out
 
 :proc_out
 :: Process outgoing data, create packages and upload to sftp server
