@@ -28,9 +28,8 @@ SET _INGOING_DROP_PATH_=
 REM The path on server to collect incoming packages from
 SET _OUTGOING_DROP_PATH_=
 
-
-REM DO NOT MODIFY BELOW HERE, 
-
+REM Stop - 
+REM DO NOT MODIFY BELOW HERE
 SET _WORKDIR_=%SYSTEMDRIVE%\cq_ms_work
 SET _GETCMDS_=getcmds.txt
 SET _PUTCMDS_=putcmds.txt
@@ -67,7 +66,7 @@ del %_GETCMDS_%
 FOR %%a in (%_SCLASSPATH_%\incoming\*) do FOR /F "tokens=1-8,*" %%d IN ('findstr /B /C:"-r" getcmds.txt.tmp') DO (
 	IF "%%~nxa" EQU "%%l" (
 		IF %%~za EQU %%h (
-			@echo  Will remove: "%_INGOING_DROP_PATH_%/%%a"
+			@echo  Will remove: "%_INGOING_DROP_PATH_%/%%~nxa"
 			@ECHO rm "%_INGOING_DROP_PATH_%/%%~nxa" >> %_GETCMDS_% 
 		) ELSE (
 			@echo.
