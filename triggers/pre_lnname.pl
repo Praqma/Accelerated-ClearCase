@@ -4,16 +4,16 @@ use strict;
 our ( $Scriptdir, $Scriptfile, $parentdir );
 
 BEGIN {
-	use File::Basename;
-	$Scriptdir  = dirname(__FILE__) . "\\";
-	$Scriptfile = basename(__FILE__);
+    use File::Basename;
+    $Scriptdir  = dirname(__FILE__) . "\\";
+    $Scriptfile = basename(__FILE__);
 
-	# Ensure that the view-private file will get named back on rejection.
-	END {
-		rename( "$ENV{CLEARCASE_PN}.mkelem", $ENV{CLEARCASE_PN} )
-		  if $? && !-e $ENV{CLEARCASE_PN} && -e "$ENV{CLEARCASE_PN}.mkelem";
+    # Ensure that the view-private file will get named back on rejection.
+    END {
+        rename( "$ENV{CLEARCASE_PN}.mkelem", $ENV{CLEARCASE_PN} )
+          if $? && !-e $ENV{CLEARCASE_PN} && -e "$ENV{CLEARCASE_PN}.mkelem";
 
-	}
+    }
 }
 
 use lib $Scriptdir . "..\\";
@@ -27,14 +27,14 @@ $| = 1;
 our $TRIGGER_NAME = "ACC_PRE_LNNAME";
 
 our %install_params = (
-	"name"     => $TRIGGER_NAME,                     # The name of the trigger
-	"mktrtype" => "-element -all -preop lnname ",    # The stripped-down mktrtype command
-	"supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
+    "name"     => $TRIGGER_NAME,                     # The name of the trigger
+    "mktrtype" => "-element -all -preop lnname ",    # The stripped-down mktrtype command
+    "supports" => "bccvob,ucmvob",                   # csv list of generic and/or custom VOB types (case insensetive)
 );
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "2";
+our $REVISION = "4";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -60,6 +60,8 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR             NOTE
 ----------  -----------------  ---------------------------------------------------
+2012-10-25  Jens Brejner       Improve clarity of message (v 0.1.4)
+2012-06-19  Jens Brejner       One message only before exit (v 0.1.3)
 2012-02-16  Jens Brejner       No abbreviation in cleartool command (v 0.1.2)
 2011-11-01  Margit Bennetzen   Script rename to pre_lnname and whitespacecheck added (v0.2)
 2011-09-27  Margit Bennetzen   Script added to acc (v0.1)
@@ -94,97 +96,110 @@ my $logfile = $log->get_logfile;
 ########################### MAIN ###########################
 # Vob symbolic links can not be renamed.
 exit 0 if -l $ENV{CLEARCASE_PN};
+exit 0 if ( $ENV{CLEARCASE_POP_KIND} eq "rmname" );
 
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
 
-	# Require file element has extension if enabled from configuration file
-	if ( $trgconfig{require_extension} && $ENV{ CLEARCASE_MTYPE} =~ 'file element')  {
+    # Check pathlength if requested
+    if ( $trgconfig{pathlength} > 0 ) {
+        my $pathlength = length( $ENV{CLEARCASE_PN} );
+        if ( $pathlength > $trgconfig{pathlength} ) {
+            $log->error("The length of [$ENV{CLEARCASE_PN}] is $pathlength, which exceeds $trgconfig{pathlength}. Use a shorter name.");
+            $log->error("The path length limitation of $trgconfig{pathlength}, has been chosen by ClearCase Administrator.");
+            final_exit();
+        }
+        else {
+            $log->information("Length of [$ENV{CLEARCASE_XPN}] is OK; $pathlength is less than $trgconfig{pathlength}");
+        }
+    }
 
-		my $file = basename( $ENV{CLEARCASE_PN} );
+    # Check for whitespaces
+    if ( $trgconfig{whitespacecheck} ) {
+        my $reason;
+        my ( $name, $extension ) = ( fileparse( $ENV{CLEARCASE_PN}, qr/\.[^.]*/ ) )[ 0, 2 ];
+        my $filename = $name . $extension;
 
-		# Match a dot followed by any number of non dots at the end of the line
-		if ( $file =~ /(\.[^.]+)$/ ) {
-			$log->information("File [$file}] has an extension");
-		}
-		else {
-			$log->error("\nFile [$file] has no extension, please rename so it has an extension");
-		}
+        # Double whitespace anywhere ?
+        $reason = "contains consecutive whitespaces";
+        complain( reason => $reason, file => $filename, part => $name )      if ( $name      =~ m/\s{2,}/g );
+        complain( reason => $reason, file => $filename, part => $extension ) if ( $extension =~ m/\s{2,}/g );
 
-	}
+        # Starts with whitespace ?
+        $reason = "begins with whitespace";
+        complain( reason => $reason, file => $filename, part => $name )      if ( $name      =~ m/^\s+.*/g );
+        complain( reason => $reason, file => $filename, part => $extension ) if ( $extension =~ m/^\.\s+.*/g );
 
-	# Check pathlength if requested
-	if ( $trgconfig{pathlength} > 0 ) {
-		my $pathlength = length( $ENV{CLEARCASE_PN} );
-		if ( $pathlength > $trgconfig{pathlength} ) {
-			$log->error("The length of [$ENV{CLEARCASE_PN}] is $pathlength, which exceeds $trgconfig{pathlength}. Use a shorter name.");
-			$log->error("The path length limitation of $trgconfig{pathlength}, has been chosen by ClearCase Administrator.");
-		}
-		else {
-			$log->information("Length of [$ENV{CLEARCASE_XPN}] is OK; $pathlength is less than $trgconfig{pathlength}");
-		}
-	}
+        # Ends with whitespace ?
+        $reason = "ends with whitespace";
+        complain( reason => $reason, file => $filename, part => $name )      if ( $name      =~ m/.*\s+$/g );
+        complain( reason => $reason, file => $filename, part => $extension ) if ( $extension =~ m/.*\s+$/g );
 
-	# Check for whitespaces
-	if ( $trgconfig{whitespacecheck} ) {
-		my ( $name, $extension ) = ( fileparse( $ENV{CLEARCASE_PN}, qr/\.[^.]*/ ) )[ 0, 2 ];
-		my $filename = $name . $extension;
+        final_exit();
 
-		# Double whitespace anywhere ?
-		complain( $filename, $name )      if ( $name      =~ m/\s{2,}/g );
-		complain( $filename, $extension ) if ( $extension =~ m/\s{2,}/g );
+    }
 
-		# Starts with whitespace ?
-		complain( $filename, $name )      if ( $name      =~ m/^\s+.*/g );
-		complain( $filename, $extension ) if ( $extension =~ m/^\.\s+.*/g );
-
-		# Ends with whitespace ?
-		complain( $filename, $name )      if ( $name      =~ m/.*\s+$/g );
-		complain( $filename, $extension ) if ( $extension =~ m/.*\s+$/g );
-
-	}
-
-	# Cleanup
-	my $exitcode = $log->get_accumulated_errorlevel();
-
-	if ( $exitcode eq 2 ) {
-		$parentdir = dirname( $ENV{CLEARCASE_PN} );
-
-		# is parentdir checked-out ?
-		if ( -w $parentdir ) {
-			$log->information("[$parentdir] is checkedout");
-
-			if (`cleartool diff -predecessor \"$parentdir\"`) {
-
-				# "cleartool diff" returns 0 if versions are identical
-				$log->information("[$parentdir] is being checked in");
-				qx(cleartool checkin -ncomment \"$parentdir\");
-
-			}
-			else {
-				$log->information("Undoing checkout of [$parentdir]");
-				qx(cleartool uncheckout -rm -ncomment \"$parentdir\");
-			}
-
-		}
-	}
-	exit $exitcode;
-
+    # Exit clean, found nothing to stop the operation
+    exit 0;
 }
 
 die "Trigger called out of context, we should never end here.";
 
 ############################## S U B S ########################################
 
-sub complain {
-	my $filename = shift;
-	my $part     = shift;
-	my $msg      = "\n\"$filename\" contains forbidden whitespace in this part:\n\"$part\"\n\"";
-	$msg = $msg . "+" x ( length($part) ) . "\"\n";
+sub final_exit {
 
-	$log->error($msg);
+    # Cleanup
+    my $exitcode = $log->get_accumulated_errorlevel();
+
+    if ( $exitcode eq 2 ) {
+        $parentdir = dirname( $ENV{CLEARCASE_PN} );
+
+        # is parentdir checked-out ?
+        if ( -w $parentdir ) {
+            $log->information("[$parentdir] is checkedout");
+
+            if (`cleartool diff -predecessor \"$parentdir\"`) {
+
+                # "cleartool diff" returns 0 if versions are identical
+                $log->information("[$parentdir] is being checked in");
+                qx(cleartool checkin -ncomment \"$parentdir\");
+
+            }
+            else {
+                $log->information("Undoing checkout of [$parentdir]");
+                qx(cleartool uncheckout -rm -ncomment \"$parentdir\");
+            }
+
+        }
+    }
+    exit $exitcode;
 
 }
 
-__END__
+sub complain {
 
+    my %parms    = @_;
+    my $reason   = $parms{reason};
+    my $filename = $parms{file};
+    my $part     = $parms{part};
+
+    my $msg = "\nThe filename: \"$filename\"\nis forbidden, because the part: \"$part\"\n\n$reason";
+
+    if ( defined( $ENV{CLEARCASE_CMDLINE} ) || defined( $ENV{ATRIA_WEB_GUI} ) ) {
+        $log->error($msg);
+    }
+    else {
+
+        $log->enable(1);
+        $log->set_verbose();
+        $log->error($msg);
+        $msg =~ s/\"/\"\"/g;
+        my $cmd = 'clearprompt proceed -type error -default proceed -prompt "' . $msg . '" -newline -mask proceed';
+
+        # On windows 7 (32 bit, Enterprise edition, it seems it is not nessecary to call clearprompt
+        # my $ret = qx($cmd);
+    }
+}
+
+__END__
