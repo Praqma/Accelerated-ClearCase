@@ -183,8 +183,8 @@ $clearcaselt = "";
 my $self = {};    #Reference to an anonymous hash, Will be blessed later
 
 # Module version
-$VERSION = "1.0.";
-$BUILD   = "12";
+my $VERSION = '1.0.';
+my $BUILD   = "12";
 
 my $header = <<ENDHEADER;
 #########################################################################

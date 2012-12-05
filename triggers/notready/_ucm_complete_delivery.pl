@@ -55,7 +55,9 @@ die "The script $0 is not ready for deployment\n";
 
 # The following modules is required for the send_baseline_email()
 # subroutine.
-use MIME::Lite;
+
+# use MIME::Lite;
+
 # Name of mail host
 my $mailhost = 'mailhost';
 # Domain of users
@@ -64,7 +66,7 @@ my $maildomain = '@mydomain.com';
 # The following modules are required for the make_diff() subroutine.
 use File::Spec;
 use File::Temp;
-use ClearCase::Argv;
+# use ClearCase::Argv;
 
 # values from trigger environment
 my $op_kind  = $ENV{CLEARCASE_OP_KIND};
