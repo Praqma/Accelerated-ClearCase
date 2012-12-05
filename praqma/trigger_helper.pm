@@ -3,7 +3,7 @@ require 5.001;
 package trigger_helper;
 use strict;
 
-our ( $Scriptdir, $Scriptfile );
+my ( $Scriptdir, $Scriptfile );
 
 BEGIN {
 	use File::Basename;
@@ -21,8 +21,6 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK $BUILD);
 require Exporter;
 @ISA = qw(Exporter);
 
-# @EXPORT = qw(new);
-
 @EXPORT = qw(&new);
 
 use constant MAX_SEMAPHORE_FILE_AGE_DAYS => 0.168;             # real (1 hr ~ 0.042 --> 4 hrs ~ 0.168)
@@ -31,7 +29,7 @@ use constant CONFIGFILES                 => '/CustomCfg/';     # Custom configur
 
 # File version
 $VERSION = "1.1";
-$BUILD   = "9";
+$BUILD   = "11";
 
 our $header = <<ENDHEADER;
 #########################################################################
@@ -66,6 +64,7 @@ DATE         EDITOR        NOTE
                            (version 1.1.7)
 2012-03-01  Jens Brejner   Support trigger comment string from script (v 1.1.9)
 2012-03-01  Jens Brejner   Fix bug in require_trigger_context (v 1.1.10)
+2012-12-04  Jens Brejner   Fix bug in semaphore path (v 1.1.11)
 
 -------------------------------------------------------------------------------
 ENDREVISION
@@ -78,7 +77,7 @@ sub new {
 }
 
 sub require_trigger_context() {
-
+    no warnings 'once';
 	defined( $ENV{CLEARCASE_VOB_PN} ) || die "$main::header\nFile version: $main::VERSION.$main::BUILD\n$main::revision";
 }
 
@@ -88,8 +87,8 @@ sub enable_semaphore_backdoor($) {
 	# If the semaphor file exists and it's not older than MAX_SEMAPHORE_FILE_AGE_DAYS
 	# then the trigger will exit silently with 0 - allowing the event the trigger subscribed to, to carry on
 
-	my $semaphore_dir  = $Scriptdir . SEMAPHORE_DIR;
-	my $semaphore_file = $semaphore_dir . "\\" . lc( $ENV{'username'} );
+	my $semaphore_dir  = $main::Scriptdir . SEMAPHORE_DIR;
+	my $semaphore_file = $semaphore_dir . "/" . lc( $ENV{'username'} );
 
 	my ( $mainpath, $mainscript ) = acc::split_dir_file($main::0);
 	if ( -e $semaphore_file ) {
@@ -324,9 +323,10 @@ sub scalar_dump($) {
 	  . $$ref . "]\n";
 }
 
-## The CLEARCASE_MTYPE variable tells which type is involved
-## ...in clear text (%@\#$) we need it as a type prefix
 sub mtype2cctype($$) {
+
+#    The CLEARCASE_MTYPE variable tells which type is involved
+#    ...in clear text (%@\#$) we need it as a type prefix
 	my $mtyperef = shift;
 	my $ccvarref = shift;
 	my %types    = (
