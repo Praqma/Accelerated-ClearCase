@@ -20,7 +20,7 @@ use lib "$_packagedir/..";
 
 my $major = 0;
 my $minor = 1;
-my $build = 9;
+my $build = 10;
 our $VERSION = &format_version_number( $major, $minor, $build );
 
 use vars qw($VERSION);
@@ -108,7 +108,8 @@ sub _cmd ($) {
     # Report errors unless we expect the call to generate non-zero exit value
     unless ( $parms{err_ok} ) {
         if ($?) {
-            my $msg = "The command [$cmd]\ndidn't return as expected.\nExit value was " . &$() . "\nThe system reply was\n" . join( '', @res );
+            my $msg = "The command [$cmd]\ndidn't return as expected.\nExit value was " . ( ($?) / 256 );
+            $msg = $msg . "\nThe system reply was:\n" . join( '', @res ) . "\nThe program $main::0 will now exit\n";
             die "$msg";
         }
     }
@@ -191,7 +192,7 @@ sub get_psftp_known_hosts {
 
     my $homekey = 'CUser/Software/SimonTatham/PuTTY/SshHostKeys/';
     my $home    = $Registry->{"$homekey"};
-    my %hosts = ();
+    my %hosts   = ();
     if ( defined $home ) {
         foreach ( keys %{$home} ) {
             my ( $junk, $server ) = split( ':', $_ );
