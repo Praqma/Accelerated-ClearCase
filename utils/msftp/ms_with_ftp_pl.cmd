@@ -149,6 +149,7 @@ sub process_clearquest {
         $sourcedir = File::Spec->canonpath($cwd);
     }
     $log->information("Looking for scripts to process  in $sourcedir") if $sw_debug;
+    chdir $sourcedir;
     opendir( DIR, "$sourcedir" ) or die;
   FILE: while ( my $file = readdir(DIR) ) {
         next FILE unless ( $file =~ /^sync_cq/ );
@@ -157,6 +158,7 @@ sub process_clearquest {
         $log->information( join( '', @reply ) ) if $sw_debug;
     }
     closedir(DIR);
+    chdir $cwd;
 }
 
 sub get_sclass_for_incoming {
@@ -620,7 +622,7 @@ sub initialize {
     $log->set_verbose($sw_verbose);
     $log->enable(1);
     $log->conditional_enable( ( $sw_verbose || $sw_debug ) );
-    
+
     load_user_credentials();
 
     # define the path to sync_export_list.bat
