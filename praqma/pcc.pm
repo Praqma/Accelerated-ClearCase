@@ -20,7 +20,7 @@ use lib "$_packagedir/..";
 
 my $major = 0;
 my $minor = 1;
-my $build = 10;
+my $build = 11;
 our $VERSION = &format_version_number( $major, $minor, $build );
 
 use vars qw($VERSION);
@@ -417,7 +417,6 @@ Optional parameters
 Depending on the caller context, either list or scalar is returned, it looks for value of wantarray to decide.
 
 =cut
-
 sub ct ($) {
     my $self  = shift;
     my %parms = @_;
@@ -474,21 +473,28 @@ sub get_localreplica {
 
 }
 
-=head2 pccObject->get_vobtags( )
+=head2 pccObject->get_vobtags([localonly => 1] )
 
  Returns an array reference of the visible (current region) vobtags
+ If the optional parameter localonly is found, we only handle the vobs which are local to 
+ executing host.
+
 
 =cut
 
 sub get_vobtags {
-    my $self = shift;
-    return $self->{vobtags} if defined( $self->{vobtags} );
+    my $self      = shift;
+    my %parms     = @_;
+    my $hostparm  = defined $parms{localonly} ? " -host $ENV{COMPUTERNAME} " : "";
+    my $persisted = defined $parms{localonly} ? "localvobtags" : "vobtags";
+    return $self->{$persisted} if defined( $self->{$persisted} );
 
     # find all vobtags, return an array of the vobtags
-    my @retval = sort $self->ct( command => "lsvob -s", err_ok => "0" );
+    my @retval = sort $self->ct( command => "lsvob -s $hostparm ", err_ok => "0" );
     chomp(@retval);
-    push @{ $self->{vobtags} }, @retval;
-    return $self->{vobtags};
+
+    push @{ $self->{$persisted} }, @retval;
+    return $self->{$persisted};
 }
 
 =head2 pccObject->get_vobs( )

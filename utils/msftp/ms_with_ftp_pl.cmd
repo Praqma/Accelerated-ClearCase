@@ -22,7 +22,7 @@ use Net::Ftp;
 use Cwd;
 use lib "$Scriptdir../../praqma";
 use scriptlog;
-use pcc 0.1007;
+use pcc 0.1011;
 use constant TRANSPORT_HLTYPE   => 'SpecialTransport';    # name of hyperlink type we recognize
 use constant TRANSPORT_INCOMING => '/incoming';           # maps to values used by multisite defaults
 use constant TRANSPORT_OUTGOING => '/outgoing';           # maps to values used by multisite defaults
@@ -55,7 +55,7 @@ my $pccObject = pcc->new;
 # File version
 my $major   = 0;
 my $minor   = 1;
-my $build   = 7;
+my $build   = 8;
 my $VERSION = $pccObject->format_version_number( $major, $minor, $build );
 
 # Header history
@@ -75,6 +75,8 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
+2012-12-10  Jens Brejner   Force to operate on host local vobs only and
+                           stay in dir while calling sync_cq*'s (0.1008)
 2012-11-22  Jens Brejner   Support path to folder containing users.ini and 
                            sync_cq*.cmd files (v 0.1007)
 2012-11-18  Jens Brejner   Always use local storage class name (v 0.1006)
@@ -149,16 +151,15 @@ sub process_clearquest {
         $sourcedir = File::Spec->canonpath($cwd);
     }
     $log->information("Looking for scripts to process  in $sourcedir") if $sw_debug;
-    chdir $sourcedir;
     opendir( DIR, "$sourcedir" ) or die;
   FILE: while ( my $file = readdir(DIR) ) {
         next FILE unless ( $file =~ /^sync_cq/ );
-        $log->information("Found $file") if $sw_debug;
-        my @reply = $pccObject->_cmd( command => $file );
+        my $l_file = File::Spec->canonpath("$sourcedir/$file");
+        $log->information("Found $l_file") if $sw_debug;
+        my @reply = $pccObject->_cmd( command => $l_file );
         $log->information( join( '', @reply ) ) if $sw_debug;
     }
     closedir(DIR);
-    chdir $cwd;
 }
 
 sub get_sclass_for_incoming {
@@ -631,7 +632,7 @@ sub initialize {
     %psftp_known_hosts = $pccObject->get_psftp_known_hosts();
 
     # get all the vobtags
-    @vobtags = @{ $pccObject->get_vobtags() };
+    @vobtags = @{ $pccObject->get_vobtags( localonly => 1 ) };
 }
 
 sub validate_options {
