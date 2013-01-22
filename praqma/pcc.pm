@@ -20,7 +20,7 @@ use lib "$_packagedir/..";
 
 my $major = 0;
 my $minor = 1;
-my $build = 11;
+my $build = 12;
 our $VERSION = &format_version_number( $major, $minor, $build );
 
 use vars qw($VERSION);
@@ -58,6 +58,10 @@ my $get_sys_exit_val = sub {
 };
 
 my $use_scriptlog = 0;    # I can write to the a log created with scriptlog
+
+my @Registryroot;         # list of top level registry to search in.
+push @Registryroot, 'LMachine/SOFTWARE/Wow6432Node';
+push @Registryroot, 'LMachine/SOFTWARE';
 
 # make all your functions, whether exported or not;
 #######################################################################################
@@ -153,11 +157,22 @@ sub get_cchome {
 
     #Look in registry to find ClearCase installation directory, then look for utils dir
     #die if we fail else return the path of the utils directory
+    my $home;
+    my $RegistryValue = '/Atria/ClearCase/CurrentVersion//ProductHome';
+    foreach (@Registryroot) {
 
-    my $homekey = 'LMachine/SOFTWARE/Atria/ClearCase/CurrentVersion//ProductHome';
-    my $home = $Registry->{"$homekey"} or die "Can't read $homekey key: $^E\n";
-    return $home
-
+        my $homekey = $_ . $RegistryValue;
+        if ( exists $Registry->{$homekey} ) {
+            $home = $Registry->{$homekey};
+            last if -d $home;
+        }
+    }
+    if ($home) {
+        return $home;
+    }
+    else {
+        die "Could not find required path in registry value $RegistryValue";
+    }
 }
 
 =head2 pccObject->get_multisite_class_bays ()
@@ -168,10 +183,17 @@ Return a hash with storage class as key and it's storagebay as value
 
 sub get_multisite_class_bays {
 
-    my $homekey = 'LMachine/SOFTWARE/Atria/ClearCase/CurrentVersion/MultiSite/StorageClass/';
-    my $home = $Registry->{"$homekey"} or die "Can't read $homekey key: $^E\n";
+    my $home;
+    my $RegistryValue = '/Atria/ClearCase/CurrentVersion/MultiSite/StorageClass/';
+    my %sbays         = ();
 
-    my %sbays = ();
+    foreach (@Registryroot) {
+        my $homekey = $_ . $RegistryValue;
+        if ( exists $Registry->{$homekey} ) {
+            $home = $Registry->{$homekey};
+            last;
+        }
+    }
 
     foreach ( keys %{$home} ) {
         chop;
@@ -179,7 +201,14 @@ sub get_multisite_class_bays {
         $sbays{$_} = $var;
 
     }
-    return %sbays;
+
+    if ($home) {
+        return %sbays;
+    }
+    else {
+        die "Could not find required path in registry value $RegistryValue";
+    }
+
 }
 
 =head2 pccObject->get_psftp_known_hosts ()
@@ -417,6 +446,7 @@ Optional parameters
 Depending on the caller context, either list or scalar is returned, it looks for value of wantarray to decide.
 
 =cut
+
 sub ct ($) {
     my $self  = shift;
     my %parms = @_;
