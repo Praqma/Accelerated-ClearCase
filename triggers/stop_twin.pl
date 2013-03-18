@@ -68,6 +68,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  ------------   ----------------------------------------------
+2013-03-18  Jes Struck     Changed messages when automerge is of
 2008-10-24  Jens Brejner   1st release prepared for Novo (version 0.1.1)
 2009-01-16  Jens Brejner   2st release prepared for Novo (version 1.0.18)
                            Minor edits and cleanup after Novo internal
@@ -148,10 +149,11 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		unless ( $twincfg{AutoMerge} eq 0 || $twincfg{AutoMerge} eq 1 ) {
 			$log->assertion_failed("Value [$twincfg{AutoMerge}] is not a valid value for automerge options");
 		}
+
+		print_no_merge_msg();
 		if ( $twincfg{AutoMerge} eq 0 ) {
 
 			# We will do no work for user, just inform and block OP
-			print_no_merge_msg();
 			my $fixcommand = build_fixcommands();
 			$fixcommand =~ s/\//\\/g;
 			$log->information("You can run $fixcommand, to get the proposed solution for the situation");
@@ -241,7 +243,6 @@ END_OF_MKMERGE
 	close AUTOBAT;
 	return $fixbat;
 }
-
 sub print_no_merge_msg {
 	my $cmd       = "cleartool desc -fmt \%u vob:$ENV{CLEARCASE_VOB_PN}";
 	my $vob_owner = qx ($cmd);
@@ -249,16 +250,9 @@ sub print_no_merge_msg {
 		$log->error("The command : '$cmd' failed \n, command output was $vob_owner\n");
 		exit 1;
 	}
-	$warning = <<ENDWARNING;
-Trigger $TRIGGER_NAME prevented operation [$pop_kind]
-because an evil twin possibility was detected for the name
-[$element]
-Please read the log file $logfile
-for a possible solution.
-ENDWARNING
 	my $info_1;
 	if ( $pop_kind eq "mkelem" ) {
-		$info_1 = "The name : [$element]";
+		$info_1 = "The file name : [$element]";
 	}
 	elsif ( !$pop_kind || $pop_kind =~ /rmname|mkslink/ ) {
 		$info_1 = "The element name [$element] \n";
@@ -277,19 +271,12 @@ ENDWARNING
 	my $info_2 = (@lastseen) ? "The name has last been seen in :\n[$branch$version].\n\n" : "";
 	$info = <<ENDINFO;
 $info_1 
-ALREADY exists for the directory:
-[$parent]
-That name was added in branch version:
-[$added{$element}].
-
-$info_2
+was previous used in this directory.
 NOTE:  If you feel you really need to perform this action
-please contact the VOB_OWNER ($vob_owner)
-
+please contact the ClearCase support
 ENDINFO
 
 	# Write logfile
-	$log->information("$warning\n###########################\n");
 	$log->information("$info\n###########################\n");
 }
 
