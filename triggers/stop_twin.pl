@@ -156,7 +156,6 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 			# We will do no work for user, just inform and block OP
 			my $fixcommand = build_fixcommands();
 			$fixcommand =~ s/\//\\/g;
-			$log->information("You can run $fixcommand, to get the proposed solution for the situation");
 			exit 1;
 		}
 
