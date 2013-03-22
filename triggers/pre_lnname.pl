@@ -163,7 +163,7 @@ sub final_exit {
 
                 # "cleartool diff" returns 0 if versions are identical
                 $log->information("[$parentdir] is being checked in");
-                qx(cleartool uncheckout -rm -ncomment \"$parentdir\");
+                qx(cleartool checkin -ncomment \"$parentdir\");
 
             }
             else {
