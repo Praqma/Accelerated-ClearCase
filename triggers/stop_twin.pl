@@ -142,14 +142,12 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		$log->enable(1);
 		$log->set_verbose(1);
 		$logfile = $log->get_logfile();
-		$log->information("Found evil twin, value of \$twincfg{AutoMerge} is $twincfg{AutoMerge}") if ($debug_on);
+
 		unless ( $twincfg{AutoMerge} eq 0 || $twincfg{AutoMerge} eq 1 ) {
 			$log->assertion_failed("Value [$twincfg{AutoMerge}] is not a valid value for automerge options");
 		}
-
 		print_no_merge_msg();
 		if ( $twincfg{AutoMerge} eq 0 ) {
-
 			# We will do no work for user, just inform and block OP
 			my $fixcommand = build_fixcommands();
 			$fixcommand =~ s/\//\\/g;
@@ -170,9 +168,9 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 
 			# Merge that name back for the user
 			runcmd( 'cmd' => "call \"$fixcommand\"" );
-			$log->information("Evil twin detected.");
+			$log->information("Evil twin detected.\n");
 			$log->information("We have tried to get around it, but haven't checked in the changes, please verify the result");
-			$log->information("and check in if you are satisfied");
+			$log->information("- and check in if you are satisfied");
 			exit 1;
 		}
 	}
@@ -276,7 +274,7 @@ sub print_no_merge_msg {
 		$info = $info . "\n\nNOTE:  If you feel you really need to perform this action\nplease contact the ClearCase support";
 	}
 	# Write logfile
-	$log->information("$info\n###########################\n");
+	$log->information("$info\n###########################");
 }
 
 sub name_lookup {
