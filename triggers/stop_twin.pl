@@ -38,7 +38,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "35";
+our $REVISION = "36";
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 my $debug_on = defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} ) ? $ENV{'CLEARCASE_TRIGGER_DEBUG'} : undef;
 
@@ -68,7 +68,6 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  ------------   ----------------------------------------------
-2013-03-18  Jes Struck     Changed messages when automerge is of
 2008-10-24  Jens Brejner   1st release prepared for Novo (version 0.1.1)
 2009-01-16  Jens Brejner   2st release prepared for Novo (version 1.0.18)
                            Minor edits and cleanup after Novo internal
@@ -89,7 +88,7 @@ DATE        EDITOR         NOTE
 2011-06-07  Jens Brejner   Implement Automatic merge to fix evil twin (v1.0.33)
 2011-10-11  Jens Brejner   Updated documentation, minor beautification (v1.0.34)
 2012-03-15  Jens Brejner   Remove full automerge - it is too unpredictable (v1.0.35)
-
+2013-03-18  Jes Struck     Changed messages when automerge is of  (v1.0.36)
 ------------------------   ----------------------------------------------
 
 ENDREVISION
@@ -143,9 +142,7 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		$log->enable(1);
 		$log->set_verbose(1);
 		$logfile = $log->get_logfile();
-		if ($debug_on) {
-			$log->information("Found evil twin, value of \$twincfg{AutoMerge} is $twincfg{AutoMerge}");
-		}
+		$log->information("Found evil twin, value of \$twincfg{AutoMerge} is $twincfg{AutoMerge}") if ($debug_on);
 		unless ( $twincfg{AutoMerge} eq 0 || $twincfg{AutoMerge} eq 1 ) {
 			$log->assertion_failed("Value [$twincfg{AutoMerge}] is not a valid value for automerge options");
 		}
@@ -156,6 +153,12 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 			# We will do no work for user, just inform and block OP
 			my $fixcommand = build_fixcommands();
 			$fixcommand =~ s/\//\\/g;
+			unlink $fixcommand;
+            unless  (`cleartool diff -predecessor \"$parent\"`) {
+                # "cleartool diff" returns 0 if versions are identical
+                $log->information("[$parent] is being checked in") if ($debug_on);
+                qx(cleartool uncheckout -rm -ncomment \"$parent\");
+            }			
 			exit 1;
 		}
 
@@ -268,13 +271,10 @@ sub print_no_merge_msg {
 	my ( $branch, $version ) = ( $uncatalogued{$element} =~ /(.*)(\d+)$/ );
 	$version--;    # decrement version number
 	my $info_2 = (@lastseen) ? "The name has last been seen in :\n[$branch$version].\n\n" : "";
-	$info = <<ENDINFO;
-$info_1 
-was previous used in this directory.
-NOTE:  If you feel you really need to perform this action
-please contact the ClearCase support
-ENDINFO
-
+	$info = $info_1 . "\nwas previously used in this directory.";
+	if ( $twincfg{AutoMerge} eq 0 ) {
+		$info = $info . "\n\nNOTE:  If you feel you really need to perform this action\nplease contact the ClearCase support";
+	}
 	# Write logfile
 	$log->information("$info\n###########################\n");
 }
@@ -308,15 +308,14 @@ sub name_lookup {
 		# The 2nd test is a special case for the vob root.
 		$snapview = !-e "$parent$sfx/main" && !-e "$parent/$sfx/main";
 	}
-	if ($case_sensitive) {
-		$pattern = "$element";
-	}
-	else {
-		$pattern = "(?i)$element";
+	# Need to escape square brackets and paranthesis , as this string will be used as a regexp.
+	$pattern = "$element";
+	$pattern =~ s/\(|\)|\[|\]/\\$&/g;
+
+	unless ($case_sensitive) {
+		$pattern = "(?i)" . $pattern;
 	}
 
-	# Need to escape square brackets, as this string will be used as a regexp.
-	$pattern =~ s/\[|\]/\\$&/g;
 	$log->information("The Search pattern looks like: [$pattern]") if ($debug_on);
 
 	# get lines from lshist that begins with either added or uncat and ends with digit
@@ -330,11 +329,11 @@ sub name_lookup {
 	foreach (@history) {
 		chomp;
 		$_ =~ s/^\s+//;
-		unless (m/$element/i) {
-			$log->information("Skipping line [$_]") if ($debug_on);
-			next;
-		}
-
+		
+		if ( index( $_, $element )  == -1 )	  {
+			  $log->information("Skipping line [$_]") if ($debug_on);
+			  next;
+		}		
 		# isolate elementname and branch version
 		my ( $action, $name, $junk, $branch ) = /(.*")(.*)("\.)(.*)/;
 		$log->information("Line [$_] was split into: \$action=[$action], \$name=[$name], \$junk=[$junk] and \$branch=[$branch]") if ($debug_on);
