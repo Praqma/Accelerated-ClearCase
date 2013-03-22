@@ -148,15 +148,17 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		}
 		print_no_merge_msg();
 		if ( $twincfg{AutoMerge} eq 0 ) {
+
 			# We will do no work for user, just inform and block OP
 			my $fixcommand = build_fixcommands();
 			$fixcommand =~ s/\//\\/g;
 			unlink $fixcommand;
-            unless  (`cleartool diff -predecessor \"$parent\"`) {
-                # "cleartool diff" returns 0 if versions are identical
-                $log->information("[$parent] is being checked in") if ($debug_on);
-                qx(cleartool uncheckout -rm -ncomment \"$parent\");
-            }			
+			unless (`cleartool diff -predecessor \"$parent\"`) {
+
+				# "cleartool diff" returns 0 if versions are identical
+				$log->information("[$parent] is being checked in") if ($debug_on);
+				qx(cleartool uncheckout -rm -ncomment \"$parent\");
+			}
 			exit 1;
 		}
 
@@ -243,6 +245,7 @@ END_OF_MKMERGE
 	close AUTOBAT;
 	return $fixbat;
 }
+
 sub print_no_merge_msg {
 	my $cmd       = "cleartool desc -fmt \%u vob:$ENV{CLEARCASE_VOB_PN}";
 	my $vob_owner = qx ($cmd);
@@ -273,6 +276,7 @@ sub print_no_merge_msg {
 	if ( $twincfg{AutoMerge} eq 0 ) {
 		$info = $info . "\n\nNOTE:  If you feel you really need to perform this action\nplease contact the ClearCase support";
 	}
+
 	# Write logfile
 	$log->information("$info\n###########################");
 }
@@ -306,6 +310,7 @@ sub name_lookup {
 		# The 2nd test is a special case for the vob root.
 		$snapview = !-e "$parent$sfx/main" && !-e "$parent/$sfx/main";
 	}
+
 	# Need to escape square brackets and paranthesis , as this string will be used as a regexp.
 	$pattern = "$element";
 	$pattern =~ s/\(|\)|\[|\]/\\$&/g;
@@ -327,11 +332,12 @@ sub name_lookup {
 	foreach (@history) {
 		chomp;
 		$_ =~ s/^\s+//;
-		
-		if ( index( $_, $element )  == -1 )	  {
-			  $log->information("Skipping line [$_]") if ($debug_on);
-			  next;
-		}		
+
+		if ( index( $_, $element ) == -1 ) {
+			$log->information("Skipping line [$_]") if ($debug_on);
+			next;
+		}
+
 		# isolate elementname and branch version
 		my ( $action, $name, $junk, $branch ) = /(.*")(.*)("\.)(.*)/;
 		$log->information("Line [$_] was split into: \$action=[$action], \$name=[$name], \$junk=[$junk] and \$branch=[$branch]") if ($debug_on);
