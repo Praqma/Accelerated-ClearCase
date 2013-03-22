@@ -38,7 +38,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "1.0";
-our $REVISION = "35";
+our $REVISION = "36";
 my $verbose_mode = 0;    # Setting the verbose mode to 1 will print the logging information to STDOUT/ERROUT ...even it the log-file isn't enabled
 my $debug_on = defined( $ENV{'CLEARCASE_TRIGGER_DEBUG'} ) ? $ENV{'CLEARCASE_TRIGGER_DEBUG'} : undef;
 
@@ -88,7 +88,7 @@ DATE        EDITOR         NOTE
 2011-06-07  Jens Brejner   Implement Automatic merge to fix evil twin (v1.0.33)
 2011-10-11  Jens Brejner   Updated documentation, minor beautification (v1.0.34)
 2012-03-15  Jens Brejner   Remove full automerge - it is too unpredictable (v1.0.35)
-
+2013-03-18  Jes Struck     Changed messages when automerge is of  (v1.0.36)
 ------------------------   ----------------------------------------------
 
 ENDREVISION
@@ -142,19 +142,23 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		$log->enable(1);
 		$log->set_verbose(1);
 		$logfile = $log->get_logfile();
-		if ($debug_on) {
-			$log->information("Found evil twin, value of \$twincfg{AutoMerge} is $twincfg{AutoMerge}");
-		}
+
 		unless ( $twincfg{AutoMerge} eq 0 || $twincfg{AutoMerge} eq 1 ) {
 			$log->assertion_failed("Value [$twincfg{AutoMerge}] is not a valid value for automerge options");
 		}
+		print_no_merge_msg();
 		if ( $twincfg{AutoMerge} eq 0 ) {
 
 			# We will do no work for user, just inform and block OP
-			print_no_merge_msg();
 			my $fixcommand = build_fixcommands();
 			$fixcommand =~ s/\//\\/g;
-			$log->information("You can run $fixcommand, to get the proposed solution for the situation");
+			unlink $fixcommand;
+			unless (`cleartool diff -predecessor \"$parent\"`) {
+
+				# "cleartool diff" returns 0 if versions are identical
+				$log->information("[$parent] is being checked in") if ($debug_on);
+				qx(cleartool uncheckout -rm -ncomment \"$parent\");
+			}
 			exit 1;
 		}
 
@@ -166,9 +170,9 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 
 			# Merge that name back for the user
 			runcmd( 'cmd' => "call \"$fixcommand\"" );
-			$log->information("Evil twin detected.");
+			$log->information("Evil twin detected.\n");
 			$log->information("We have tried to get around it, but haven't checked in the changes, please verify the result");
-			$log->information("and check in if you are satisfied");
+			$log->information("- and check in if you are satisfied");
 			exit 1;
 		}
 	}
@@ -249,16 +253,9 @@ sub print_no_merge_msg {
 		$log->error("The command : '$cmd' failed \n, command output was $vob_owner\n");
 		exit 1;
 	}
-	$warning = <<ENDWARNING;
-Trigger $TRIGGER_NAME prevented operation [$pop_kind]
-because an evil twin possibility was detected for the name
-[$element]
-Please read the log file $logfile
-for a possible solution.
-ENDWARNING
 	my $info_1;
 	if ( $pop_kind eq "mkelem" ) {
-		$info_1 = "The name : [$element]";
+		$info_1 = "The file name : [$element]";
 	}
 	elsif ( !$pop_kind || $pop_kind =~ /rmname|mkslink/ ) {
 		$info_1 = "The element name [$element] \n";
@@ -275,22 +272,13 @@ ENDWARNING
 	my ( $branch, $version ) = ( $uncatalogued{$element} =~ /(.*)(\d+)$/ );
 	$version--;    # decrement version number
 	my $info_2 = (@lastseen) ? "The name has last been seen in :\n[$branch$version].\n\n" : "";
-	$info = <<ENDINFO;
-$info_1 
-ALREADY exists for the directory:
-[$parent]
-That name was added in branch version:
-[$added{$element}].
-
-$info_2
-NOTE:  If you feel you really need to perform this action
-please contact the VOB_OWNER ($vob_owner)
-
-ENDINFO
+	$info = $info_1 . "\nwas previously used in this directory.";
+	if ( $twincfg{AutoMerge} eq 0 ) {
+		$info = $info . "\n\nNOTE:  If you feel you really need to perform this action\nplease contact the ClearCase support";
+	}
 
 	# Write logfile
-	$log->information("$warning\n###########################\n");
-	$log->information("$info\n###########################\n");
+	$log->information("$info\n###########################");
 }
 
 sub name_lookup {
@@ -322,15 +310,15 @@ sub name_lookup {
 		# The 2nd test is a special case for the vob root.
 		$snapview = !-e "$parent$sfx/main" && !-e "$parent/$sfx/main";
 	}
-	if ($case_sensitive) {
-		$pattern = "$element";
-	}
-	else {
-		$pattern = "(?i)$element";
+
+	# Need to escape square brackets and paranthesis , as this string will be used as a regexp.
+	$pattern = "$element";
+	$pattern =~ s/\(|\)|\[|\]/\\$&/g;
+
+	unless ($case_sensitive) {
+		$pattern = "(?i)" . $pattern;
 	}
 
-	# Need to escape square brackets, as this string will be used as a regexp.
-	$pattern =~ s/\[|\]/\\$&/g;
 	$log->information("The Search pattern looks like: [$pattern]") if ($debug_on);
 
 	# get lines from lshist that begins with either added or uncat and ends with digit
@@ -344,7 +332,8 @@ sub name_lookup {
 	foreach (@history) {
 		chomp;
 		$_ =~ s/^\s+//;
-		unless (m/$element/i) {
+
+		if ( index( $_, $element ) == -1 ) {
 			$log->information("Skipping line [$_]") if ($debug_on);
 			next;
 		}

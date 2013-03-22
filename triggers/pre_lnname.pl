@@ -173,7 +173,7 @@ sub final_exit {
         if ( -w $parentdir ) {
             $log->information("[$parentdir] is checkedout");
 
-            if (`cleartool diff -predecessor \"$parentdir\"`) {
+            if (`cleartool diff -predecessor \"$parent\"`) {
 
                 # "cleartool diff" returns 0 if versions are identical
                 $log->information("[$parentdir] is being checked in");
