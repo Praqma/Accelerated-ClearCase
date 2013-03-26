@@ -55,7 +55,7 @@ my $pccObject = pcc->new;
 # File version
 my $major   = 0;
 my $minor   = 1;
-my $build   = 8;
+my $build   = 9;
 my $VERSION = $pccObject->format_version_number( $major, $minor, $build );
 
 # Header history
@@ -74,7 +74,8 @@ ENDHEADER
 ################################################################################
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
-----------  -------------  ----------------------------------------------
+----------  -------------  ----------------------------------------------------
+2013-03-26  Jens Brejner   Remove the temp file containing ftp commands (0.1009)
 2012-12-10  Jens Brejner   Force to operate on host local vobs only and
                            stay in dir while calling sync_cq*'s (0.1008)
 2012-11-22  Jens Brejner   Support path to folder containing users.ini and 
@@ -83,7 +84,7 @@ DATE        EDITOR         NOTE
 2012-11-15  Jens Brejner   Fix bug with with contact to sftp server (v 0.1005)
 2012-09-30  Jens Brejner   Initial Version (v 0.1003)
 
--------------------------------------------------------------------------
+-------------------------------------------------------------------------------
  
 ENDREVISION
 my $usage = <<ENDUSAGE;
@@ -271,6 +272,8 @@ sub get_from_sftp {
     $cmd = "psftp.exe -pw $s_pass -b $deletecommands $s_user\@$host";
     @remotefiles = $pccObject->_cmd( command => $cmd );
     $log->information( join( '', @remotefiles ) );
+    unlink $listcommands;
+    unlink $deletecommands;
 }
 
 sub put_sftp_files {
@@ -340,6 +343,7 @@ sub put_sftp_files {
             }
         }
     }
+    unlink $putcommands;
 }
 
 sub fetch_incoming {
