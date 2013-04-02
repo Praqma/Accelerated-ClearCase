@@ -148,16 +148,12 @@ if ( lc( $ENV{CLEARCASE_OP_KIND} ) eq "lnname" ) {
 		}
 		print_no_merge_msg();
 		if ( $twincfg{AutoMerge} eq 0 ) {
-
-			# We will do no work for user, just inform and block OP
-			my $fixcommand = build_fixcommands();
-			$fixcommand =~ s/\//\\/g;
-			unlink $fixcommand;
-			unless (`cleartool diff -predecessor \"$parent\"`) {
+			my @reply = qx(cleartool diff -predecessor \"$parent\" 2>&1);
+			unless ($?) {
 
 				# "cleartool diff" returns 0 if versions are identical
-				$log->information("[$parent] is being checked in") if ($debug_on);
-				qx(cleartool uncheckout -rm -ncomment \"$parent\");
+				$log->information("Undoing checkout of [$parent] because there are no changes") if ($debug_on);
+				qx(cleartool uncheckout -rm \"$parent\");
 			}
 			exit 1;
 		}
@@ -375,5 +371,3 @@ sub name_lookup {
 	if ($debug_on) { $log->information("Value of \$found is now [$found]"); }
 }
 __END__
-
-	
