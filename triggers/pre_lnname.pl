@@ -34,7 +34,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "5";
+our $REVISION = "6";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -60,6 +60,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR             NOTE
 ----------  -----------------  ---------------------------------------------------
+2013-04-17  Jens Brejner       Fix missing variable definition  (v 0.1.6)
 2012-12-04  Jens Brejner       Reintroduce check for files without extension (v 0.1.5)
 2012-10-25  Jens Brejner       Improve clarity of message (v 0.1.4)
 2012-06-19  Jens Brejner       One message only before exit (v 0.1.3)
@@ -166,28 +167,28 @@ sub final_exit {
     # Cleanup
     my $exitcode = $log->get_accumulated_errorlevel();
 
-    if ( $exitcode eq 2 ) {
-        $parentdir = dirname( $ENV{CLEARCASE_PN} );
-
-        # is parentdir checked-out ?
-        if ( -w $parentdir ) {
-            $log->information("[$parentdir] is checkedout");
-
-            if (`cleartool diff -predecessor \"$parent\"`) {
-
-                # "cleartool diff" returns 0 if versions are identical
-                $log->information("[$parentdir] is being checked in");
-                qx(cleartool checkin -ncomment \"$parentdir\");
-
-            }
-            else {
-                $log->information("Undoing checkout of [$parentdir]");
-                qx(cleartool uncheckout -rm -ncomment \"$parentdir\");
-            }
-
-        }
-    }
-    exit $exitcode;
+     if ( $exitcode eq 2 ) {
+         $parentdir = dirname( $ENV{CLEARCASE_PN} );
+ 
+         # is parentdir checked-out ?
+         if ( -w $parentdir ) {
+             $log->information("[$parentdir] is checkedout");
+ 
+             if (`cleartool diff -predecessor \"$parentdir\"`) {
+ 
+                 # "cleartool diff" returns 0 if versions are identical
+                 $log->information("[$parentdir] is being checked in");
+                 qx(cleartool checkin -ncomment \"$parentdir\");
+ 
+             }
+             else {
+                 $log->information("Undoing checkout of [$parentdir]");
+                 qx(cleartool uncheckout -rm -ncomment \"$parentdir\");
+             }
+ 
+         }
+     }
+     exit $exitcode;
 
 }
 
