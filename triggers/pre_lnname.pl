@@ -34,7 +34,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "6";
+our $REVISION = "7";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -60,6 +60,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR             NOTE
 ----------  -----------------  ---------------------------------------------------
+2013-04-17  Jens Brejner       Fix failing check on extension (v 0.1.7)
 2013-04-17  Jens Brejner       Fix missing variable definition  (v 0.1.6)
 2012-12-04  Jens Brejner       Reintroduce check for files without extension (v 0.1.5)
 2012-10-25  Jens Brejner       Improve clarity of message (v 0.1.4)
@@ -104,29 +105,20 @@ if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
 
     # Require file element has extension if enabled from configuration file
     # The check for if element is file is differenct depending on whether we are adding to source control or renaming
-    if (
-        $trgconfig{require_extension} && (
+    if ( $trgconfig{require_extension} ) {
+        if ( $ENV{CLEARCASE_POP_KIND} eq 'mkelem' && -f "$ENV{CLEARCASE_PN}.mkelem" ) {
 
             # While creating a new element it renamed temporarily to *.mkelem
-            ( $ENV{CLEARCASE_POP_KIND} eq 'mkelem' ) && ( -f "$ENV{CLEARCASE_PN}.mkelem" )
-        )
-        || (
-
-            # Else we are renaming, and element type is detectable
-            ( $ENV{CLEARCASE_POP_KIND} eq 'rmname' ) && ( $ENV{CLEARCASE_MTYPE} eq 'file element' )
-        )
-      )
-    {
-        my $file = basename( $ENV{CLEARCASE_PN} );
-        $log->information("Check for extension on file [$file]");
-
-        # Match a dot followed by any number of non dots at the end of the line
-        if ( $file =~ /(\.[^.]+)$/ ) {
-            $log->information("File [$file] has an extension");
+            $log->information("Element being added, check for extension");
+            check_extension();
         }
-        else {
-            $log->error("\nFile [$file] has no extension, please rename so it has an extension\n");
+        if ( $ENV{CLEARCASE_POP_KIND} eq 'rmname' && $ENV{CLEARCASE_MTYPE} eq 'file element' ) {
+
+            # Element being renamed and element type is detectable
+            $log->information("Element being renamed, check for extension");
+            check_extension();
         }
+		final_exit();
     }
 
     # Check pathlength if requested
@@ -175,6 +167,20 @@ die "Trigger called out of context, we should never end here.";
 
 ############################## S U B S ########################################
 
+sub check_extension {
+    my $file = basename( $ENV{CLEARCASE_PN} );
+    $log->information("Check for extension on file [$file]");
+
+    # Match a dot followed by any number of non dots at the end of the line
+    if ( $file =~ /(\.[^.]+)$/ ) {
+        $log->information("File [$file] has an extension");
+    }
+    else {
+        $log->error("File [$file] has no extension, please rename so it has an extension\n");
+    }
+
+}
+
 sub final_exit {
 
     # Cleanup
@@ -201,7 +207,8 @@ sub final_exit {
 
         }
     }
-    exit $exitcode;
+    $log->information($log->get_accumulated_errorlevel());
+	exit $exitcode;
 
 }
 
