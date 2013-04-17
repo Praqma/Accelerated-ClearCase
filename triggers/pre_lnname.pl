@@ -104,15 +104,16 @@ exit 0 if ( $ENV{CLEARCASE_POP_KIND} eq "rmname" );
 if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
 
     # Require file element has extension if enabled from configuration file
-    if ( $trgconfig{require_extension} && $ENV{CLEARCASE_MTYPE} =~ 'file element' ) {
+    if ( $trgconfig{require_extension} && -f "$ENV{CLEARCASE_PN}.mkelem" ) {
         my $file = basename( $ENV{CLEARCASE_PN} );
         $log->information("Check for extension on file [$file]");
+
         # Match a dot followed by any number of non dots at the end of the line
         if ( $file =~ /(\.[^.]+)$/ ) {
-            $log->information("File [$file}] has an extension");
+            $log->information("File [$file] has an extension");
         }
         else {
-            $log->error("\nFile [$file] has no extension, please rename so it has an extension");
+            $log->error("\nFile [$file] has no extension, please rename so it has an extension\n");
         }
     }
 
