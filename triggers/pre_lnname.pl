@@ -61,6 +61,7 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR             NOTE
 ----------  -----------------  ---------------------------------------------------
 2013-04-17  Jens Brejner       Fix missing variable definition  (v 0.1.6)
+2012-12-04  Jens Brejner       Reintroduce check for files without extension (v 0.1.5)
 2012-10-25  Jens Brejner       Improve clarity of message (v 0.1.4)
 2012-06-19  Jens Brejner       One message only before exit (v 0.1.3)
 2012-02-16  Jens Brejner       No abbreviation in cleartool command (v 0.1.2)
@@ -101,6 +102,19 @@ exit 0 if ( $ENV{CLEARCASE_POP_KIND} eq "rmname" );
 
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
+
+    # Require file element has extension if enabled from configuration file
+    if ( $trgconfig{require_extension} && $ENV{CLEARCASE_MTYPE} =~ 'file element' ) {
+        my $file = basename( $ENV{CLEARCASE_PN} );
+        $log->information("Check for extension on file [$file]");
+        # Match a dot followed by any number of non dots at the end of the line
+        if ( $file =~ /(\.[^.]+)$/ ) {
+            $log->information("File [$file}] has an extension");
+        }
+        else {
+            $log->error("\nFile [$file] has no extension, please rename so it has an extension");
+        }
+    }
 
     # Check pathlength if requested
     if ( $trgconfig{pathlength} > 0 ) {
