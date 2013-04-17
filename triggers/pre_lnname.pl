@@ -167,28 +167,28 @@ sub final_exit {
     # Cleanup
     my $exitcode = $log->get_accumulated_errorlevel();
 
-    if ( $exitcode eq 2 ) {
-        $parentdir = dirname( $ENV{CLEARCASE_PN} );
-
-        # is parentdir checked-out ?
-        if ( -w $parentdir ) {
-            $log->information("[$parentdir] is checkedout");
-
-            if (`cleartool diff -predecessor \"$parentdir\"`) {
-
-                # "cleartool diff" returns 0 if versions are identical
-                $log->information("[$parentdir] is being checked in");
-                qx(cleartool checkin -ncomment \"$parentdir\");
-
-            }
-            else {
-                $log->information("Undoing checkout of [$parentdir]");
-                qx(cleartool uncheckout -rm -ncomment \"$parentdir\");
-            }
-
-        }
-    }
-    exit $exitcode;
+     if ( $exitcode eq 2 ) {
+         $parentdir = dirname( $ENV{CLEARCASE_PN} );
+ 
+         # is parentdir checked-out ?
+         if ( -w $parentdir ) {
+             $log->information("[$parentdir] is checkedout");
+ 
+             if (`cleartool diff -predecessor \"$parentdir\"`) {
+ 
+                 # "cleartool diff" returns 0 if versions are identical
+                 $log->information("[$parentdir] is being checked in");
+                 qx(cleartool checkin -ncomment \"$parentdir\");
+ 
+             }
+             else {
+                 $log->information("Undoing checkout of [$parentdir]");
+                 qx(cleartool uncheckout -rm -ncomment \"$parentdir\");
+             }
+ 
+         }
+     }
+     exit $exitcode;
 
 }
 
