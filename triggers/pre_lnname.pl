@@ -98,13 +98,25 @@ my $logfile = $log->get_logfile;
 ########################### MAIN ###########################
 # Vob symbolic links can not be renamed.
 exit 0 if -l $ENV{CLEARCASE_PN};
-exit 0 if ( $ENV{CLEARCASE_POP_KIND} eq "rmname" );
 
 # Only process if proper OP_KIND
 if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
 
     # Require file element has extension if enabled from configuration file
-    if ( $trgconfig{require_extension} && -f "$ENV{CLEARCASE_PN}.mkelem" ) {
+    # The check for if element is file is differenct depending on whether we are adding to source control or renaming
+    if (
+        $trgconfig{require_extension} && (
+
+            # While creating a new element it renamed temporarily to *.mkelem
+            ( $ENV{CLEARCASE_POP_KIND} eq 'mkelem' ) && ( -f "$ENV{CLEARCASE_PN}.mkelem" )
+        )
+        || (
+
+            # Else we are renaming, and element type is detectable
+            ( $ENV{CLEARCASE_POP_KIND} eq 'rmname' ) && ( $ENV{CLEARCASE_MTYPE} eq 'file element' )
+        )
+      )
+    {
         my $file = basename( $ENV{CLEARCASE_PN} );
         $log->information("Check for extension on file [$file]");
 
@@ -118,7 +130,7 @@ if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
     }
 
     # Check pathlength if requested
-    if ( $trgconfig{pathlength} > 0 ) {
+    if ( $trgconfig{pathlength} > 0 && $ENV{CLEARCASE_POP_KIND} eq 'mkelem' ) {
         my $pathlength = length( $ENV{CLEARCASE_PN} );
         if ( $pathlength > $trgconfig{pathlength} ) {
             $log->error("The length of [$ENV{CLEARCASE_PN}] is $pathlength, which exceeds $trgconfig{pathlength}. Use a shorter name.");
@@ -131,7 +143,7 @@ if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
     }
 
     # Check for whitespaces
-    if ( $trgconfig{whitespacecheck} ) {
+    if ( $trgconfig{whitespacecheck} && $ENV{CLEARCASE_POP_KIND} eq 'mkelem' ) {
         my $reason;
         my ( $name, $extension ) = ( fileparse( $ENV{CLEARCASE_PN}, qr/\.[^.]*/ ) )[ 0, 2 ];
         my $filename = $name . $extension;
