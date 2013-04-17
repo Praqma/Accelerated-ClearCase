@@ -34,7 +34,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "5";
+our $REVISION = "6";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -60,7 +60,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR             NOTE
 ----------  -----------------  ---------------------------------------------------
-2013-04-17  Jens Brejner       Fix missing variable definition  (v 0.1.5)
+2013-04-17  Jens Brejner       Fix missing variable definition  (v 0.1.6)
 2012-10-25  Jens Brejner       Improve clarity of message (v 0.1.4)
 2012-06-19  Jens Brejner       One message only before exit (v 0.1.3)
 2012-02-16  Jens Brejner       No abbreviation in cleartool command (v 0.1.2)
