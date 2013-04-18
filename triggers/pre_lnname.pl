@@ -34,7 +34,7 @@ our %install_params = (
 
 # File version
 our $VERSION  = "0.1";
-our $REVISION = "7";
+our $REVISION = "8";
 
 # Header and revision history
 our $header = <<ENDHEADER;
@@ -60,6 +60,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR             NOTE
 ----------  -----------------  ---------------------------------------------------
+2013-04-18  Jens Brejner       Proper undo checkout of parent - or checkin (v 0.1.8)
 2013-04-17  Jens Brejner       Fix failing check on extension (v 0.1.7)
 2013-04-17  Jens Brejner       Fix missing variable definition  (v 0.1.6)
 2012-12-04  Jens Brejner       Reintroduce check for files without extension (v 0.1.5)
@@ -118,7 +119,7 @@ if ( $ENV{CLEARCASE_OP_KIND} eq "lnname" ) {
             $log->information("Element being renamed, check for extension");
             check_extension();
         }
-		final_exit();
+        final_exit();
     }
 
     # Check pathlength if requested
@@ -191,24 +192,24 @@ sub final_exit {
 
         # is parentdir checked-out ?
         if ( -w $parentdir ) {
-            $log->information("[$parentdir] is checkedout");
-
-            if (`cleartool diff -predecessor \"$parentdir\"`) {
+            $log->information("[$parentdir] is writeable (checkedout)");
+            my @reply = qx(cleartool diff -predecessor \"$parentdir\" 2>&1);
+            unless ($?) {
 
                 # "cleartool diff" returns 0 if versions are identical
-                $log->information("[$parentdir] is being checked in");
-                qx(cleartool checkin -ncomment \"$parentdir\");
-
+                $log->information("Undoing checkout of [$parentdir] because there are no changes");
+                qx(cleartool uncheckout -rm \"$parentdir\");
             }
             else {
-                $log->information("Undoing checkout of [$parentdir]");
-                qx(cleartool uncheckout -rm -ncomment \"$parentdir\");
-            }
 
+                # "cleartool diff" returned 1, so there are changeds - check it in
+                $log->information("[$parentdir] is being checked in");
+                qx(cleartool checkin -ncomment \"$parentdir\");
+            }
         }
     }
-    $log->information($log->get_accumulated_errorlevel());
-	exit $exitcode;
+    $log->information("The script Exit Code is : $exitcode");
+    exit $exitcode;
 
 }
 
