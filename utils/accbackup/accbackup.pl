@@ -1,5 +1,4 @@
 require 5.001;
-chdir $ENV{SYSTEMDRIVE};
 
 use strict;
 
