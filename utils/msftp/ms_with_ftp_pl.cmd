@@ -55,7 +55,7 @@ my $pccObject = pcc->new;
 # File version
 my $major   = 0;
 my $minor   = 1;
-my $build   = 11;
+my $build   = 12;
 my $VERSION = $pccObject->format_version_number( $major, $minor, $build );
 
 # Header history
@@ -75,6 +75,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------------
+2013-06-10  Jens Brejner   Delete temporary files (0.1012)
 2013-06-05  Jens Brejner   Only visit each server minimal number of times (0.1011)
 2013-05-29  Jens Brejner   Write error and return instead of dying 
                            (assertion_failed) (0.1010)
@@ -247,6 +248,7 @@ sub send_outgoing {
     foreach my $outgoing ( keys %unique_outgoing ) {
         my ( $sclass, $server, $put_path, $server_user, $server_password ) = split( /,/, $outgoing );
         $log->information("Moving packages to $server and path $put_path");
+        $log->information("The instructions used are from $outgoing") if $sw_debug;
         if ( $server =~ /^ftp:\/\//i ) {
             put_to_ftp(
                 SCLASS   => $sclass,
@@ -335,6 +337,9 @@ sub get_from_sftp {
     $cmd = "psftp.exe -pw $parms{PASSWORD} -b $deletecommands $parms{USER}\@$host";
     @remotefiles = $pccObject->_cmd( command => $cmd );
     $log->information( join( '', @remotefiles ) );
+    unlink $listcommands   unless $sw_debug;
+    unlink $deletecommands unless $sw_debug;
+
 }
 
 sub put_to_sftp {
@@ -407,6 +412,7 @@ sub put_to_sftp {
             }
         }
     }
+    unlink $putcommands unless $sw_debug;
 }
 
 sub fetch_incoming {
@@ -446,7 +452,7 @@ sub fetch_incoming {
         ( $log->error("ERROR. Could not determine local storageclass from string $instruction") && next ) unless exists( $storageclasses{$l_sclass} );
         chomp $server;
         if ( $server =~ /^ftp:\/\//i ) {
-            $log->information("Checking for incoming packages at $server (instructions are: $_)");
+            $log->information("Checking for incoming packages at $server (instructions are: $instruction)");
             get_from_ftp(
                 REMOTE_SCLASS   => $r_sclass,
                 SERVER          => $server,
@@ -458,7 +464,7 @@ sub fetch_incoming {
             next;
         }
         if ( $server =~ /^sftp:\/\//i ) {
-            $log->information("Checking for incoming packages at $server (instructions are: $_)");
+            $log->information("Checking for incoming packages at $server (instructions are: $instruction)");
             get_from_sftp(
                 REMOTE_SCLASS   => $r_sclass,
                 SERVER          => $server,
@@ -605,7 +611,6 @@ sub create_special {
 
     foreach my $replicalist ( keys %specialoutgoing ) {
 
-        # TODO What if this replica, has multiple special transports ?
         my ( $sclass, $server, $path ) = split( /,/, $specialoutgoing{$replicalist} );
         $log->information("Replica $replicalist uses storage class $sclass, to server $server in directory at $path\n") if $sw_debug;
         my @retval = grep { !/^$/ } qx(\"$synclistpgm\" -ship -sclass $sclass -replicas $replicalist 2>&1);
