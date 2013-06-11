@@ -30,24 +30,26 @@ use constant INI_NAME           => '/users.ini';          # maps to values used 
 
 ### Global variables ###
 my (
-    $sw_run,                                              # required to run
-    $sw_dryrun,                                           # only list selections
-    $sw_help,                                             # display help
-    $sw_verbose,
-    $sw_config_dir,
-    $sw_logfile,
-    $sw_debug,
-    %options,              # list of command line options
-    $cwd,                  # Current working directory
-    @vobtags,              # Array of known vobtags
-    $synclistpgm,          # synclist pgram
-    @normaltransport,      # list of replica that use default shipping
-    %storageclasses,       # list of storage classes and their storagebays
-    %psftp_known_hosts,    # list of known sftp hosts (psftp saves their certificate in registry)
-    %specialoutgoing,      # hash of replica's that this replica should send to, key is fqn replica-name, value is destination
-    %specialincoming,      # hash of replica's that this replica should receive from,  key is fqn replica-name, value is source
-    $ftpObject,            # ftp object
-    %inicontents,          # hash of contents from the ini file, filename is specified by constant INI_NAME
+    $sw_run,                 # required to run
+    $sw_dryrun,              # only list selections
+    $sw_help,                # display help
+    $sw_verbose,             # Verbose output
+    $sw_config_dir,          # path to directory with config files
+    $sw_logfile,             # path to logfile
+    $sw_debug,               # Enable debug
+    @sw_include_replicas,    # multivalue, patterns for including replica names
+    %options,                # list of command line options
+    $cwd,                    # Current working directory
+    @vobtags,                # Array of known vobtags
+    $synclistpgm,            # synclist pgram
+    @normaltransport,        # list of replica that use default shipping
+    %storageclasses,         # list of storage classes and their storagebays
+    %psftp_known_hosts,      # list of known sftp hosts (psftp saves their certificate in registry)
+    %specialoutgoing,        # hash of replica's that this replica should send to, key is fqn replica-name, value is destination
+    %specialincoming,        # hash of replica's that this replica should receive from,  key is fqn replica-name, value is source
+    $ftpObject,              # ftp object
+    %inicontents,            # hash of contents from the ini file, filename is specified by constant INI_NAME
+    $replica_inclusion,      # pattern, for including which replica names we should consider
 );
 my $log       = scriptlog->new;
 my $pccObject = pcc->new;
@@ -55,7 +57,7 @@ my $pccObject = pcc->new;
 # File version
 my $major   = 0;
 my $minor   = 1;
-my $build   = 12;
+my $build   = 13;
 my $VERSION = $pccObject->format_version_number( $major, $minor, $build );
 
 # Header history
@@ -75,6 +77,8 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------------
+2013-06-11  Jens Brejner   Limit outgoing packages, via new command-line switch, 
+                           see the help for switch -include_outgoing (0.1013)
 2013-06-10  Jens Brejner   Delete temporary files (0.1012)
 2013-06-05  Jens Brejner   Only visit each server minimal number of times (0.1011)
 2013-05-29  Jens Brejner   Write error and return instead of dying 
@@ -91,16 +95,29 @@ DATE        EDITOR         NOTE
 -------------------------------------------------------------------------------
  
 ENDREVISION
+###############################################################################
 my $usage = <<ENDUSAGE;
-$Scriptfile -run [-debug] [-verbose] [-logfile path_to_log_file]
+$Scriptfile -run [-include_outgoing pattern1,pattern2,...]
             [-config_dir path_to_folder]
+            [-debug] [-verbose] [-logfile path_to_log_file]
 $Scriptfile -help
 ENDUSAGE
 
 my $doc = <<ENDDOC;
 -run                    Required. Process all vobs                 
--help                   Only display the help you are now watching   
+-include_outgoing       Required. This requires your replica names to be named
+                        consistently, i.e. all replica's at a site Paris are 
+                        named replica:Paris_<vobtag>@\<vobtag>, the you can 
+                        call $Scriptfile with parameter 
+                        " -include_outgoing Paris_ " then only packages for 
+                        for site Paris will be created. Multiple values can
+                        be specified using comma as seperator. The patterns
+                        are treated case-sensitve. If this option is not used
+                        we will create packages for all known replica's
+  
 --- Auxiliary switches (can be omitted or used on all functions)---
+-help                   Only display the help you are now watching
+
 -config_dir <path>      Optional. Path to folder containting users.ini and 
                         the sync_cq*.cmd files. If not set, we expect them 
                         to exist in same folder as this script. 
@@ -176,14 +193,13 @@ sub get_connection_user {
 
 sub process_clearquest {
     my $sourcedir;
-    $log->information("Looking for scripts to process ClearQuest Multisite packages") if $sw_debug;
     if ($sw_config_dir) {
         $sourcedir = File::Spec->canonpath($sw_config_dir);
     }
     else {
         $sourcedir = File::Spec->canonpath($cwd);
     }
-    $log->information("Looking for scripts to process  in $sourcedir") if $sw_debug;
+    $log->information("Looking for scripts to process ClearQuest Multisite packages in $sourcedir") if $sw_debug;
     opendir( DIR, "$sourcedir" ) or die;
   FILE: while ( my $file = readdir(DIR) ) {
         next FILE unless ( $file =~ /^sync_cq/ );
@@ -296,7 +312,7 @@ sub get_from_sftp {
     my %parms           = @_;
     my %files_on_server = ();
     my $host            = ( split( '//', $parms{SERVER} ) )[1];    # variable $parms{SERVER} looks like sftp://unlikelysftp.hcl.com
-    my $target = $storageclasses{ $parms{LOCAL_SCLASS} } . TRANSPORT_INCOMING;
+    my $target = File::Spec->canonpath($storageclasses{ $parms{LOCAL_SCLASS} } . TRANSPORT_INCOMING);
     $log->information("Selected target for incoming files is $target") if $sw_debug;
 
     my $listcommands = File::Temp->new( TEMPLATE => 'temp_XXXXX', DIR => $ENV{TEMP}, SUFFIX => '.dat' );
@@ -353,7 +369,7 @@ sub put_to_sftp {
     my $server  = $parms{SERVER};
     my $srvpath = $parms{PUTPATH};
     my $host    = ( split( '//', $server ) )[1];
-    my $source  = $storageclasses{$sclass} . TRANSPORT_OUTGOING;
+    my $source  = File::Spec->canonpath($storageclasses{$sclass} . TRANSPORT_OUTGOING);
 
     # Accept sftp server's certificate
     init_psftp_host( server => $host, user => $s_user, password => $s_pass );
@@ -494,7 +510,7 @@ sub get_from_ftp {
     my %parms      = @_;
     my $serverpath = $parms{REMOTE_DROPPATH};    # path on the remote server
     ( $log->error("ERROR. Cant find Storage bay for class $parms{LOCAL_SCLASS}") && return ) unless exists $storageclasses{ $parms{LOCAL_SCLASS} };
-    my $filesystempath = $storageclasses{ $parms{LOCAL_SCLASS} } . TRANSPORT_INCOMING;
+    my $filesystempath = File::Spec->canonpath($storageclasses{ $parms{LOCAL_SCLASS} } . TRANSPORT_INCOMING);
 
     chdir $filesystempath;
     $log->information("Connecting to $parms{SERVER} as $parms{USER}");
@@ -561,7 +577,7 @@ sub put_to_ftp {
     my $serverpath = $parms{PUTPATH};
 
     ( $log->error("ERROR. Cant find Storage bay for class $sclass") && return ) unless exists $storageclasses{$sclass};
-    my $filesystempath = $storageclasses{$sclass} . TRANSPORT_OUTGOING;
+    my $filesystempath = File::Spec->canonpath($storageclasses{$sclass} . TRANSPORT_OUTGOING);
     chdir $filesystempath;
 
     $log->information("Opening connection to $server as $s_user ");
@@ -625,6 +641,7 @@ sub create_default {
     my %result = ();
     $log->information("Processing replica's for normal syncronization");
     foreach (@normaltransport) {
+        $log->information("Found record $_ in \@normaltransport") if $sw_debug;
         /(.*)(@.*)/;
         push @{ $result{$2} }, $1;
     }
@@ -640,12 +657,22 @@ sub create_default {
 }
 
 sub add_normal {
+
+    #  All replica that are not handled special are added for normal processing
+
     my %parms = @_;
-    my $siblings = $pccObject->get_siblings( tag => $parms{vobtag} );
-    if ($siblings) {
-        foreach my $target ( split( /,/, $siblings ) ) {
-            $target =~ s/(replica:)(.*)/$2/;
-            push @normaltransport, $target unless exists $specialoutgoing{$target};
+    my @siblings = split (/,/, $pccObject->get_siblings( tag => $parms{vobtag} ) );
+    $log->information( "Vob $parms{vobtag} has siblings:\n" . join( "\n", @siblings )  ) if $sw_debug;
+
+    foreach my $target ( grep { /$replica_inclusion/ } @siblings ) {
+        $log->information("Replica qualifier $target made it through replica_inclusion filter") if $sw_debug;
+        $target =~ s/(replica:)(.*)/$2/;
+        if ( exists $specialoutgoing{$target} ) {
+            $log->information("But it was not added because the replica is already marked for special handling") if $sw_debug;
+        }
+        else {
+            $log->information("Adding $target for normal handling in array \@normaltransport") if $sw_debug;
+            push @normaltransport, $target;
         }
     }
 }
@@ -666,12 +693,19 @@ sub add_special {
     }
     foreach (@outgoing) {
 
+        # Add records to the %specialoutgoing hash
+        #
         # @outgoing is list of values that has this
         # format: '    SpecialTransport -> replica:nightwalker@\enbase "ftp,sftp://ftp.praqma.net,/dir1/dir2/dir3"'
         my ( $target, $instruction ) = $_ =~ /^.*->\s+(\S+)\s+"(.*)"$/;    # group 1 is non-whitespace after arrow, group 2 is rest of string
         $target =~ s/(replica:)(.*)/$2/;
-        $specialoutgoing{$target} = $instruction;
-        $log->information("Added key $target with value $instruction in \%specialoutgoing") if $sw_debug;
+        if ( $target =~ /$replica_inclusion/ ) {
+            $specialoutgoing{$target} = $instruction;
+            $log->information("Added key $target with value $instruction in \%specialoutgoing") if $sw_debug;
+        }
+        else {
+            $log->information("Skipped adding $target in \%specialoutgoing because pattern was not found in \$replica_inclusion") if $sw_debug;
+        }
 
     }
     foreach (@incoming) {
@@ -696,11 +730,12 @@ sub get_candidates {
 
         # process vob only if it is replicated
         next unless ( $pccObject->IsReplicated( vobtag => $tag ) );
-        my $replicaname = $pccObject->get_localreplica( tag => $tag );
-        $log->information("Found a local replica name : [$replicaname] for vob $tag") if $sw_debug;
+        my $local_replicaname = $pccObject->get_localreplica( tag => $tag );
+        $log->information("Found a local replica name : [$local_replicaname] for vob $tag") if $sw_debug;
 
-        # if hyperlink type SpecialTransport exist from this replica to another, add the target to %specialoutgoing
-        add_special( replica => $replicaname );
+        # Check if hyperlink type SpecialTransport exist from this replica to another, add the target to %specialoutgoing
+
+        add_special( replica => $local_replicaname );
         add_normal( vobtag => $tag );
     }
 }
@@ -731,9 +766,15 @@ sub initialize {
     $log->enable(1);
     $log->conditional_enable( ( $sw_verbose || $sw_debug ) );
 
-    load_user_credentials();
-
-    # define the path to sync_export_list.bat
+    # if @sw_include_replicas is empty, also becomes empty and because it is used as a filter in the code
+    # and empty @sw_include_replicas will cause all replica's to be processed, that is not what we want
+    unless ( scalar(@sw_include_replicas) ) {
+        $log->set_verbose(1);
+        $log->assertion_failed("Dont know which replicas to export to, use the -include_replica swithc\n\n$usage\n$doc");
+    }
+    $replica_inclusion = join( '|', @sw_include_replicas );
+    load_user_credentials();    # slurp users.ini file
+                                # define the path to sync_export_list.bat
     $synclistpgm       = GetListExportScript();
     %storageclasses    = $pccObject->get_multisite_class_bays();
     %psftp_known_hosts = $pccObject->get_psftp_known_hosts();
@@ -744,18 +785,20 @@ sub initialize {
 
 sub validate_options {
     %options = (
-        "run!"         => \$sw_run,           # run - wont process without
-        "dryryn!"      => \$sw_dryrun,        # list findings only
-        "help!"        => \$sw_help,          # display help
-        "config_dir=s" => \$sw_config_dir,    # Configuration files like users.ini and sync*.cmd can be placed here
-        "logfile=s"    => \$sw_logfile,       # log file name
-        "verbose!"     => \$sw_verbose,       # more diagnostic output
-        "debug!"       => \$sw_debug,         # all output
+        "run!"               => \$sw_run,                # run - wont process without
+        "include_replicas=s" => \@sw_include_replicas,
+        "dryryn!"            => \$sw_dryrun,             # list findings only
+        "help!"              => \$sw_help,               # display help
+        "config_dir=s"       => \$sw_config_dir,         # Configuration files like users.ini and sync*.cmd can be placed here
+        "logfile=s"          => \$sw_logfile,            # log file name
+        "verbose!"           => \$sw_verbose,            # more diagnostic output
+        "debug!"             => \$sw_debug,              # all output
     );
     die "$usage" unless GetOptions(%options);
+    @sw_include_replicas = split( /,/, join( ',', @sw_include_replicas ) );
     $sw_verbose = $sw_debug ? $sw_debug : $sw_verbose;
     ( print "$usage\n$doc" && exit 0 ) if ($sw_help);
-    die "WARNNING\n-run switch is required, if you mean it:\n\n$usage\n$doc" unless ($sw_run);
+    die "WARNING\n-run switch is required, if you mean it:\n\n$usage\n$doc" unless ($sw_run);
     $sw_logfile = defined($sw_logfile) ? File::Spec->canonpath($sw_logfile) : undef;
 
 }
