@@ -57,7 +57,7 @@ my $pccObject = pcc->new;
 # File version
 my $major   = 0;
 my $minor   = 1;
-my $build   = 13;
+my $build   = 14;
 my $VERSION = $pccObject->format_version_number( $major, $minor, $build );
 
 # Header history
@@ -77,6 +77,7 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------------
+2013-06-28  Jens Brejner   Do not fail if lookup of foreign misses (0.1014)
 2013-06-11  Jens Brejner   Limit outgoing packages, via new command-line switch, 
                            see the help for switch -include_outgoing (0.1013)
 2013-06-10  Jens Brejner   Delete temporary files (0.1012)
@@ -234,7 +235,7 @@ sub get_sclass_for_incoming {
 
     # We should never get here, we were supposed to return when finding the the sclass in loop above
     # so if we get here - something is wrong
-    $log->assertion_failed("Failed to find storageclass for import for replica $replica, can't continue");
+    $log->warning("Failed to find storageclass for import for replica $replica, can't continue");
 }
 
 sub send_outgoing {
