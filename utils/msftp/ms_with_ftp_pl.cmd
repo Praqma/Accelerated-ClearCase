@@ -57,7 +57,7 @@ my $pccObject = pcc->new;
 # File version
 my $major   = 0;
 my $minor   = 1;
-my $build   = 14;
+my $build   = 15;
 my $VERSION = $pccObject->format_version_number( $major, $minor, $build );
 
 # Header history
@@ -77,6 +77,8 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------------
+2013-08-01  Jens Brejner   More filtering for which replicas and more 
+                           verbose output (0.1015)
 2013-06-28  Jens Brejner   Do not fail if lookup of foreign misses (0.1014)
 2013-06-11  Jens Brejner   Limit outgoing packages, via new command-line switch, 
                            see the help for switch -include_outgoing (0.1013)
@@ -200,14 +202,14 @@ sub process_clearquest {
     else {
         $sourcedir = File::Spec->canonpath($cwd);
     }
-    $log->information("Looking for scripts to process ClearQuest Multisite packages in $sourcedir") if $sw_debug;
+    $log->information("Looking for scripts to process ClearQuest Multisite packages in $sourcedir");    # if $sw_debug;
     opendir( DIR, "$sourcedir" ) or die;
   FILE: while ( my $file = readdir(DIR) ) {
         next FILE unless ( $file =~ /^sync_cq/ );
         my $l_file = File::Spec->canonpath("$sourcedir/$file");
-        $log->information("Found $l_file") if $sw_debug;
+        $log->information("Found $l_file");                                                             # if $sw_debug;
         my @reply = $pccObject->_cmd( command => $l_file );
-        $log->information( join( '', @reply ) ) if $sw_debug;
+        $log->information( join( '', @reply ) );                                                        # if $sw_debug;
     }
     closedir(DIR);
 }
@@ -217,10 +219,10 @@ sub get_sclass_for_incoming {
     my $replica = shift;
     my $pattern = qr/^([^@]+)[@]([\\]\S+$)/o;    # Anything expect '@', until sequence '@\'followed by non-whitespace
     my $tag;
-    $log->information("Finding storageclass to import to for replica $replica") if $sw_debug;
+    $log->information("Finding storageclass to import to for replica $replica");    # if $sw_debug;
     if ( $replica =~ $pattern ) {
         $tag = $2;
-        $log->information("The vobtag is $tag") if $sw_debug;
+        $log->information("The vobtag is $tag");                                    # if $sw_debug;
     }
     ( $log->error( "ERROR. Failed to get vobtag at line " . __LINE__ ) && return ) unless ($tag);
 
@@ -228,7 +230,7 @@ sub get_sclass_for_incoming {
         $_ =~ $pattern;
         my $receiving_vob = $2;
         if ( $tag eq $receiving_vob ) {
-            $log->information("Found $_ with value $specialoutgoing{$_}") if $sw_debug;
+            $log->information("Found $_ with value $specialoutgoing{$_}");          # if $sw_debug;
             return ( split( ',', $specialoutgoing{$_} ) )[0];
         }
     }
@@ -257,15 +259,15 @@ sub send_outgoing {
         $unique_outgoing{$uniq_communication}++;
     }
     if ( scalar( keys %unique_outgoing ) ) {
-        $log->information( "Found unique outgoing communications:\n" . join( "\n", keys %unique_outgoing ) ) if $sw_debug;
+        $log->information( "Found unique outgoing communications:\n" . join( "\n", keys %unique_outgoing ) );    # if $sw_debug;
     }
     else {
-        $log->error("ERROR. No records for outgoing communications, will not attempt to send to external servers");
+        $log->warning("No records for outgoing communications, will not attempt to send to external servers");
     }
     foreach my $outgoing ( keys %unique_outgoing ) {
         my ( $sclass, $server, $put_path, $server_user, $server_password ) = split( /,/, $outgoing );
         $log->information("Moving packages to $server and path $put_path");
-        $log->information("The instructions used are from $outgoing") if $sw_debug;
+        $log->information("The instructions used are from $outgoing");                                           # if $sw_debug;
         if ( $server =~ /^ftp:\/\//i ) {
             put_to_ftp(
                 SCLASS   => $sclass,
@@ -313,13 +315,13 @@ sub get_from_sftp {
     my %parms           = @_;
     my %files_on_server = ();
     my $host            = ( split( '//', $parms{SERVER} ) )[1];    # variable $parms{SERVER} looks like sftp://unlikelysftp.hcl.com
-    my $target = File::Spec->canonpath($storageclasses{ $parms{LOCAL_SCLASS} } . TRANSPORT_INCOMING);
-    $log->information("Selected target for incoming files is $target") if $sw_debug;
+    my $target = File::Spec->canonpath( $storageclasses{ $parms{LOCAL_SCLASS} } . TRANSPORT_INCOMING );
+    $log->information("Selected target for incoming files is $target");    # if $sw_debug;
 
     my $listcommands = File::Temp->new( TEMPLATE => 'temp_XXXXX', DIR => $ENV{TEMP}, SUFFIX => '.dat' );
-    print $listcommands "dir $parms{REMOTE_DROPPATH}\n";           # list files on in server path
-    print $listcommands "lcd $target\n";                           # local change directory
-    print $listcommands "mget $parms{REMOTE_DROPPATH}/*\n";        # Get all files from server to local
+    print $listcommands "dir $parms{REMOTE_DROPPATH}\n";                   # list files on in server path
+    print $listcommands "lcd $target\n";                                   # local change directory
+    print $listcommands "mget $parms{REMOTE_DROPPATH}/*\n";                # Get all files from server to local
     print $listcommands "exit\n";
 
     # Save server certificate, if we havent seen it before
@@ -370,7 +372,7 @@ sub put_to_sftp {
     my $server  = $parms{SERVER};
     my $srvpath = $parms{PUTPATH};
     my $host    = ( split( '//', $server ) )[1];
-    my $source  = File::Spec->canonpath($storageclasses{$sclass} . TRANSPORT_OUTGOING);
+    my $source  = File::Spec->canonpath( $storageclasses{$sclass} . TRANSPORT_OUTGOING );
 
     # Accept sftp server's certificate
     init_psftp_host( server => $host, user => $s_user, password => $s_pass );
@@ -386,11 +388,11 @@ sub put_to_sftp {
 
         # Delete the shipping order files, we don't need them
         if ( $file =~ /^sh_o_sync_/ ) {
-            $log->information("Removed unnessecary shipping order file: $file") if $sw_debug;
+            $log->information("Removed unnessecary shipping order file: $file");    # if $sw_debug;
             unlink $file or $log->warning("WARNING. Trouble removing $file: $!\n");
             next;
         }
-        print $putcommands "put $file\n";    # put each file found
+        print $putcommands "put $file\n";                                           # put each file found
     }
     chdir $cwd;
     closedir(DIR);
@@ -457,10 +459,10 @@ sub fetch_incoming {
     }
 
     if ( scalar( keys %unique_incoming ) ) {
-        $log->information( "Found unique incoming communications:\n" . join( "\n", keys %unique_incoming ) ) if $sw_debug;
+        $log->information( "Found unique incoming communications:\n" . join( "\n", keys %unique_incoming ) );    # if $sw_debug;
     }
     else {
-        $log->error("ERROR. No records for incoming communications, will not attempt to fetch from external servers");
+        $log->warning("No records for incoming communications, will not attempt to fetch from external servers");
     }
 
     foreach my $instruction ( keys %unique_incoming ) {
@@ -500,7 +502,7 @@ sub fetch_incoming {
 
     foreach ( keys %seen_classes ) {
 
-        $log->information("Importing from storageclass $_ ") if $sw_debug;
+        $log->information("Importing from storageclass $_ ");    # if $sw_debug;
         my $cmd = " syncreplica -import -receive -sclass $_";
         my @importmsg = $pccObject->mt( command => $cmd );
         $log->information( join( '', @importmsg ) );
@@ -509,9 +511,9 @@ sub fetch_incoming {
 
 sub get_from_ftp {
     my %parms      = @_;
-    my $serverpath = $parms{REMOTE_DROPPATH};    # path on the remote server
+    my $serverpath = $parms{REMOTE_DROPPATH};                    # path on the remote server
     ( $log->error("ERROR. Cant find Storage bay for class $parms{LOCAL_SCLASS}") && return ) unless exists $storageclasses{ $parms{LOCAL_SCLASS} };
-    my $filesystempath = File::Spec->canonpath($storageclasses{ $parms{LOCAL_SCLASS} } . TRANSPORT_INCOMING);
+    my $filesystempath = File::Spec->canonpath( $storageclasses{ $parms{LOCAL_SCLASS} } . TRANSPORT_INCOMING );
 
     chdir $filesystempath;
     $log->information("Connecting to $parms{SERVER} as $parms{USER}");
@@ -519,16 +521,16 @@ sub get_from_ftp {
     $ftpObject->cwd("$serverpath") || ( $log->error( "ERROR. Cannot change directory $serverpath " . $ftpObject->message ) && return );
     my @remotefiles = $ftpObject->ls();
     if ( scalar(@remotefiles) ) {
-        $log->information( "Found files on $parms{SERVER}:\n" . join( '\n', @remotefiles ) ) if $sw_debug;
+        $log->information( "Found files on $parms{SERVER}:\n" . join( '\n', @remotefiles ) );    # if $sw_debug;
         foreach (@remotefiles) {
             next unless ( $ftpObject->size($_) );
             if ( $ftpObject->get($_) ) {
-                $log->information("Retrieved $_") if $sw_debug;
+                $log->information("Retrieved $_");                                               # if $sw_debug;
             }
             else {
                 $log->warning("WARNING. Failed to retrieve $_: $ftpObject->message()  ");
             }
-            my $localsize = -s $_;    # Size of local file, just retrieved
+            my $localsize = -s $_;                                                               # Size of local file, just retrieved
             if ( $localsize == $ftpObject->size($_) ) {
                 $ftpObject->delete($_) or $log->warning("WARNING. Couldn't delete $_ from server");
             }
@@ -539,7 +541,7 @@ sub get_from_ftp {
         }
     }
     else {
-        $log->information("Did not find files on $parms{SERVER} in folder $serverpath") if $sw_debug;
+        $log->information("Did not find files on $parms{SERVER} in folder $serverpath");         # if $sw_debug;
     }
     stop_ftp();
     chdir $cwd;
@@ -556,7 +558,7 @@ sub load_user_credentials {
 
     # Read user credentials from ini file
     $log->assertion_failed("The required file $inifile is not accessible: $!") unless -f $inifile;
-    $log->information("Reading Credentials from users.ini") if $sw_debug;
+    $log->information("Reading Credentials from users.ini");    # if $sw_debug;
     %inicontents = $pccObject->read_ini( file => $inifile );
 
     # Change the keys of the anonymous hashes to lower case, need that for proper lookup later
@@ -578,7 +580,7 @@ sub put_to_ftp {
     my $serverpath = $parms{PUTPATH};
 
     ( $log->error("ERROR. Cant find Storage bay for class $sclass") && return ) unless exists $storageclasses{$sclass};
-    my $filesystempath = File::Spec->canonpath($storageclasses{$sclass} . TRANSPORT_OUTGOING);
+    my $filesystempath = File::Spec->canonpath( $storageclasses{$sclass} . TRANSPORT_OUTGOING );
     chdir $filesystempath;
 
     $log->information("Opening connection to $server as $s_user ");
@@ -594,7 +596,7 @@ sub put_to_ftp {
             unlink $file or $log->warning("WARNING. Trouble removing $file: $!");
             next;
         }
-        $log->information("Found file to be uploaded: $file") if $sw_debug;
+        $log->information("Found file to be uploaded: $file");    # if $sw_debug;
         if ( $ftpObject->put($file) ) {
             $log->information_always("Succesfully copied $file to $server in  $serverpath");
             unlink $file or $log->warning("WARNING. Failed to delete $file from $filesystempath");
@@ -604,7 +606,7 @@ sub put_to_ftp {
         }
     }
     closedir(DIR);
-    $log->information("Done for uploading files") if $sw_debug;
+    $log->information("Done for uploading files");                # if $sw_debug;
     stop_ftp();
     chdir $cwd;
 }
@@ -629,7 +631,7 @@ sub create_special {
     foreach my $replicalist ( keys %specialoutgoing ) {
 
         my ( $sclass, $server, $path ) = split( /,/, $specialoutgoing{$replicalist} );
-        $log->information("Replica $replicalist uses storage class $sclass, to server $server in directory at $path\n") if $sw_debug;
+        $log->information("Replica $replicalist uses storage class $sclass, to server $server in directory at $path\n");    # if $sw_debug;
         my @retval = grep { !/^$/ } qx(\"$synclistpgm\" -ship -sclass $sclass -replicas $replicalist 2>&1);
         chomp @retval;
         $log->information( join( '', @retval ) ) if ( $sw_debug && ( scalar(@retval) ) );
@@ -642,7 +644,7 @@ sub create_default {
     my %result = ();
     $log->information("Processing replica's for normal syncronization");
     foreach (@normaltransport) {
-        $log->information("Found record $_ in \@normaltransport") if $sw_debug;
+        $log->information("Found record $_ in \@normaltransport");    #if $sw_debug;
         /(.*)(@.*)/;
         push @{ $result{$2} }, $1;
     }
@@ -650,7 +652,7 @@ sub create_default {
         my $first = pop @{ $result{$vob} };
         $first = $first . $vob;
         my $replicalist = join( ',', $first, @{ $result{$vob} } );
-        $log->information("Calling for standard processing: [$replicalist]") if $sw_debug;
+        $log->information("Calling for standard processing: [$replicalist]");    # if $sw_debug;
         my @retval = grep { !/^$/ } qx(\"$synclistpgm\" -replicas $replicalist 2>&1);
         chomp @retval;
         $log->information( join( '', @retval ) ) if ( $sw_debug && ( scalar(@retval) ) );
@@ -662,17 +664,17 @@ sub add_normal {
     #  All replica that are not handled special are added for normal processing
 
     my %parms = @_;
-    my @siblings = split (/,/, $pccObject->get_siblings( tag => $parms{vobtag} ) );
-    $log->information( "Vob $parms{vobtag} has siblings:\n" . join( "\n", @siblings )  ) if $sw_debug;
+    my @siblings = split( /,/, $pccObject->get_siblings( tag => $parms{vobtag} ) );
+    $log->information( "Vob $parms{vobtag} has siblings:\n\t\t" . join( "\n\t\t", @siblings ) );    # if $sw_debug;
 
     foreach my $target ( grep { /$replica_inclusion/ } @siblings ) {
-        $log->information("Replica qualifier $target made it through replica_inclusion filter") if $sw_debug;
+        $log->information("Replica qualifier $target made it through replica_inclusion filter");    # if $sw_debug;
         $target =~ s/(replica:)(.*)/$2/;
         if ( exists $specialoutgoing{$target} ) {
-            $log->information("But it was not added because the replica is already marked for special handling") if $sw_debug;
+            $log->information("But it was not added because the replica is already marked for special handling");    # if $sw_debug;
         }
         else {
-            $log->information("Adding $target for normal handling in array \@normaltransport") if $sw_debug;
+            $log->information("Adding $target for normal handling in array \@normaltransport");                      # if $sw_debug;
             push @normaltransport, $target;
         }
     }
@@ -684,10 +686,10 @@ sub add_special {
     ## Add records in %specialoutgoing and $specialincoming if hyperlink is found
     my %parms = @_;
     my ( @outgoing, @incoming );
-    my $cmd     = "cleartool describe -ahlink " . TRANSPORT_HLTYPE . " $parms{replica}";
+    my $cmd     = "describe -ahlink " . TRANSPORT_HLTYPE . " $parms{replica}";
     my $pattern = '^\s+' . TRANSPORT_HLTYPE;
-    my @retval  = grep { /$pattern/ } $pccObject->ct( command => 'describe -ahlink ' . TRANSPORT_HLTYPE . " $parms{replica}" );
-    foreach (@retval) {
+    my @retval  = grep { /$pattern/ } $pccObject->ct( command => $cmd );
+    foreach ( grep { /replica:$replica_inclusion/ } @retval ) {
         chomp;
         push @outgoing, $_ if (/->/);
         push @incoming, $_ if (/<-/);
@@ -702,10 +704,10 @@ sub add_special {
         $target =~ s/(replica:)(.*)/$2/;
         if ( $target =~ /$replica_inclusion/ ) {
             $specialoutgoing{$target} = $instruction;
-            $log->information("Added key $target with value $instruction in \%specialoutgoing") if $sw_debug;
+            $log->information("Added key $target with value $instruction in \%specialoutgoing");    # if $sw_debug;
         }
         else {
-            $log->information("Skipped adding $target in \%specialoutgoing because pattern was not found in \$replica_inclusion") if $sw_debug;
+            $log->information("Skipped adding $target in \%specialoutgoing because pattern was not found in \$replica_inclusion");    # if $sw_debug;
         }
 
     }
@@ -718,7 +720,7 @@ sub add_special {
         my $target      = $parms{replica};
         $target =~ s/(replica:)(.*)/$2/;
         $specialincoming{$target} = $instruction;
-        $log->information("Added key $target with value $instruction in \%specialincoming") if $sw_debug;
+        $log->information("Added key $target with value $instruction in \%specialincoming");    # if $sw_debug;
     }
 }
 
@@ -727,12 +729,12 @@ sub get_candidates {
     # Find replicated vobs.
     #
     foreach my $tag (@vobtags) {
-        $log->information("Checking vobtag $tag") if $sw_debug;
+        $log->information("Checking vobtag $tag");                                              # if $sw_debug;
 
         # process vob only if it is replicated
         next unless ( $pccObject->IsReplicated( vobtag => $tag ) );
         my $local_replicaname = $pccObject->get_localreplica( tag => $tag );
-        $log->information("Found a local replica name : [$local_replicaname] for vob $tag") if $sw_debug;
+        $log->information("Found a local replica name : [$local_replicaname] for vob $tag");    # if $sw_debug;
 
         # Check if hyperlink type SpecialTransport exist from this replica to another, add the target to %specialoutgoing
 
@@ -764,7 +766,8 @@ sub initialize {
     $cwd = getcwd();
     $log->set_logfile($sw_logfile) if ($sw_logfile);
     $log->set_verbose($sw_verbose);
-    $log->enable(1);
+
+    #   $log->enable(1);
     $log->conditional_enable( ( $sw_verbose || $sw_debug ) );
 
     # if @sw_include_replicas is empty, also becomes empty and because it is used as a filter in the code
