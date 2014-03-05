@@ -227,7 +227,13 @@ sub get_ourfile {
 	my %parms    = @_;
 	my $location = $parms{location};    # The view storage folder
 	my $lookfor  = $parms{lookfor};
-	die "Missing parameters (location or lookfor)\n" unless ( $location && $lookfor );
+	
+	unless ( $location && $lookfor ) {
+		$log->warning("Missing parameters (location or lookfor)") ;
+		$sw_debug && $log->information("For location Parameter I got [$parms{location}]");
+		$sw_debug && $log->information("For lookfor Parameter I got [$parms{lookfor}]");
+	}
+
 	my $admindir = "$location\\admin\\";    # admin folder in storage
 
 	my $lookup = "$admindir.$lookfor";
