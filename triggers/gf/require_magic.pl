@@ -102,7 +102,7 @@ our $logfile = $log->get_logfile;
 ($logfile) && $log->information($semaphore_status);
 ($logfile) && $log->dump_ccvars;                              # Run this statement to have the trigger dump the CLEARCASE variables
 
-my $helphere = "http://dkclearp04.emea.group.grundfos.com/CCHelp";
+my $helphere = "http://dkclearp05.emea.group.grundfos.com";
 
 if ( lc( $ENV{'CLEARCASE_OP_KIND'} ) eq "mkelem" ) {          # continue only if operation type is what we are intended for..
 
