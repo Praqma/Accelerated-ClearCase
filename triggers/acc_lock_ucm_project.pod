@@ -1,0 +1,61 @@
+=pod
+
+=head1 NAME
+
+acc_lock_ucm_project - ClearCase trigger
+
+Script:        F<acc_lock_ucm_project.pl>
+
+Trigger name:  C<ACC_LOCK_UCM_PROJECT>
+
+Used as a post-op trigger on ucm pvob projects and streams to recursivly lock/unlock child streams and corresponding branches to streams and projects.
+
+=head1 SYNOPSIS
+
+Runs as ClearCase trigger script installed in adminvobs/pvobs
+
+The scripts installs itself correctly when executed outside a trigger context using:
+
+  acc_lock_ucm_project.pl -install -vob \thevob
+
+To learn the full syntax simply execute the the script without the -vob switch:
+
+  acc_lock_ucm_project.pl -install
+
+=head2 Restrictions
+
+During the install process, that script is supposed to run under the account which owns the VOB.
+The script will fail if that is not the case.
+
+An exception is if you execute it in -preview mode
+
+To bypass the script you must create the appropriate semaphor file first
+(see the POD documentation for praqma::trigger_helper->enable_semaphore_backdoor).
+
+It goes without saying, that to avoid misuse of this ability ClearCase administrators should make sure
+that triggers are executed - and semaphore files ar looked-up - at locations where common users only
+have read access. ...There! I said it anyway!
+
+=head1 DESCRIPTION
+
+Locking of projects or streams doesn't by default lock corresponding branches and child streams. This triggers purpose is to manage locks on these types in a more logic way.
+
+
+=head1 AUTHOR
+
+Olof Aldin, E<lt>olof@stickybit.seE<gt>.
+
+=head1 BUGS
+
+See the website below.
+
+=head1 COPYRIGHT
+
+This program is distributed under the GNU General Pulic License v3.0
+
+Support:    http://launchpad.net/acc
+
+=for html <a href="http://launchpad.net/acc">Project home at Launchpad</a>
+
+=cut
+

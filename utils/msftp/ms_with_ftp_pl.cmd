@@ -170,16 +170,20 @@ sub get_connection_user {
     my %parms = @_;
 
     my $inisection = "replica:$parms{REPLICA_NAME}";
+	
     unless ( exists $inicontents{$inisection} ) {
         $log->error("ERROR. Details for $inisection not found in ini file");
         return 1;
-    }
+    }else {
+	$log->information( "Entry for $inisection exists in lookup table");
+	}
 
     if ( exists ${ $inicontents{$inisection} }{user} ) {
         ${ $parms{CONNECT_USER} } = ${ $inicontents{$inisection} }{user};
     }
     else {
         $log->error("ERROR. User for replication in $inisection not found in ini file");
+		$log->information("This are the entries found under the key: " . join("\n", keys %{ $inicontents{$inisection} } )) ;
         return 1;
     }
 
@@ -301,7 +305,7 @@ sub init_psftp_host {
     # If the host is new, accept to save the certificate
     my %parms = @_;
     unless ( exists $psftp_known_hosts{ $parms{server} } ) {
-        my $cmd = "psftp.exe -pw $parms{password} $parms{user}\@$parms{server} 2>&1";
+        my $cmd = "psftp.exe -pw \"$parms{password}\" $parms{user}\@$parms{server} 2>&1";
         open( PS, "| $cmd" ) || $log->error("ERROR. Command $cmd Failed: $!\n");
         print PS "y\n";
         print PS "exit\n";
@@ -328,9 +332,16 @@ sub get_from_sftp {
     init_psftp_host( server => $host, user => $parms{USER}, password => $parms{PASSWORD} );
 
     # execute commands in download file
-    my $cmd = "psftp.exe -pw $parms{PASSWORD} -b $listcommands $parms{USER}\@$host";
-    my @remotefiles = $pccObject->_cmd( command => $cmd );
-    chomp @remotefiles;
+    my $cmd = "psftp.exe -pw \"$parms{PASSWORD}\" -b $listcommands $parms{USER}\@$host";
+    my @remotefiles = $pccObject->_cmd( command => $cmd , err_ok => 1);
+    unless (scalar(@remotefiles)) {
+		@remotefiles = $pccObject->_cmd( command => $cmd , err_ok => 1);
+	}
+    unless (scalar(@remotefiles)) {
+		@remotefiles = $pccObject->_cmd( command => $cmd);
+	}
+
+	chomp @remotefiles;
 
     # in the command output (stored in @remotefiles, we have the filenames and their size, put the info into %files_on_server
     foreach (@remotefiles) {
@@ -353,7 +364,7 @@ sub get_from_sftp {
         }
     }
     print $deletecommands "exit\n";
-    $cmd = "psftp.exe -pw $parms{PASSWORD} -b $deletecommands $parms{USER}\@$host";
+    $cmd = "psftp.exe -pw \"$parms{PASSWORD}\" -b $deletecommands $parms{USER}\@$host";
     @remotefiles = $pccObject->_cmd( command => $cmd );
     $log->information( join( '', @remotefiles ) );
     unlink $listcommands   unless $sw_debug;
@@ -398,8 +409,16 @@ sub put_to_sftp {
     closedir(DIR);
     print $putcommands "dir $srvpath\n";
     print $putcommands "exit\n";
-    my $cmd = "psftp.exe -pw $s_pass -b $putcommands $s_user\@$host";
-    my @reply = $pccObject->_cmd( command => $cmd );
+    my $cmd = "psftp.exe -pw \"$s_pass\" -b $putcommands $s_user\@$host";
+    my @reply = $pccObject->_cmd( command => $cmd, err_ok => 1 );
+	unless (scalar(@reply)) {
+		@reply = $pccObject->_cmd( command => $cmd, err_ok => 1 );
+	}
+	unless (scalar(@reply)) {
+		@reply = $pccObject->_cmd( command => $cmd );
+	}
+	
+	
     chomp @reply;
 
     # in the command output (stored in @reply, we have the filenames and their size, put the info into %files_on_server

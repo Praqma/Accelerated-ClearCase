@@ -1,5 +1,9 @@
 use strict;
 
+print "\nScript disabled 2015-01-21 by Olof Aldin, replaced by trigger\n";
+exit(0);
+
+
 my ( $project_unmatched, $branch_unmatched );
 
 my $helpmsg = <<ENDHELP;

@@ -12,7 +12,7 @@ no strict 'refs';
 
 $_maildomain = '';	# Example @ibm.com. Use this if the user's email is equal to login with this value appeneded.
 # for instance user joed has email joed@ibm.com. If you leave this blank, we will try to determine the email by using dsquery
-$_smtpserver = 'localhost'; # SMTP server name
+$_smtpserver = 'localhost'; # SMTP server name optionally with port to then the format is "server:port"
 $_fromadress = 'jbrejner@praqma.net'; # CC administrator email
 $_ccadmin_name = 'your Clearcase Administrator';
 $_graceperiod = 7; # How many days before quarantine

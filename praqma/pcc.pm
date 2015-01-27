@@ -603,8 +603,8 @@ sub read_ini {
     my ( $section, $keyword, $value );
     open( INI, "< $path" ) or die "Couldn't open $path for reading: $!\n";
   FILE: while (<INI>) {
-        next FILE if (/\s*#/);
-        next FILE if (/^\s+$/);
+        next FILE if (/^#.*/);
+		next FILE if (/^\s*$/);		   
         chomp;
 
         if (/^\s*\[(.*)\].*/) {
