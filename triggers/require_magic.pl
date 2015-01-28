@@ -22,7 +22,7 @@ BEGIN {
       }                    # Try to match on back-slashes (file path included) and correct mis-assumption if any found
 }
 
-use lib $Scriptdir. "..\\..";
+use lib $Scriptdir. "..";
 
 use praqma::scriptlog;
 use praqma::trigger_helper;
