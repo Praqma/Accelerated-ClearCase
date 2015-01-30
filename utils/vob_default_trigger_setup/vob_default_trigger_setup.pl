@@ -56,11 +56,31 @@ use scriptlog;
 use pcc 0.1011;
 use Net::Domain qw(hostfqdn);
 
+# Command line option parsing
+
+# Prints help info and exits
+sub print_usage($) {
+  my $message = shift;
+  print "\nERROR: $message\n\n" if ($message);
+  print "\nUsage: $Scriptfile [-help] -shareHost <HOSTNAME> { -vob <vob tag> | -allvobs }\n";
+  print "-help                   Prints this text\n";
+  print "-vob <vob tag>          Installs triggers for this vob only\n";
+  print "-allvobs                Installs triggers in all vobs\n";
+  print "-shareHost <HOSTNAME>   Hostname where share CCUTILS exist with PRAQMA/Triggers\n";
+  exit(1);
+}
+my ($p_help, $p_vob, $p_allvobs, $p_shareHost);
+my $result = GetOptions ("vob=s"        => \$p_vob,
+                         "allvobs"      => \$p_allvobs,
+						 "shareHost=s"  => \$p_shareHost,
+                         "help"         => \$p_help);
+print_usage("") if defined($p_help);
+print_usage("Must specify either -vob or -allvobs") unless (defined($p_vob) or defined($p_allvobs));
+print_usage("Must specify -shareHost") unless defined($p_shareHost);
+
 # should be passed with getopt
-#my $sw_trpath = '\\\\' . uc(hostfqdn()) . '\\CCUTILS\\PRAQMA\\Triggers';
-my $sw_trpath = '\\\\' . uc("DKCLEARP11.EMEA.GROUP.GRUNDFOS.COM") . '\\CCUTILS\\PRAQMA\\Triggers';
-my $sw_vob = "";
-#my $sw_vob = "\\tstPVOB";
+#my $sw_trpath = '\\\\' . uc("DKCLEARP11.EMEA.GROUP.GRUNDFOS.COM") . '\\CCUTILS\\PRAQMA\\Triggers';
+my $sw_trpath = '\\\\' . uc($p_shareHost) . '\\CCUTILS\\PRAQMA\\Triggers';
 
 chdir $ENV{SYSTEMDRIVE};
 
@@ -86,14 +106,7 @@ init_globals();
 
 foreach my $vobtag  (@vobs) {
 
-    #print "doing nothing for $vobtag... \n" if ($sw_vob && $vobtag ne $sw_vob);
-    next if ($sw_vob && $vobtag ne $sw_vob);
-
-    #next unless ( $vobtag =~ m/bbComponent/ || $vobtag =~ m/tstVOB/ || $vobtag =~ m/tstPVOB/ );
-    #next unless ( $vobtag =~ m/tstVOB/ || $vobtag =~ m/tstPVOB/ );
-	#next unless ( $vobtag eq '\\GMDS');
-	
-	#print "\nChecking vob $vobtag\n";
+	next if (!$p_allvobs && !(("$p_vob" eq "$vobtag") || ("\\$p_vob" eq "$vobtag") || ("$p_vob" eq "\\$vobtag")));
 
 	my @thisvobstypes = ();
 
