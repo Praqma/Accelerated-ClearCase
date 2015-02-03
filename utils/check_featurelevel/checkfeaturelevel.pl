@@ -22,7 +22,7 @@ use Getopt::Long;
 use praqma::scriptlog;
 
 # File version
-our $VERSION = "0.1";
+our $VERSION = "0.2";
 our $BUILD   = "1";
 
 # Header history
@@ -30,14 +30,14 @@ our $header = <<ENDHEADER;
 #########################################################################
 #     $Scriptfile  version $VERSION\.$BUILD
 #    
-#     Check feature level 
+#     Check feature level, raise replica family levels
 #     Execute with -help switch to learn more
 #
 #     Date:       
 #     Author:    
 #     Copyright: 
 #     License:    
-#     Support:    http://www.praqma.info
+#     Support:    http://www.praqma.info/
 #########################################################################
  
 ENDHEADER
@@ -47,13 +47,15 @@ our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
 2014-12-08  Filip Korling  Version 0.1: 1st release
+2015-02-03  Olof Aldin     Version 0.2: Added support for cleartool chflevel
+                                        and reporting on vob family flevel
 -------------------------------------------------------------------------
  
 ENDREVISION
 
 my $usage = <<ENDUSAGE;
 $Scriptfile -help
-Switches -site site [-vob vobtag | -allvobs] 
+Switches -site site [-vob vobtag | -allvobs] -level featurelevel
 Auxiliary switches [-[no]debug | -[no]verbose | -[no]logfile [location]
  
 ENDUSAGE
@@ -129,6 +131,7 @@ sub validate_options () {
 
 	die "$usage" unless GetOptions(%options);
 	die "$usage" unless $sw_current_site;
+	die "$usage" unless $sw_desired_fl_level;
 
 }
 
@@ -192,12 +195,13 @@ sub getvobs () {
   if ($sw_vob) {
         push @voblist, $sw_vob;
     } else {
-        @voblist = sort(run('cleartool lsvob -s',1));
+        @voblist = sort(run('cleartool lsvob -s ',1));
         chomp(@voblist);
     }
 }
 
-
+my %family_fl_raise_hosts;
+my %unrepl_fl_raise_hosts;
 sub check_feature_level () {
 
 	foreach my $vob (@voblist) {
@@ -222,8 +226,6 @@ sub check_feature_level () {
 			$vob_info = " (replicated)\n\tVob master: $vob_master_replica ($vob_is_mastered_here) Feature Level: $vob_family_fl Schema: $vob_schema"	 
 		}
 
-		
-
 		if ($sw_expected_schema && $sw_expected_schema!=$vob_schema) {
 			$log->information($info . $vob_info . " (but expected schema is $sw_expected_schema)");
 		} else {
@@ -237,8 +239,13 @@ sub check_feature_level () {
 			}
 			
 			if($sw_desired_fl_level >  $1) {
-				$log->information("\t$vob has level $1 but should be raised to $sw_desired_fl_level");
-				# TODO: include commands to chfllevel for replica
+                # Need to find out vob server hostname since unreplicated vob feature level
+                # can only be changed locally from the vob server host				
+				my $vob_desc_output = run("cleartool describe -l vob:$vob");
+				$vob_desc_output =~ /.*VOB storage host:pathname "([^:]+):/;
+				my $vob_host = $1;
+				$unrepl_fl_raise_hosts{$vob_host} = "" unless (defined($unrepl_fl_raise_hosts{$vob_host}));
+				$unrepl_fl_raise_hosts{$vob_host} =  $unrepl_fl_raise_hosts{$vob_host} . ":" . $vob;						
 			}
 
 		} else {
@@ -247,38 +254,48 @@ sub check_feature_level () {
 
 			my @replica_list = split /replica "(\w+)"/,$replicas;
 			shift @replica_list;
-			
 
-			my $nrof_replicas = scalar @replica_list;
-
+            # number of replicas for this vob
+			my $nrof_replicas = 0;
 			while (@replica_list) {
   				my ($rep,$rest) = splice @replica_list, 0, 2;
+			    $nrof_replicas = $nrof_replicas + 1;
   			
   				# skip replicas we can't get info for
   				next unless 
   					$rest =~ /master replica:\s(\w{3})(\w+)@([\\\w]+).*feature level:\s+(\w+)/s;
   				
-  				# skip replicas we don't get a fl for
-  				if ($4 eq "unknown") {
-  					$log->warning("\tReplica $rep returned unknown feature level. Skipping!!\n");
-  					next;
-				}
-
 				my $replica_info = "\tReplica: $rep has feature level $4";
   				if ($1 eq $sw_current_site) {
   					
   					# replica mastered at this site, report it			
-  					if($sw_desired_fl_level > $4) {
+  					if($4 eq "unknown" || $sw_desired_fl_level > $4) {
 
 	  					$log->information($replica_info . " (should be raised to $sw_desired_fl_level)");
-	  					# TODO: include commands to chfllevel for replica
+						my $cmd = "cleartool chflevel -replica $sw_desired_fl_level replica:${rep}\@${vob}";
+						if ($sw_dry_run) {
+					        $log->information("Dry run (just print): $cmd");
+					    } else {
+					        my $chflevel_output;
+                            $chflevel_output = run($cmd);
+					        if ($chflevel_output =~ /.*Replica feature level raised to.*/ ) {
+					            $log->information("Replica feature level was successfully raised to $sw_desired_fl_level for replica:${rep}\@${vob}\n");
+								$nrof_replicas = $nrof_replicas - 1;
+					        } else {
+					            $log->error("Raising feature level for replica:${rep}\@${vob} failed with message:\n" . $chflevel_output . "\n");
+						    }
+					    }
   					} else {
   						$log->information($replica_info) if $sw_verbose;
-  						# decrease number of replicas with correct level
+  						# decrease number of replicas with FL less than desired level
   						$nrof_replicas = $nrof_replicas - 1;
   					}
   				} else {
   					$log->information($replica_info . " (remote)") if $sw_verbose; 
+				    if ($sw_desired_fl_level <= $4) {
+  						# decrease number of replicas with FL less than desired level
+  						$nrof_replicas = $nrof_replicas - 1;
+					}
   				}
 			}
 
@@ -287,10 +304,41 @@ sub check_feature_level () {
 				$vob_is_mastered_here &&
 				($sw_desired_fl_level > $vob_family_fl))  {
 
-				$log->information("should raise vob family feature level to $sw_desired_fl_level");
+                # Need to find out vob server hostname since vob family feature level
+                # can only be changed locally from the vob server host				
+				my $vob_desc_output = run("cleartool describe -l vob:$vob");
+				$vob_desc_output =~ /.*VOB storage host:pathname "([^:]+):/;
+				my $vob_host = $1;
+				$family_fl_raise_hosts{$vob_host} = "" unless (defined($family_fl_raise_hosts{$vob_host}));
+				$family_fl_raise_hosts{$vob_host} =  $family_fl_raise_hosts{$vob_host} . ":" . $vob;
 			}
 		}
-	}	
+	}
+	$log->information("");
+	foreach my $vob_host (keys %family_fl_raise_hosts) {
+        $log->information("HOST $vob_host needs to raise vob family feature levels (run locally on vob server):");
+		my @sp = split(":",$family_fl_raise_hosts{$vob_host});
+		foreach my $vob (@sp) {
+		    next unless ($vob);
+			# to get return codes from script right
+			if ($sw_dry_run) {
+		        $log->error("cleartool chflevel -force -family $sw_desired_fl_level vob:$vob");
+			} else {
+		        $log->information("cleartool chflevel -force -family $sw_desired_fl_level vob:$vob");
+			}
+		}
+	}
+
+	$log->information("");
+	foreach my $vob_host (keys %unrepl_fl_raise_hosts) {
+        $log->information("HOST $vob_host needs to raise vob (unrepl) feature levels (run locally on vob server):");
+		if ($sw_dry_run) {
+		    $log->error("cleartool chflevel -auto $sw_desired_fl_level");
+		} else {
+		    $log->information("cleartool chflevel -auto $sw_desired_fl_level");
+		}
+	}
+
 	exit $log->get_accumulated_errorlevel();
 }
 
@@ -300,14 +348,11 @@ sub run ($$) {
 
     my $cmd         = shift;
     my $aslist      = shift;
-#    my $expecterror = shift; # optional
     my $cmdex       = $cmd . ' 2>&1';
     my @retval_list = qx($cmdex);
 
 
     my $retval_scl  = join '', @retval_list;
-
-#    if ($expecterror)
 
     $? && do {
         $log->enable(1);
