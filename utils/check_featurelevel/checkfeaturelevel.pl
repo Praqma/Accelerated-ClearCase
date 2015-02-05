@@ -322,9 +322,9 @@ sub check_feature_level () {
 		    next unless ($vob);
 			# to get return codes from script right
 			if ($sw_dry_run) {
-		        $log->error("cleartool chflevel -force -family $sw_desired_fl_level vob:$vob");
-			} else {
 		        $log->information("cleartool chflevel -force -family $sw_desired_fl_level vob:$vob");
+			} else {
+		        $log->error("cleartool chflevel -force -family $sw_desired_fl_level vob:$vob");
 			}
 		}
 	}
@@ -333,9 +333,9 @@ sub check_feature_level () {
 	foreach my $vob_host (keys %unrepl_fl_raise_hosts) {
         $log->information("HOST $vob_host needs to raise vob (unrepl) feature levels (run locally on vob server):");
 		if ($sw_dry_run) {
-		    $log->error("cleartool chflevel -auto $sw_desired_fl_level");
-		} else {
 		    $log->information("cleartool chflevel -auto $sw_desired_fl_level");
+		} else {
+		    $log->error("cleartool chflevel -auto $sw_desired_fl_level");
 		}
 	}
 
