@@ -322,6 +322,15 @@ sub getvobs () {
         my @sp = split(":",$family_fl_raise_hosts{$vob_host});
         foreach my $vob (@sp) {
             next unless ($vob);
+
+            # This site can only upgrade family feature levels for vobs mastered here. Therefore
+            # ignore vobs not mastered here
+            my $vobmastershipreplica = `cleartool describe -fmt %[master]p $vob`;
+            if ($vob ne $sw_current_site) {
+                $log->information("Vob $vob needs to raise family feature level and is ready for it but is mastered in $sw_current_site. Ignoring.\n");
+                next;
+            }
+
             # to get return codes from script right
             if ($sw_dry_run) {
                 $log->information("cleartool chflevel -force -family $sw_desired_fl_level vob:$vob");
