@@ -325,7 +325,7 @@ sub getvobs () {
 
             # This site can only upgrade family feature levels for vobs mastered here. Therefore
             # ignore vobs not mastered here
-            my $vobmastershipreplica = `cleartool describe -fmt %[master]p $vob`;
+            my $vobmastershipreplica = `cleartool describe -fmt %[master]p vob:$vob`;
             if ($vob ne $sw_current_site) {
                 $log->information("Vob $vob needs to raise family feature level and is ready for it but is mastered in $sw_current_site. Ignoring.\n");
                 next;
