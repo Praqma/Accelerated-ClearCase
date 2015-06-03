@@ -73,6 +73,7 @@ my $doc = <<ENDDOC;
 --- Auxiliary switches (can be omitted or used on all functions)---
  
 -dryrun                 Boolean. DRY RUN. Report what would be done, but don't do any changes.
+                        Note that it still mounts and umounts vobs!
  
 ENDDOC
 
@@ -135,8 +136,6 @@ sub getvobs () {
 ##### MAIN #####
 
 sub main () {
-    run("cleartool mount -all");
-
     # Verify existence or create temporary view
     my @lsview = run("cleartool lsview -s $sw_view_name",1);
     my $lsview = join(" ",@lsview);
@@ -158,8 +157,8 @@ sub main () {
     foreach my $vob (@voblist) {
         my $info = "Checking vob $vob";  
 
-	#$cmd = "cleartool mount " . $vob;
-	#run($cmd);
+	$cmd = "cleartool mount " . $vob;
+	run($cmd);
 
         $cmd = "cleartool describe m:\\${sw_view_name}" . ${vob} . "\\.";
 	$desc = join(" ",run($cmd,1));
@@ -181,11 +180,11 @@ sub main () {
 		$perms = $1;
 		if ( !$perms ) {
 		        $error = $error + 1;
-			print "ERROR: Unable to find permissions of vob root element for " . $vob;
+			print "ERROR: Unable to find permissions of vob root element for " . $vob . "\n";
 		}
 		if ( $perms ne "---" ) {
 			$error = $error + 1;
-			print "ERROR: Unable to update permissions of vob root element for " . $vob;
+			print "ERROR: Unable to update permissions of vob root element for " . $vob . "\n";
 		}
 
         } else {
@@ -195,6 +194,8 @@ sub main () {
             print "INFO: OK permissions for $vob\n";
           }
         }
+	$cmd = "cleartool umount " . $vob;
+	run($cmd);
     }
     if ( $error > 0 ) {
         print "\nERROR: There were $error errors found\n";
