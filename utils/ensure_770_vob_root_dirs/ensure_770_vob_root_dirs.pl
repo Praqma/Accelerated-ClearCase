@@ -54,6 +54,7 @@ DATE        EDITOR         NOTE
 ENDREVISION
 
 my $usage = <<ENDUSAGE;
+
 $Scriptfile -help
 Switches [-vob vobtag | -allvobs] -view view_name -view_stgloc stgloc
 Auxiliary switches [-dryrun]
@@ -92,13 +93,10 @@ our (
 
 &validate_options();
 
-#### SWITCH ####
 &help_mode();
-&enable_log();
 &getvobs();
-&main();
-#### SWITCH ####
-$log->assertion_failed("$header\nWrong syntax! Don't know what you want to do ? \n\n$usage");
+exit main();
+
 ###########################################################################################
 
 sub validate_options () {
@@ -109,62 +107,12 @@ sub validate_options () {
         "view_stgloc=s"  => \$sw_view_stgloc, # stgloc to create view on
         "vob=s"          => \$sw_vob,  # string, a single vobtag
         "allvobs"        => \$sw_allvobs, # bool, check all visible vobs
-        "logfile!"       => \$sw_logfile,
     );
 
-    die "$usage" unless GetOptions(%options);
-    die "$usage" unless $sw_view_name;
-    die "$usage" unless $sw_view_stgloc;
-    die "$usage" unless ($sw_vob || $sw_allvobs);
-
-}
-
-sub enable_log () {
-
-    # Overwrites the default logging setting, if set manually
-    defined($sw_debug) && do { $debug = $sw_debug }
-      && ( $verbose_mode = 1 );
-    defined($sw_verbose) && do { $verbose_mode = $sw_verbose };
-    defined($sw_logfile) && do { $log_enabled  = $sw_logfile };
-
-    my $argv_values = join( ' ', @ARGV );
-    foreach (@ARGV) {
-        $argv_values = $argv_values . "\"" . $_ . "\" ";    #rw2 use join
-
-    }
-
-    # Ensure consistent time formatting, see IBM Tech note 1249021
-    $ENV{'CCASE_ISO_DATE_FMT'} = "1";
-
-    # Checks ARGV for consistency and enables the log
-    if ($log_enabled) {
-        if ( scalar(@ARGV) gt 1 ) {
-            $log->assertion_failed(
-                "You have more then one value with no defined reference,\nonly valid option is logfile location \nRecorded values are:$argv_values");
-        }
-        $log->set_logfile( $ARGV[0] );
-        $log->enable();
-    }
-    else {
-        if ( scalar(@ARGV) gt 0 ) {
-            $log->assertion_failed("You have value(s) with no defined reference,\nRecorded values are: $argv_values");
-        }    # end if scalar(argv)
-        $log->conditional_enable();
-    }    # end if logfile
-
-    # Sets verbose
-    $verbose_mode
-      && do {
-        $log->set_verbose(1);
-      };
-
-    # Sets debug
-    $debug
-      && do {
-        $log->enable();
-        $log->set_verbose(1);
-        $log->information("DEBUG is ON");
-      };
+    die "\nUsage: $usage" unless GetOptions(%options);
+    die "\nUsage: $usage" unless $sw_view_name;
+    die "\nUsage: $usage" unless $sw_view_stgloc;
+    die "\nUsage: $usage" unless ($sw_vob || $sw_allvobs);
 
 }
 
@@ -184,46 +132,75 @@ sub getvobs () {
     }
 }
 
-# Verify existence or create temporary view
-my @lsview = run('cleartool lview $sw_view_name',1);
-run ('cleartool mkview -tag $sw_view_name -stgloc $sw_view_stgloc) unless (@lsview);
-@lsview = run('cleartool lview $sw_view_name',1);
-die "Unable to create working view ($sw_view_name). Exiting without doing anything" unless (@lsview);
-run('cleartool startview $sw_view_name',1);
-
-# $log->error("cleartool chflevel -auto $sw_desired_fl_level");
-
-#### MAIN ####
+##### MAIN #####
 
 sub main () {
+    run("cleartool mount -all");
+
+    # Verify existence or create temporary view
+    my @lsview = run("cleartool lsview -s $sw_view_name",1);
+    my $lsview = join(" ",@lsview);
+
+    if ( $lsview =~ /Error: No matching entries found/ ) {
+        run("cleartool mkview -tag $sw_view_name -stgloc $sw_view_stgloc");
+        @lsview = run("cleartool lsview $sw_view_name",1);
+        $lsview = join(" ",@lsview);
+        die "Unable to create working view ($sw_view_name). Exiting without doing anything" if ( $lsview =~ /Error: No matching entries found/);
+    }
+
+    run("cleartool startview $sw_view_name",1);
+
     my $perms;
-    #my $group;
     my $cmd;
+    my $error = 0;
+    my $desc;
 
     foreach my $vob (@voblist) {
         my $info = "Checking vob $vob";  
 
-        # call this as a sub!
-        # cleartool describe m:\${sw_view_name}\${vob}\.
-        $perms = "rwx";
-        #$group = "EMEA\DK-U-CC-Users";
+	#$cmd = "cleartool mount " . $vob;
+	#run($cmd);
+
+        $cmd = "cleartool describe m:\\${sw_view_name}" . ${vob} . "\\.";
+	$desc = join(" ",run($cmd,1));
+	$desc =~ s/\n/ /g;
+	$desc =~ /^.*Element Protection:.*Other:\s+: ([rwx-][rwx-][rwx-]).*$/;
+	$perms = $1;
+	die "Unable to find permissions of vob root element for $vob" unless ($perms);
 
         # Make sure permissions are correct
-        $cmd = "cleartool protect -chmod 770 m:\${sw_view_name}\${vob}\.";
-        print "DEBUG: $cmd ::\n";
-        if ( $perms != "---" && ! $sw_dry_run ) {
-          #run($cmd);
-          log->information("UPDATE: Running: $cmd ::\n");
-          # TBD: Check again or fail
+        $cmd = "cleartool protect -chmod 770 m:\\${sw_view_name}" . ${vob} . "\\.";
+        if ( $perms ne "---" && ! $sw_dry_run ) {
+        	run($cmd);
+        	print "UPDATE: Running: $cmd\n";
+
+        	$cmd = "cleartool describe m:\\${sw_view_name}" . ${vob} . "\\.";
+		$desc = join(" ",run($cmd,1));
+		$desc =~ s/\n/ /g;
+		$desc =~ /^.*Element Protection:.*Other:\s+: ([rwx-][rwx-][rwx-]).*$/;
+		$perms = $1;
+		if ( !$perms ) {
+		        $error = $error + 1;
+			print "ERROR: Unable to find permissions of vob root element for " . $vob;
+		}
+		if ( $perms ne "---" ) {
+			$error = $error + 1;
+			print "ERROR: Unable to update permissions of vob root element for " . $vob;
+		}
+
         } else {
-          if  $perms != "---" && $sw_dry_run ) {
-            log->information("DRY RUN: Would have run: $cmd ::\n");
+          if ( $perms ne "---" && $sw_dry_run ) {
+            print "DRY RUN: Would have run: $cmd\n";
           } else {
-            log->information("INFO: OK permissions for $sw_vob ::\n");
+            print "INFO: OK permissions for $vob\n";
           }
         }
     }
-    exit $log->get_accumulated_errorlevel();
+    if ( $error > 0 ) {
+        print "\nERROR: There were $error errors found\n";
+    }
+
+    return $error;
 }
 
 ### END OF MAIN ###
@@ -241,8 +218,7 @@ sub run ($$) {
     my $retval_scl  = join '', @retval_list;
 
     $? && do {
-        $log->enable(1);
-        $log->error("The command: $cmd failed!.\nIt returned:\n$retval_scl\n");
+        print "ERROR: The command: $cmd failed!.\nIt returned:\n$retval_scl\n";
     };
     return @retval_list if $aslist;
     return $retval_scl;
