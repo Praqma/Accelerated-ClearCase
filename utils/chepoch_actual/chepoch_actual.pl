@@ -91,7 +91,7 @@ my $log_enabled  = 1;
 our $log                = scriptlog->new;
 our (
      $sw_help,  $sw_logfile, $sw_vob, $sw_allvobs,
-    $sw_verbose,   $sw_debug, $sw_ignorePrefixes ,$sw_dry_run
+    $sw_verbose,   $sw_debug, $sw_ignorePrefixes ,$sw_dry_run,
     @voblist, %options,   
 );
 
@@ -110,7 +110,7 @@ sub validate_options () {
 
     %options = (
         "n!"             => \$sw_dry_run,          # don't do things, only show
-        "ignorePrefix=i" => \$sw_ignorePrefixes,   # integer, expected schema
+        "ignorePrefix=s" => \$sw_ignorePrefixes,   # integer, expected schema
         "vob=s"          => \$sw_vob,              # string, a single vobtag
         "allvobs"        => \$sw_allvobs,          # bool, check all visible vobs
         "logfile!"       => \$sw_logfile,
@@ -192,34 +192,49 @@ sub getvobs () {
 
     sub chepoch_actual () {
 
-    my @ignorePrefixes = split(",",sw_ignorePrefixes);
-    my $cmd, $out;
+    my @ignorePrefixes = split(",",$sw_ignorePrefixes);
+    my $cmd;
+	my $out;
+	my $message;
 
     foreach my $vob (@voblist) {
-        my $info = "Checking vob $vob";  
+	
+		# first check if multisite is enabled
+		my $lsreplica = run("multitool lsreplica -short -invob $vob");
+		my $nbr_of_lines = $lsreplica =~ tr/\n//;
+		print "DEBUG: Vob $vob is not replicated. Ignoring...\n" if ($sw_debug && ($nbr_of_lines <= 1));
+		next if ($nbr_of_lines <= 1);
+		print "Vob $vob has $nbr_of_lines replicas.\n" if ($sw_debug);
 
-        my $lsreplica = run("multitool lsreplica -short -siblings -invob $vob");
+        my $message = "Checking vob $vob";  
+		print "INFO: " . $message . "\n" if ($sw_verbose || $sw_debug);
+		
+		# then run again to get siblings
+        $lsreplica = run("multitool lsreplica -short -siblings -invob $vob");
         my @lsreplicas = split("\n",$lsreplica);
 
         foreach my $replica (@lsreplicas) {
-            $replica =~ /^([^_]+_(.*)$/;
+            $replica =~ /^([^_]+)_(.*)$/;
             my $prefix = $1;
             my $vobName = $2;
             die "Unable to extract site prefix from vob ($vob). Prefix: $prefix" unless ($prefix);
             die "Unable to extract vob name from vob ($vob). Vob name: $vobName" unless ($vobName);
 
-            if ($prefix in $ignorePrefixes) {
-                log->information("DEBUG: Ignoring replica $replica due to prefix in ignore prefix (prefix: $prefix)\n") if ($sw_debug);
+			
+			if ( grep { $prefix eq $_ } @ignorePrefixes ) {
+		        $message = "DEBUG: Ignoring replica $replica due to prefix in ignore prefix (prefix: $prefix)";
+			    print $message . "\n" if ($sw_debug);
                 next;
             }
 
             $cmd = "multitool chepoch -actual replica:$replica\@$vob";
-            log->information("INFO: $cmd ::");
-            #$out = run($cmd);
-            #log->information($out);
+            print "INFO: cmd: $cmd ::\n" if ($sw_debug || $sw_verbose);
+            $out = run($cmd);
+			print "$out" if ($sw_debug);
         }
     }
 
+	print "DEBUG: accumulated error level: " . $log->get_accumulated_errorlevel() . "::\n";
     exit $log->get_accumulated_errorlevel();
 }
 
