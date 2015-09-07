@@ -100,6 +100,7 @@ $log->information("logfile is: $logfile\n");    # Logfile is null if logging isn
 $log->information($semaphore_status);
 $log->dump_ccvars();                            # Run this statement to have the trigger dump the CLEARCASE variables
 
+
 ########################### MAIN ###########################
 if ( ( $ENV{CLEARCASE_OP_KIND} eq 'chbl' ) && defined( $ENV{CLEARCASE_PROMOTION_LEVEL} ) ) {
 
@@ -116,6 +117,12 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq 'chbl' ) && defined( $ENV{CLEARCASE_PROMOTION_
 	$log->information(
 		"\$plevel has value [$plevel]\n\$stream has value [$stream]\n\$baseline has value [$baseline]\n\$component has value [$component]\n");
 
+	# TEST TEST
+	#$baseline = "baseline:GEPA_BUILD_D_Int_V0.0.0.333_02-09-2015-080454\@\\appComponents";
+	#$component = "component:_GEPA_BUILD\@\\appComponents";
+	#$stream = "stream:GEPA_BUILD_D_Int\@\\appComponents";
+	#$plevel = "TESTED";
+
 	unless ( $clearcase->is_rootless( component => "$component" ) ) {
 		$log->information("The component [$component] has a root directory, nothing to do");
 		exit 0;
@@ -128,10 +135,18 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq 'chbl' ) && defined( $ENV{CLEARCASE_PROMOTION_
 		exit 0;
 	}
 
+		# Get baseline name without any incremental numbers (.1234)
+		$baseline =~ /^baseline:(.+)@.*$/;
+		my $baseline_name = $1;
+		#$baseline_name =~ /^(.*)\.\d\d\d?\d?$/;
+		#$baseline_name = $1 if (defined($1));
+	
 	# Determine if any of the found baselines, qualify for change
 	foreach (@depends_on) {
 		$log->information("Checking dependant baseline $_");
 
+		my $dep_baseline = $_;
+		
 		my $cmd = "describe -fmt %[plevel]p,%[bl_stream]Xp,%[component]Xp $_";
 		my ( $dep_level, $dep_stream, $dep_comp ) = split( /,/, $clearcase->ct( command => $cmd ) );
 
@@ -152,6 +167,16 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq 'chbl' ) && defined( $ENV{CLEARCASE_PROMOTION_
 		if ( $plevel eq $dep_level ) {
 			$log->information("The promotion level is already as set properly");
 			next;    # for whatever reason the dependant's promotion level is already the proper value
+		}
+		
+		# Get dependant baseline name without any incremental numbers (.1234)
+		$dep_baseline =~ /^baseline:(.+)@.*$/;
+		my $dep_baseline_name = $1;
+		$dep_baseline_name =~ /^(.*)\.\d\d\d?\d?$/;
+		$dep_baseline_name = $1 if (defined($1));
+		if ($dep_baseline_name ne $baseline_name) {
+			$log->information("Not same baseline for sub component");
+			next;
 		}
 		else {
 			$log->set_verbose(1);
