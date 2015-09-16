@@ -67,6 +67,10 @@ ENDHEADER
 our $revision = <<ENDREVISION;
 DATE        EDITOR         NOTE
 ----------  -------------  ----------------------------------------------
+2015-09-16  Olof Aldin     Changed back to prev behavior after request
+                           from Flemming
+2015-09-07  Olof Aldin     Now only changes promotion level for sub
+                           component baselines with same name. See #13381
 2012-03-13  Jens Brejner   Test for env. var CLEARCASE_PROMOTION_LEVEL
                            before start processing (v1.0.2)
 2012-03-13  Jens Brejner   Initial version (version 1.0.1)
@@ -168,16 +172,6 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq 'chbl' ) && defined( $ENV{CLEARCASE_PROMOTION_
 			$log->information("The promotion level is already as set properly");
 			next;    # for whatever reason the dependant's promotion level is already the proper value
 		}
-		
-		# Get dependant baseline name without any incremental numbers (.1234)
-		$dep_baseline =~ /^baseline:(.+)@.*$/;
-		my $dep_baseline_name = $1;
-		$dep_baseline_name =~ /^(.*)\.\d\d\d?\d?$/;
-		$dep_baseline_name = $1 if (defined($1));
-		if ($dep_baseline_name ne $baseline_name) {
-			$log->information("Not same baseline for sub component");
-			next;
-		}
 		else {
 			$log->set_verbose(1);
 			$log->enable(1);
@@ -186,6 +180,17 @@ if ( ( $ENV{CLEARCASE_OP_KIND} eq 'chbl' ) && defined( $ENV{CLEARCASE_PROMOTION_
 			$log->information("To execute: [ $cmd]\n");
 			$clearcase->ct( command => $cmd );
 		}
+
+		## Get dependant baseline name without any incremental numbers (.1234)
+		#$dep_baseline =~ /^baseline:(.+)@.*$/;
+		#my $dep_baseline_name = $1;
+		#$dep_baseline_name =~ /^(.*)\.\d\d\d?\d?$/;
+		#$dep_baseline_name = $1 if (defined($1));
+		#if ($dep_baseline_name ne $baseline_name) {
+		#	$log->information("Not same baseline for sub component");
+		#	next;
+		#}
+
 	}
 }
 exit 0;
